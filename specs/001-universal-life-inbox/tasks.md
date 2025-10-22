@@ -1,0 +1,252 @@
+# Tasks: Clutter.AI Universal Life Inbox
+
+**Input**: Design documents from `/specs/001-universal-life-inbox/`
+**Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
+
+**Tests**: No explicit test requirements found in specifications - focusing on implementation tasks.
+
+**Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
+
+## Format: `[ID] [P?] [Story] Description`
+- **[P]**: Can run in parallel (different files, no dependencies)
+- **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3)
+- Include exact file paths in descriptions
+
+## Path Conventions
+Based on plan.md structure: `backend/src/`, `admin-dashboard/src/`
+
+---
+
+## Phase 1: Setup (Shared Infrastructure)
+
+**Purpose**: Project initialization and basic structure
+
+- [ ] T001 Create backend project structure with NestJS in backend/
+- [ ] T002 Create admin dashboard structure with React in admin-dashboard/
+- [ ] T003 [P] Configure TypeScript, ESLint, and Prettier for backend in backend/.eslintrc.js and backend/tsconfig.json
+- [ ] T004 [P] Configure TypeScript, ESLint, and Prettier for frontend in admin-dashboard/.eslintrc.js and admin-dashboard/tsconfig.json
+- [ ] T005 [P] Setup package.json dependencies for NestJS, TypeORM, Supabase client in backend/package.json
+- [ ] T006 [P] Setup package.json dependencies for React, testing libraries in admin-dashboard/package.json
+- [ ] T007 Setup Docker development environment with docker-compose.yml
+- [ ] T008 Configure environment variables template in backend/.env.example and admin-dashboard/.env.example
+
+---
+
+## Phase 2: Foundational (Blocking Prerequisites)
+
+**Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
+
+**⚠️ CRITICAL**: No user story work can begin until this phase is complete
+
+- [ ] T009 Setup Supabase database connection and TypeORM configuration in backend/src/config/database.config.ts
+- [ ] T010 Create database migrations for core entities in backend/src/database/migrations/
+- [ ] T011 [P] Create User entity with TypeORM in backend/src/entities/user.entity.ts
+- [ ] T012 [P] Create Category entity with TypeORM in backend/src/entities/category.entity.ts  
+- [ ] T013 [P] Create Dump entity with TypeORM in backend/src/entities/dump.entity.ts
+- [ ] T014 [P] Create Reminder entity with TypeORM in backend/src/entities/reminder.entity.ts
+- [ ] T015 Seed categories table with predefined categories in backend/src/database/seeds/categories.seed.ts
+- [ ] T016 [P] Setup JWT authentication module in backend/src/modules/auth/auth.module.ts
+- [ ] T017 [P] Implement phone verification service in backend/src/modules/auth/phone-verification.service.ts
+- [ ] T018 [P] Setup global error handling and logging in backend/src/common/filters/http-exception.filter.ts
+- [ ] T019 [P] Configure CORS and security middleware in backend/src/main.ts
+- [ ] T020 [P] Setup Supabase Storage client for media files in backend/src/config/storage.config.ts
+- [ ] T021 [P] Setup AI services configuration (Claude, Google Cloud) in backend/src/config/ai.config.ts
+
+**Checkpoint**: Foundation ready - user story implementation can now begin in parallel
+
+---
+
+## Phase 3: User Story 1 - Basic Content Capture and AI Processing (Priority: P1) 🎯 MVP
+
+**Goal**: Users can send any content type (text, voice, photo) to WhatsApp bot and receive immediate AI-processed confirmation with categorization and actions taken.
+
+**Independent Test**: Send various content types to WhatsApp bot and verify AI categorization, entity extraction, and confirmation responses work correctly.
+
+### Implementation for User Story 1
+
+- [ ] T022 [P] [US1] Create AuthController with phone verification endpoints in backend/src/modules/auth/auth.controller.ts
+- [ ] T023 [P] [US1] Implement AuthService with JWT token generation in backend/src/modules/auth/auth.service.ts
+- [ ] T024 [P] [US1] Create UserService with CRUD operations in backend/src/modules/users/user.service.ts
+- [ ] T025 [P] [US1] Setup Telegram Bot API integration in backend/src/modules/bots/telegram.service.ts
+- [ ] T026 [P] [US1] Setup WhatsApp webhook handler via Twilio in backend/src/modules/bots/whatsapp.service.ts
+- [ ] T027 [P] [US1] Create Claude AI service for content understanding in backend/src/modules/ai/claude.service.ts
+- [ ] T028 [P] [US1] Create Google Cloud Speech-to-Text service in backend/src/modules/ai/speech.service.ts
+- [ ] T029 [P] [US1] Create Google Cloud Vision OCR service in backend/src/modules/ai/vision.service.ts
+- [ ] T030 [US1] Implement DumpService for content processing workflow in backend/src/modules/dumps/dump.service.ts
+- [ ] T031 [US1] Create WebhookController for Telegram bot interactions in backend/src/modules/bots/telegram.controller.ts
+- [ ] T032 [US1] Create WebhookController for WhatsApp interactions in backend/src/modules/bots/whatsapp.controller.ts
+- [ ] T033 [US1] Implement content categorization logic with confidence scoring in backend/src/modules/ai/categorization.service.ts
+- [ ] T034 [US1] Implement entity extraction from text content in backend/src/modules/ai/extraction.service.ts
+- [ ] T035 [US1] Create bot response formatter for structured confirmations in backend/src/modules/bots/response-formatter.service.ts
+- [ ] T036 [US1] Add media file upload handling to Supabase Storage in backend/src/modules/dumps/media-upload.service.ts
+- [ ] T037 [US1] Implement voice message transcription workflow in backend/src/modules/dumps/voice-processor.service.ts
+- [ ] T038 [US1] Implement image OCR processing workflow in backend/src/modules/dumps/image-processor.service.ts
+- [ ] T039 [US1] Add error handling for AI service failures with fallback responses in backend/src/modules/ai/ai-fallback.service.ts
+
+**Checkpoint**: At this point, User Story 1 should be fully functional - users can dump content and receive AI-processed confirmations
+
+---
+
+## Phase 4: User Story 2 - Natural Language Search and Retrieval (Priority: P2)
+
+**Goal**: Users can find previously dumped content using natural conversational language with fuzzy matching and semantic search.
+
+**Independent Test**: Dump various content, then search with natural language queries and verify relevant results are returned with context.
+
+### Implementation for User Story 2
+
+- [ ] T040 [P] [US2] Setup pgvector extension and embedding generation in backend/src/modules/search/vector.service.ts
+- [ ] T041 [P] [US2] Create SearchService with natural language processing in backend/src/modules/search/search.service.ts
+- [ ] T042 [P] [US2] Implement search query enhancement using Claude API in backend/src/modules/search/query-enhancement.service.ts
+- [ ] T043 [P] [US2] Create SearchController with search endpoints in backend/src/modules/search/search.controller.ts
+- [ ] T044 [US2] Implement semantic similarity search using pgvector in backend/src/modules/search/semantic-search.service.ts
+- [ ] T045 [US2] Add search result ranking and relevance scoring in backend/src/modules/search/ranking.service.ts
+- [ ] T046 [US2] Implement fuzzy text matching for partial queries in backend/src/modules/search/fuzzy-match.service.ts
+- [ ] T047 [US2] Add time-based filtering for search results in backend/src/modules/search/filters.service.ts
+- [ ] T048 [US2] Integrate search functionality into bot commands (/search) in backend/src/modules/bots/commands/search.command.ts
+- [ ] T049 [US2] Add search result formatting for bot responses in backend/src/modules/bots/formatters/search-formatter.service.ts
+
+**Checkpoint**: At this point, User Story 2 should be fully functional - users can search and retrieve content using natural language
+
+---
+
+## Phase 5: User Story 4 - Error Recovery and Manual Correction (Priority: P2)
+
+**Goal**: When AI fails or misunderstands content, users can report issues and system handles edge cases gracefully without losing information.
+
+**Independent Test**: Send ambiguous content, use /report command, and verify fallback systems work correctly with manual review workflow.
+
+### Implementation for User Story 4
+
+- [ ] T050 [P] [US4] Create bot command handlers for /recent, /report, /help in backend/src/modules/bots/commands/
+- [ ] T051 [P] [US4] Implement manual review flagging system in backend/src/modules/dumps/review.service.ts
+- [ ] T052 [P] [US4] Create admin interface for reviewing flagged content in admin-dashboard/src/pages/ReviewPage.tsx
+- [ ] T053 [US4] Add confidence threshold handling for low-confidence AI results in backend/src/modules/ai/confidence.service.ts
+- [ ] T054 [US4] Implement error reporting and user feedback collection in backend/src/modules/feedback/feedback.service.ts
+- [ ] T055 [US4] Create FeedbackController for error reporting endpoints in backend/src/modules/feedback/feedback.controller.ts
+- [ ] T056 [US4] Add graceful degradation for AI service outages in backend/src/modules/ai/resilience.service.ts
+- [ ] T057 [US4] Implement content backup and recovery mechanisms in backend/src/modules/dumps/backup.service.ts
+
+**Checkpoint**: At this point, User Story 4 should be fully functional - system gracefully handles AI failures and user corrections
+
+---
+
+## Phase 6: User Story 5 - Multi-Modal Content Processing (Priority: P2)
+
+**Goal**: Users can dump any content type (voice, photos, emails, screenshots) and AI extracts meaningful information from each format.
+
+**Independent Test**: Send various content types and verify appropriate processing for each format with extracted entities.
+
+### Implementation for User Story 5
+
+- [ ] T058 [P] [US5] Enhance image processing for document types (bills, receipts) in backend/src/modules/ai/document-processor.service.ts
+- [ ] T059 [P] [US5] Implement email forwarding integration in backend/src/modules/email/email-processor.service.ts
+- [ ] T060 [P] [US5] Add screenshot text extraction capabilities in backend/src/modules/ai/screenshot-processor.service.ts
+- [ ] T061 [US5] Create content type detection and routing service in backend/src/modules/dumps/content-router.service.ts
+- [ ] T062 [US5] Implement multi-language support for voice transcription in backend/src/modules/ai/multi-lang-speech.service.ts
+- [ ] T063 [US5] Add handwriting recognition for photographed notes in backend/src/modules/ai/handwriting.service.ts
+- [ ] T064 [US5] Create email ingestion webhook endpoint in backend/src/modules/email/email.controller.ts
+
+**Checkpoint**: At this point, User Story 5 should be fully functional - system processes all content types effectively
+
+---
+
+## Phase 7: User Story 3 - Daily Digest and Proactive Reminders (Priority: P3)
+
+**Goal**: Users receive morning digests and contextual reminders at optimal times with proactive assistance.
+
+**Independent Test**: Set up various dumps with different urgencies and verify digest content and reminder timing work correctly.
+
+### Implementation for User Story 3
+
+- [ ] T065 [P] [US3] Create ReminderService with scheduling logic in backend/src/modules/reminders/reminder.service.ts
+- [ ] T066 [P] [US3] Implement daily digest generation service in backend/src/modules/notifications/digest.service.ts
+- [ ] T067 [P] [US3] Create ReminderController with reminder endpoints in backend/src/modules/reminders/reminder.controller.ts
+- [ ] T068 [P] [US3] Setup cron jobs for digest delivery in backend/src/modules/notifications/cron.service.ts
+- [ ] T069 [US3] Implement proactive reminder logic based on content analysis in backend/src/modules/reminders/proactive.service.ts
+- [ ] T070 [US3] Create notification delivery service for multiple channels in backend/src/modules/notifications/delivery.service.ts
+- [ ] T071 [US3] Add reminder completion tracking and follow-up logic in backend/src/modules/reminders/tracking.service.ts
+- [ ] T072 [US3] Implement calendar integration for extracted events in backend/src/modules/calendar/calendar.service.ts
+- [ ] T073 [US3] Add package tracking integration for delivery updates in backend/src/modules/tracking/package-tracking.service.ts
+
+**Checkpoint**: At this point, User Story 3 should be fully functional - users receive timely digests and proactive reminders
+
+---
+
+## Phase 8: Admin Dashboard (Cross-cutting)
+
+**Purpose**: Administrative interface for monitoring and managing the system
+
+- [ ] T074 [P] Create admin authentication pages in admin-dashboard/src/pages/auth/
+- [ ] T075 [P] Create user management interface in admin-dashboard/src/pages/users/UserListPage.tsx
+- [ ] T076 [P] Create dumps overview interface in admin-dashboard/src/pages/dumps/DumpsPage.tsx
+- [ ] T077 [P] Create system analytics dashboard in admin-dashboard/src/pages/analytics/AnalyticsPage.tsx
+- [ ] T078 [P] Implement API client for admin operations in admin-dashboard/src/services/api.service.ts
+- [ ] T079 [P] Create reusable UI components in admin-dashboard/src/components/
+- [ ] T080 Setup admin dashboard routing and navigation in admin-dashboard/src/App.tsx
+
+---
+
+## Phase 9: Polish & Production Readiness
+
+**Purpose**: Final optimizations and production deployment preparation
+
+- [ ] T081 [P] Add comprehensive error logging and monitoring integration
+- [ ] T082 [P] Implement rate limiting for API endpoints in backend/src/common/guards/throttle.guard.ts
+- [ ] T083 [P] Add API documentation with Swagger in backend/src/main.ts
+- [ ] T084 [P] Setup health check endpoints in backend/src/health/health.controller.ts
+- [ ] T085 [P] Configure production environment variables and secrets
+- [ ] T086 [P] Setup CI/CD pipeline configuration
+- [ ] T087 Optimize database queries and add performance monitoring
+- [ ] T088 Add security headers and HTTPS configuration
+- [ ] T089 Setup backup and disaster recovery procedures
+- [ ] T090 Create user documentation and onboarding materials
+
+---
+
+## Dependencies & Execution Strategy
+
+### User Story Completion Order
+```
+Phase 1 (Setup) → Phase 2 (Foundation) → Phase 3 (US1) → Phase 4 (US2) → Phase 5 (US4) → Phase 6 (US5) → Phase 7 (US3) → Phase 8 (Admin) → Phase 9 (Polish)
+```
+
+### Parallel Execution Opportunities
+
+**Within Phase 2 (Foundation)**: Tasks T011-T014 (entities), T016-T017 (auth), T018-T021 (config) can run in parallel
+
+**Within Phase 3 (US1)**: Tasks T022-T029 (controllers and AI services) can run in parallel, then T030-T039 depend on earlier completion
+
+**Within Phase 4 (US2)**: Tasks T040-T043 (search infrastructure) can run in parallel, then T044-T049 depend on search foundation
+
+### Independent Test Criteria
+
+- **US1**: Can send text/voice/image to bot and receive categorized AI response
+- **US2**: Can search for dumped content using natural language and get relevant results  
+- **US3**: Receives scheduled digests and proactive reminders based on content
+- **US4**: Can report AI errors and system gracefully handles failures
+- **US5**: All content types (email, screenshots, documents) are processed correctly
+
+### MVP Scope Recommendation
+
+**Suggested MVP**: Phase 1 + Phase 2 + Phase 3 (User Story 1 only)
+- Core content capture and AI processing
+- Basic bot interaction with confirmation responses
+- Foundation for all other features
+
+This provides immediate value while establishing the technical foundation for incremental feature delivery.
+
+---
+
+## Summary
+
+- **Total Tasks**: 90 tasks across 9 phases
+- **User Story Distribution**: 
+  - US1 (Basic Capture): 18 tasks
+  - US2 (Search): 10 tasks  
+  - US3 (Reminders): 9 tasks
+  - US4 (Error Recovery): 8 tasks
+  - US5 (Multi-Modal): 7 tasks
+- **Parallel Opportunities**: 45 tasks marked [P] can run in parallel within their phases
+- **MVP Tasks**: 39 tasks (Phases 1-3) for core functionality
+- **Independent Testing**: Each user story has clear test criteria and can be validated independently
