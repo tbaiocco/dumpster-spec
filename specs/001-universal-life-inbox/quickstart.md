@@ -20,9 +20,11 @@ Clutter.AI is an AI-powered universal life inbox where users dump everything the
 - **Database**: PostgreSQL + pgvector (via Supabase)
 - **Frontend**: React + TypeScript (admin dashboard)
 - **Mobile**: React Native (future)
-- **AI Services**: Claude API, OpenAI Whisper, Google Vision API
+- **AI Services**: Claude API, Google Cloud Speech-to-Text, Google Cloud Vision
 - **Messaging**: Telegram Bot API (Phase 1), WhatsApp via Twilio (Phase 2)
 - **Hosting**: Railway (backend), Vercel (frontend)
+
+**Google Cloud Integration**: Speech-to-Text and Vision APIs provide unified authentication and billing.
 
 ## Quick Setup (5 minutes)
 
@@ -59,8 +61,8 @@ SUPABASE_SERVICE_KEY="your-service-key"
 
 # AI Services
 CLAUDE_API_KEY="your-claude-api-key"
-OPENAI_API_KEY="your-openai-api-key"
-GOOGLE_VISION_API_KEY="your-google-vision-key"
+GOOGLE_CLOUD_PROJECT_ID="your-gcp-project-id"
+GOOGLE_APPLICATION_CREDENTIALS="./path/to/gcp-service-account.json"
 
 # Bot Configuration
 TELEGRAM_BOT_TOKEN="your-telegram-bot-token"
@@ -147,7 +149,7 @@ clutter-ai/
 │   │   ├── modules/
 │   │   │   ├── auth/        # Phone verification
 │   │   │   ├── bots/        # Telegram/WhatsApp handlers
-│   │   │   ├── ai/          # Claude, Whisper, OCR
+│   │   │   ├── ai/          # Claude, Google Speech-to-Text, Vision
 │   │   │   ├── dumps/       # Content processing
 │   │   │   ├── search/      # Semantic search
 │   │   │   └── reminders/   # Notifications
@@ -249,7 +251,7 @@ curl http://localhost:3000/v1/dumps \
 - [x] Project setup and database schema → *See: data-model.md for complete schema*
 - [ ] Phone verification authentication → *Implementation: contracts/openapi.yaml /auth/verify endpoints*
 - [ ] Basic Telegram bot integration → *Implementation: contracts/openapi.yaml /webhooks/telegram*
-- [ ] Claude API integration for categorization → *Architecture: research.md AI Services Integration*
+- [ ] Claude + Google Cloud AI integration → *Architecture: research.md AI Services Integration*
 
 **Implementation Sequence for Week 1-2:**
 1. **Database Setup** (`backend/src/database/`)
@@ -284,10 +286,12 @@ curl http://localhost:3000/v1/dumps \
 
 2. **AI Integration Module** (`backend/src/modules/ai/`)
    - Set up Claude API client with error handling
+   - Configure Google Cloud Speech-to-Text for voice processing
+   - Configure Google Cloud Vision API for image/OCR processing
    - Implement confidence-based routing (40-50% threshold)
    - Create entity extraction service
    - Add fallback mechanisms for AI service failures
-   - *Reference*: `research.md` AI Service Optimization section
+   - *Reference*: `research.md` AI Services Integration section
 
 3. **Bot Integration Module** (`backend/src/modules/bots/`)
    - Create Telegram webhook handler
@@ -437,10 +441,18 @@ pg_ctl status
 echo $DATABASE_URL
 ```
 
-**AI Service Timeouts**
+**AI Service Configuration**
 ```bash
-# Check API key configuration
+# Check Claude API key
 curl -H "Authorization: Bearer $CLAUDE_API_KEY" https://api.anthropic.com/v1/health
+
+# Verify Google Cloud credentials
+gcloud auth application-default print-access-token
+
+# Test Google Cloud Speech API
+curl -H "Authorization: Bearer $(gcloud auth application-default print-access-token)" \
+     -H "Content-Type: application/json" \
+     "https://speech.googleapis.com/v1/speech:recognize"
 ```
 
 **Bot Webhook Issues**
