@@ -1,0 +1,793 @@
+openapi: 3.0.3
+info:
+  title: Clutter.AI Universal Life Inbox API
+  description: API for AI-powered personal organization system with multi-modal content processing
+  version: 1.0.0
+  contact:
+    name: Clutter.AI Team
+    email: support@clutter.ai
+
+servers:
+  - url: https://api.clutter.ai/v1
+    description: Production server
+  - url: https://staging-api.clutter.ai/v1
+    description: Staging server
+  - url: http://localhost:3000/v1
+    description: Development server
+
+security:
+  - PhoneVerification: []
+
+paths:
+  # Authentication Endpoints
+  /auth/verify/request:
+    post:
+      summary: Request phone verification code
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone_number]
+              properties:
+                phone_number:
+                  type: string
+                  format: phone
+                  example: "+1234567890"
+                  description: E.164 format phone number
+      responses:
+        '200':
+          description: Verification code sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Verification code sent to +1234567890"
+                  expires_in:
+                    type: integer
+                    example: 300
+                    description: Code expiry in seconds
+        '429':
+          description: Too many verification requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/verify/confirm:
+    post:
+      summary: Confirm phone verification with code
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone_number, verification_code]
+              properties:
+                phone_number:
+                  type: string
+                  format: phone
+                  example: "+1234567890"
+                verification_code:
+                  type: string
+                  pattern: '^[0-9]{6}$'
+                  example: "123456"
+      responses:
+        '200':
+          description: Phone verified successfully, user authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid verification code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Bot Webhook Endpoints
+  /webhooks/telegram:
+    post:
+      summary: Telegram bot webhook
+      tags: [Bot Webhooks]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Telegram Update object
+              # Telegram API schema - simplified for brevity
+      responses:
+        '200':
+          description: Webhook processed successfully
+
+  /webhooks/whatsapp:
+    post:
+      summary: WhatsApp webhook via Twilio
+      tags: [Bot Webhooks]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              description: Twilio WhatsApp webhook data
+      responses:
+        '200':
+          description: Webhook processed successfully
+
+  # Content Management Endpoints
+  /dumps:
+    get:
+      summary: Get user's dumps with filtering and pagination
+      tags: [Content]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: category
+          in: query
+          schema:
+            type: string
+            example: "bill"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [received, analyzing, processed, failed, needs_review, completed]
+        - name: urgency_min
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5
+        - name: created_after
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: created_before
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: List of dumps matching criteria
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Dump'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create new dump (alternative to bot interface)
+      tags: [Content]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [raw_content, content_type]
+              properties:
+                raw_content:
+                  type: string
+                  example: "Remind me to pay electricity bill by Friday, it's $180"
+                content_type:
+                  type: string
+                  enum: [text, voice, image, email]
+                media_url:
+                  type: string
+                  format: uri
+                  description: Required for voice/image content
+      responses:
+        '201':
+          description: Dump created and queued for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dump'
+
+  /dumps/{dump_id}:
+    get:
+      summary: Get specific dump with full details
+      tags: [Content]
+      parameters:
+        - name: dump_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dump details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DumpDetailed'
+        '404':
+          description: Dump not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      summary: Update dump (mark completed, correct AI analysis)
+      tags: [Content]
+      parameters:
+        - name: dump_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                processing_status:
+                  type: string
+                  enum: [completed, needs_review]
+                ai_summary:
+                  type: string
+                  description: Manual correction of AI summary
+                category_id:
+                  type: string
+                  format: uuid
+                  description: Manual category correction
+                urgency_level:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+      responses:
+        '200':
+          description: Dump updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dump'
+
+  /dumps/{dump_id}/report:
+    post:
+      summary: Report AI processing error (equivalent to /report bot command)
+      tags: [Content]
+      parameters:
+        - name: dump_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                issue_description:
+                  type: string
+                  example: "AI misunderstood the due date"
+                suggested_correction:
+                  type: string
+                  example: "Due date should be next Friday, not this Friday"
+      responses:
+        '200':
+          description: Error report submitted for manual review
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Error report submitted. We'll review and correct this."
+
+  # Search Endpoints
+  /search:
+    post:
+      summary: Natural language search across user's dumps
+      tags: [Search]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                  example: "What was that DHL thing?"
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 10
+                include_completed:
+                  type: boolean
+                  default: true
+                  description: Include completed dumps in results
+      responses:
+        '200':
+          description: Search results with relevance scoring
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query:
+                    type: string
+                    example: "What was that DHL thing?"
+                  enhanced_query:
+                    type: string
+                    example: "DHL package delivery tracking shipment"
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        dump:
+                          $ref: '#/components/schemas/Dump'
+                        relevance_score:
+                          type: number
+                          format: float
+                          minimum: 0
+                          maximum: 1
+                        matched_entities:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/Entity'
+
+  # Reminders Endpoints
+  /reminders:
+    get:
+      summary: Get user's pending reminders
+      tags: [Reminders]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: due_before
+          in: query
+          schema:
+            type: string
+            format: date-time
+            description: Filter reminders due before this time
+      responses:
+        '200':
+          description: List of pending reminders
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Reminder'
+
+    post:
+      summary: Create manual reminder
+      tags: [Reminders]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dump_id, reminder_text, scheduled_for]
+              properties:
+                dump_id:
+                  type: string
+                  format: uuid
+                reminder_text:
+                  type: string
+                  example: "Time to pay the electricity bill"
+                scheduled_for:
+                  type: string
+                  format: date-time
+                reminder_type:
+                  type: string
+                  enum: [manual, auto]
+                  default: manual
+      responses:
+        '201':
+          description: Reminder created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reminder'
+
+  /reminders/{reminder_id}/complete:
+    post:
+      summary: Mark reminder as completed
+      tags: [Reminders]
+      parameters:
+        - name: reminder_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Reminder completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reminder'
+
+  /reminders/{reminder_id}/snooze:
+    post:
+      summary: Snooze reminder to later time
+      tags: [Reminders]
+      parameters:
+        - name: reminder_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [snooze_until]
+              properties:
+                snooze_until:
+                  type: string
+                  format: date-time
+                  example: "2025-10-23T09:00:00Z"
+      responses:
+        '200':
+          description: Reminder snoozed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reminder'
+
+  # User Settings Endpoints
+  /users/me:
+    get:
+      summary: Get current user profile
+      tags: [User Management]
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+    patch:
+      summary: Update user settings
+      tags: [User Management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                timezone:
+                  type: string
+                  example: "America/New_York"
+                  description: IANA timezone identifier
+                language:
+                  type: string
+                  example: "en"
+                  enum: [en, es, fr, de]
+                digest_time:
+                  type: string
+                  format: time
+                  example: "09:00"
+                notification_preferences:
+                  type: object
+                  properties:
+                    daily_digest:
+                      type: boolean
+                      default: true
+                    proactive_reminders:
+                      type: boolean
+                      default: true
+                    urgent_notifications:
+                      type: boolean
+                      default: true
+      responses:
+        '200':
+          description: User settings updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  # Categories Endpoint
+  /categories:
+    get:
+      summary: Get available content categories
+      tags: [Content]
+      responses:
+        '200':
+          description: List of available categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+
+  # Analytics Endpoints (Admin Dashboard)
+  /admin/analytics/overview:
+    get:
+      summary: Get system-wide analytics overview
+      tags: [Admin]
+      security:
+        - AdminToken: []
+      responses:
+        '200':
+          description: System analytics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_users:
+                    type: integer
+                  total_dumps:
+                    type: integer
+                  processing_accuracy:
+                    type: number
+                    format: float
+                  average_response_time:
+                    type: number
+                    format: float
+                  dumps_by_category:
+                    type: object
+                    additionalProperties:
+                      type: integer
+
+components:
+  securitySchemes:
+    PhoneVerification:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained after phone verification
+    AdminToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Admin-level JWT token
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        phone_number:
+          type: string
+          format: phone
+          example: "+1234567890"
+        verified_at:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+          example: "America/New_York"
+        language:
+          type: string
+          example: "en"
+        digest_time:
+          type: string
+          format: time
+          example: "09:00"
+        notification_preferences:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+
+    Dump:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        raw_content:
+          type: string
+        content_type:
+          type: string
+          enum: [text, voice, image, email]
+        media_url:
+          type: string
+          format: uri
+          nullable: true
+        ai_summary:
+          type: string
+          nullable: true
+        ai_confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        category:
+          $ref: '#/components/schemas/Category'
+        urgency_level:
+          type: integer
+          minimum: 1
+          maximum: 5
+        processing_status:
+          type: string
+          enum: [received, analyzing, processed, failed, needs_review, completed]
+        created_at:
+          type: string
+          format: date-time
+        processed_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    DumpDetailed:
+      allOf:
+        - $ref: '#/components/schemas/Dump'
+        - type: object
+          properties:
+            extracted_entities:
+              type: array
+              items:
+                $ref: '#/components/schemas/Entity'
+            reminders:
+              type: array
+              items:
+                $ref: '#/components/schemas/Reminder'
+
+    Entity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        entity_type:
+          type: string
+          enum: [date, amount, name, tracking_number, phone, email, location, deadline]
+        entity_value:
+          type: string
+        confidence_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        metadata:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+
+    Reminder:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        dump_id:
+          type: string
+          format: uuid
+        reminder_text:
+          type: string
+        scheduled_for:
+          type: string
+          format: date-time
+        delivered_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        reminder_type:
+          type: string
+          enum: [manual, auto, digest, proactive]
+        snooze_until:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        color_hex:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+        reminder_default:
+          type: boolean
+        sort_order:
+          type: integer
+
+    Pagination:
+      type: object
+      properties:
+        limit:
+          type: integer
+        offset:
+          type: integer
+        total:
+          type: integer
+        has_more:
+          type: boolean
+
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          example: "Invalid phone number format"
+        details:
+          type: object
+          nullable: true
