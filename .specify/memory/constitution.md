@@ -1,50 +1,57 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+- Version change: N/A → 1.0.0 (Initial constitution)
+- Added sections: Code Quality Standards, Testing Requirements, UX Consistency, Performance Standards, Evolution Framework, Quality Gates, Technical Governance
+- Modified principles: All principles created (I-V)
+- Templates requiring updates: ✅ All templates align with constitution principles
+- Follow-up TODOs: None - all placeholders filled
+-->
+
+# SpecKit Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Code Quality Standards (NON-NEGOTIABLE)
+Code MUST be readable, maintainable, and follow established conventions. Every feature requires clear documentation, consistent naming patterns, and adherence to language-specific style guides. Code reviews MUST verify compliance with quality standards before merge. Technical debt MUST be tracked and addressed systematically, not accumulated indefinitely.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Testing Requirements (NON-NEGOTIABLE)
+Comprehensive testing is mandatory across all layers. Unit tests MUST cover core logic with ≥80% coverage. Integration tests MUST validate feature interactions and external dependencies. Contract tests MUST verify API specifications and data models. Test-driven development is strongly encouraged for complex features to ensure testable design.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. User Experience Consistency
+User interfaces and interactions MUST maintain consistency across all features and platforms. Design patterns, terminology, error messages, and workflows MUST follow established conventions. UX decisions MUST be documented and validated against user scenarios. Accessibility requirements (WCAG 2.1 AA) MUST be met for all user-facing features.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Performance Standards
+System performance MUST meet measurable benchmarks. Response times MUST be ≤200ms for interactive operations and ≤2s for complex queries. Memory usage MUST be monitored and optimized. Performance regressions MUST be detected and addressed before deployment. Load testing MUST validate system behavior under expected usage patterns.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Evolution and Backward Compatibility
+Feature evolution MUST preserve backward compatibility or provide clear migration paths. Breaking changes require explicit justification, impact assessment, and user communication. Versioning MUST follow semantic versioning (MAJOR.MINOR.PATCH). API changes MUST maintain compatibility for at least two major versions unless security-critical.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Quality Gates
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+All features MUST pass these gates before implementation:
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+- **Specification Review**: Requirements are clear, testable, and aligned with user needs
+- **Architecture Review**: Technical approach supports maintainability and performance goals
+- **Security Review**: Security implications assessed and mitigated appropriately
+- **Performance Impact**: Resource usage and response time implications evaluated
+- **Backward Compatibility**: Migration strategy defined for any breaking changes
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+## Technical Governance
+
+Technology decisions MUST be guided by these principles:
+
+- **Simplicity First**: Choose the simplest solution that meets requirements
+- **Proven Technologies**: Prefer established, well-supported tools and frameworks
+- **Long-term Viability**: Consider maintenance burden and community support
+- **Team Capability**: Align with team expertise or provide adequate training
+- **Documentation**: All architectural decisions MUST be documented with rationale
+
+Quality standards MUST be enforced through automated tooling where possible. Code formatting, linting, security scanning, and testing MUST be integrated into CI/CD pipelines. Manual reviews MUST focus on logic, design, and architectural concerns rather than style issues.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes all other development practices and guidelines. All feature specifications, implementation plans, and code reviews MUST verify compliance with these principles. Complexity that violates these principles MUST be explicitly justified with business rationale and technical necessity.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+Amendments require: (1) documented rationale for change, (2) impact assessment on existing features, (3) migration plan for affected components, and (4) team consensus. Emergency exceptions may be granted for security-critical issues but MUST include remediation timeline.
+
+**Version**: 1.0.0 | **Ratified**: 2025-10-21 | **Last Amended**: 2025-10-21

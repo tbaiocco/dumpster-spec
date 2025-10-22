@@ -31,7 +31,19 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+**Quality Gates Verification:**
+- [ ] **Specification Review**: Requirements are clear, testable, and aligned with user needs
+- [ ] **Architecture Review**: Technical approach supports maintainability and performance goals  
+- [ ] **Security Review**: Security implications assessed and mitigated appropriately
+- [ ] **Performance Impact**: Resource usage and response time implications evaluated
+- [ ] **Backward Compatibility**: Migration strategy defined for any breaking changes
+
+**Constitution Compliance:**
+- [ ] Code quality standards defined and enforceable
+- [ ] Testing strategy covers unit, integration, and contract testing
+- [ ] UX consistency maintained with existing patterns
+- [ ] Performance benchmarks defined (≤200ms interactive, ≤2s complex queries)
+- [ ] Backward compatibility or migration path documented
 
 ## Project Structure
 
