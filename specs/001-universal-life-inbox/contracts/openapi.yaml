@@ -266,7 +266,8 @@ paths:
               properties:
                 processing_status:
                   type: string
-                  enum: [completed, needs_review]
+                  enum: [completed]
+                  description: Simplified - only completion status update needed
                 ai_summary:
                   type: string
                   description: Manual correction of AI summary
@@ -654,10 +655,10 @@ components:
           type: string
           nullable: true
         ai_confidence:
-          type: number
-          format: float
-          minimum: 0
-          maximum: 1
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: AI processing confidence (1=low, 5=high)
         category:
           $ref: '#/components/schemas/Category'
         urgency_level:
@@ -666,7 +667,8 @@ components:
           maximum: 5
         processing_status:
           type: string
-          enum: [received, analyzing, processed, failed, needs_review, completed]
+          enum: [received, processing, completed, failed]
+          description: Simplified processing states for MVP
         created_at:
           type: string
           format: date-time

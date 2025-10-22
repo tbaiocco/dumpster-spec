@@ -55,18 +55,20 @@
 
 ### AI Services Integration
 
-**Decision**: Multi-service approach with Claude, Whisper, and Google Vision
+**Decision**: Multi-service approach with Claude, Google Cloud Speech-to-Text, and Google Vision
 
 **Rationale**:
 - Claude API (Anthropic): Best-in-class for content understanding and categorization
-- OpenAI Whisper API: Industry standard for voice transcription with high accuracy
+- Google Cloud Speech-to-Text API: Highly accurate voice transcription with 60 minutes free per month
 - Google Cloud Vision API: Accurate OCR with generous free tier (1000 requests/month)
+- Google Cloud integration provides unified billing and authentication for Speech + Vision
+- **Cost-effective for MVP**: Free tiers support initial user validation before scaling costs
 - Service diversity reduces vendor lock-in and allows optimization per use case
 
 **Alternatives considered**:
+- OpenAI Whisper API: Good but Google Speech-to-Text offers better free tier and integration with Vision API
 - OpenAI GPT-4 only: Good but Claude better for understanding nuanced content
-- Google AI Platform only: Limited voice transcription capabilities
-- Azure Cognitive Services: More expensive, less proven for content categorization
+- Azure Cognitive Services: More expensive, less generous free tiers for MVP phase
 
 ### Messaging Platform Strategy
 
@@ -116,17 +118,19 @@
 
 ## Architecture Patterns
 
-### Event-Driven Processing Pipeline
+### Simplified Processing Pipeline
 
-**Decision**: Event-driven architecture for content processing workflow
+**Decision**: Synchronous processing for MVP with async upgrade path
 
-**Rationale**:
-- Decouples content ingestion from AI processing for better reliability
-- Enables retry mechanisms for failed AI service calls
-- Supports future scaling with message queues (Bull/BullMQ)
-- Improves user experience with immediate acknowledgment
+**MVP Rationale**:
+- Direct webhook → AI processing → database storage flow
+- Simpler debugging and error handling for initial validation
+- Lower latency for immediate user feedback
+- **Future**: Add Bull/BullMQ queuing when volume requires it
 
-**Pattern**: Webhook → Validate → Queue → Process → Store → Notify
+**Constitutional Compliance**: Follows "Simplicity First" principle - avoid premature optimization
+
+**Pattern**: Webhook → Validate → Process (Claude API) → Store → Respond
 
 ### Repository Pattern with TypeORM
 
@@ -138,17 +142,17 @@
 - Repository pattern enables clean separation of business logic
 - Supports both active record and data mapper patterns
 
-### Microservices-Ready Monolith
+### Simplified Monolith
 
-**Decision**: Modular monolith with clear service boundaries
+**Decision**: Simple modular structure with clear boundaries
 
 **Rationale**:
-- Simpler deployment and debugging for MVP
-- Clear module boundaries enable future microservices extraction
-- Shared database transactions for data consistency
-- Reduced latency compared to distributed architecture
+- Single deployment for MVP simplicity
+- Clear module separation for future extraction if needed
+- Shared database for ACID consistency
+- Reduced complexity for initial development
 
-**Modules**: Auth, Bots, AI, Dumps, Search, Reminders, Notifications
+**Modules**: Auth, Webhooks, AI, Content, Search, Reminders
 
 ## Security & Privacy Decisions
 
