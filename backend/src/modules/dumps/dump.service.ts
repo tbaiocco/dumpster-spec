@@ -20,6 +20,7 @@ export interface CreateDumpRequest {
     mimeType?: string;
     fileSize?: number;
     chatId?: string;
+    language?: string;
   };
   mediaBuffer?: Buffer;
 }
@@ -85,13 +86,22 @@ export class DumpService {
       switch (request.contentType) {
         case 'voice':
           if (request.mediaBuffer) {
+            // Extract language from metadata, default to Portuguese for now if not specified
+            const languageCode = request.metadata?.language || 'pt-BR';
+            
+            this.logger.debug(`Transcribing audio with language: ${languageCode}`);
+            
             const transcriptionResult = await this.speechService.transcribeAudio({
               audioBuffer: request.mediaBuffer,
               mimeType: request.metadata?.mimeType || 'audio/wav',
+              languageCode: languageCode,
+              enableAutomaticPunctuation: true,
+              enableWordTimeOffsets: true,
+              maxAlternatives: 2,
             });
             processedContent = transcriptionResult.transcript;
             confidence = transcriptionResult.confidence;
-            processingSteps.push('Audio transcribed');
+            processingSteps.push(`Audio transcribed (${languageCode})`);
           } else {
             errors.push('Voice content requires media buffer');
             processedContent = request.originalText || 'Voice message (transcription failed)';
@@ -168,7 +178,7 @@ export class DumpService {
         raw_content: processedContent,
         content_type: entityContentType,
         ai_summary: analysis.summary,
-        ai_confidence: Math.min(confidence, analysis.confidence),
+        ai_confidence: Math.round(Math.min(confidence, analysis.confidence) * 100), // Convert decimal to percentage integer
         category_id: category.id,
         urgency_level: this.mapUrgencyToNumber(analysis.urgency || 'low'),
         processing_status: ProcessingStatus.PROCESSING,
@@ -177,7 +187,7 @@ export class DumpService {
           actionItems: analysis.actionItems || [],
           sentiment: analysis.sentiment || 'neutral',
           urgency: analysis.urgency || 'low',
-          categoryConfidence: analysis.categoryConfidence || 0.8,
+          categoryConfidence: Math.round((analysis.categoryConfidence || 0.8) * 100), // Convert decimal to percentage integer
           metadata: request.metadata || {},
         },
       });
