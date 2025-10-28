@@ -10,6 +10,12 @@ import { UserModule } from './modules/users/user.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: [
+        `config/environments/.env.${process.env.NODE_ENV}`,
+        'config/environments/.env.development', // fallback for development
+        'config/environments/.env', // base configuration
+      ],
+      ignoreEnvFile: process.env.NODE_ENV === 'production', // In production, rely on system env vars
     }),
     TypeOrmModule.forRoot({
       type: 'postgres',

@@ -36,7 +36,20 @@ logs/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.acceptance.local
 .env.*.local
+
+# Sensitive environment files (never commit these)
+.env.production
+.env.acceptance
+backend/.env.production
+backend/.env.acceptance
+backend/config/environments/.env.production
+backend/config/environments/.env.acceptance
+
+# Google Cloud service account keys
+*.json
+backend/config/*.json
 
 # Cache
 .cache/

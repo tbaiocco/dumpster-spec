@@ -1,7 +1,14 @@
 import { DataSource } from 'typeorm';
 import { config } from 'dotenv';
 
-config();
+// Load environment variables from config directory
+config({ 
+  path: [
+    `config/environments/.env.${process.env.NODE_ENV}`,
+    'config/environments/.env.development',
+    'config/environments/.env'
+  ].filter(Boolean)
+});
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
