@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
-import { SearchController } from '../../../src/modules/search/search.controller';
-import { SearchService } from '../../../src/modules/search/search.service';
-import { VectorService } from '../../../src/modules/search/vector.service';
+import { SearchController } from '../../src/modules/search/search.controller';
+import { SearchService } from '../../src/modules/search/search.service';
+import { VectorService } from '../../src/modules/search/vector.service';
 
 describe('Search Integration (e2e)', () => {
   let app: INestApplication;

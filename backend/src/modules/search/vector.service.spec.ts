@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { VectorService } from '../../src/modules/search/vector.service';
+import { VectorService } from './vector.service';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 
