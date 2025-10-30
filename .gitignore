@@ -1,0 +1,104 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+.vuepress/dist/
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output/
+
+# Logs
+logs/
+*.log
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.acceptance.local
+.env.*.local
+
+# Sensitive environment files (never commit these)
+.env.production
+.env.acceptance
+backend/.env.production
+backend/.env.acceptance
+backend/config/environments/.env.production
+backend/config/environments/.env.acceptance
+
+# Google Cloud service account keys
+*.json
+backend/config/*.json
+
+# Cache
+.cache/
+.parcel-cache/
+.eslintcache
+
+# TypeScript
+*.tsbuildinfo
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs and editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Docker
+.dockerignore
+
+# Database
+*.sqlite
+*.db
+
+# Testing
+jest_0/
+.pytest_cache/
+
+# Deployment
+.vercel/
+.netlify/
+
+# Supabase
+.supabase/
