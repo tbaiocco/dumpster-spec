@@ -87,24 +87,21 @@ export class DatabaseInitService implements OnModuleInit {
         `);
         this.logger.log('✅ Vector column added successfully');
       } else {
-        // Ensure the column has proper dimensions (384)
-        const hasProperType = await this.dataSource.query(`
-          SELECT 1 FROM pg_attribute a
+        // Column exists - verify it's a vector type without altering it
+        const vectorTypeCheck = await this.dataSource.query(`
+          SELECT a.atttypmod, t.typname
+          FROM pg_attribute a
           JOIN pg_type t ON a.atttypid = t.oid
           JOIN pg_class c ON a.attrelid = c.oid
           WHERE c.relname = 'dumps' 
           AND a.attname = 'content_vector'
           AND t.typname = 'vector'
-          AND a.atttypmod = 388
         `);
 
-        if (hasProperType.length === 0) {
-          this.logger.log('Updating vector column dimensions...');
-          await this.dataSource.query(`
-            ALTER TABLE "dumps" 
-            ALTER COLUMN "content_vector" TYPE vector(384)
-          `);
-          this.logger.log('✅ Vector column dimensions updated');
+        if (vectorTypeCheck.length > 0) {
+          this.logger.log(`✅ Vector column exists with type: ${vectorTypeCheck[0].typname}, dimensions: ${vectorTypeCheck[0].atttypmod - 4}`);
+        } else {
+          this.logger.warn('⚠️ Vector column exists but may not be properly typed');
         }
       }
     } catch (error) {
