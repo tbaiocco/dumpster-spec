@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, Brackets } from 'typeorm';
 import { Dump } from '../../entities/dump.entity';
 import { VectorService } from './vector.service';
-import { QueryEnhancementService } from './query-enhancement.service';
+import { QueryEnhancementService, QueryEnhancementResponse } from './query-enhancement.service';
 import { SemanticSearchService } from './semantic-search.service';
-import { RankingService } from './ranking.service';
+import { RankingService, EnhancedQuery } from './ranking.service';
 import { FuzzyMatchService } from './fuzzy-match.service';
 import { FiltersService } from './filters.service';
 
@@ -79,6 +79,26 @@ export class SearchService {
   ) {}
 
   /**
+   * Convert QueryEnhancementResponse to EnhancedQuery format
+   */
+  private convertToEnhancedQuery(response: QueryEnhancementResponse): EnhancedQuery {
+    return {
+      original: response.original,
+      enhanced: response.enhanced,
+      intent: response.extractedIntents?.[0] || 'general',
+      entities: {
+        dates: response.suggestedFilters?.dateRange ? 
+          [response.suggestedFilters.dateRange.from, response.suggestedFilters.dateRange.to].filter((date): date is string => date !== undefined) : [],
+        people: [], // Would need to extract from enhanced query
+        locations: [], // Would need to extract from enhanced query
+        categories: response.suggestedFilters?.categories || [],
+        urgency: 'normal', // Would need to extract from enhanced query
+      },
+      complexity: response.confidence > 0.8 ? 'simple' : response.confidence > 0.5 ? 'moderate' : 'complex',
+    };
+  }
+
+  /**
    * Main search entry point with natural language processing
    */
   async search(request: SearchRequest): Promise<SearchResponse> {
@@ -88,11 +108,13 @@ export class SearchService {
 
     try {
       // Step 1: Enhance query using AI
-      const enhancedQuery = await this.queryEnhancementService.enhanceQuery({
+      const enhancementResponse = await this.queryEnhancementService.enhanceQuery({
         originalQuery: request.query,
         userId: request.userId,
         context: await this.getUserSearchContext(request.userId),
       });
+
+      const enhancedQuery = this.convertToEnhancedQuery(enhancementResponse);
 
       this.logger.debug(`Query enhanced: "${request.query}" → "${enhancedQuery.enhanced}"`);
 
@@ -107,9 +129,9 @@ export class SearchService {
 
       // Step 3: Perform different types of search in parallel
       const [semanticResults, fuzzyResults, exactResults] = await Promise.all([
-        this.performSemanticSearch(enhancedQuery.enhanced, filteredQuery, request.limit),
-        this.performFuzzySearch(enhancedQuery.enhanced, filteredQuery, request.limit),
-        this.performExactSearch(enhancedQuery.enhanced, filteredQuery, request.limit),
+        this.performSemanticSearch(enhancedQuery.enhanced, filteredQuery, request.limit, request.userId),
+        this.performFuzzySearch(enhancedQuery.enhanced, filteredQuery, request.limit, request.userId),
+        this.performExactSearchSafe(enhancedQuery.enhanced, request.userId, request.limit),
       ]);
 
       // Step 4: Combine and rank results
@@ -161,13 +183,14 @@ export class SearchService {
     query: string,
     baseQuery: any,
     limit?: number,
+    userId?: string,
   ): Promise<SearchResult[]> {
     try {
-      const semanticResults = await this.semanticSearchService.searchBySimilarity({
+      const semanticResults = await this.semanticSearchService.search({
         query,
-        baseQuery,
+        userId: userId || 'unknown',
         limit: limit || 50,
-        minSimilarity: 0.7, // Configurable threshold
+        minSimilarity: 0.3, // Lower threshold for better semantic matching
       });
 
       return semanticResults.map(result => ({
@@ -190,12 +213,12 @@ export class SearchService {
     query: string,
     baseQuery: any,
     limit?: number,
+    userId?: string,
   ): Promise<SearchResult[]> {
     try {
       const fuzzyResults = await this.fuzzyMatchService.search({
         query,
-        baseQuery,
-        fields: ['raw_content', 'ai_summary', 'extracted_entities'],
+        userId: userId || 'unknown',
         minScore: 0.6,
         limit: limit || 30,
       });
@@ -204,8 +227,8 @@ export class SearchService {
         dump: result.dump,
         relevanceScore: result.score,
         matchType: 'fuzzy' as const,
-        matchedFields: result.matchedFields,
-        highlightedContent: result.highlightedContent,
+        matchedFields: result.matchedTerms,
+        highlightedContent: `Matched terms: ${result.matchedTerms.join(', ')}`,
         explanation: `Fuzzy match score: ${(result.score * 100).toFixed(1)}%`,
       }));
     } catch (error) {
@@ -224,22 +247,45 @@ export class SearchService {
   ): Promise<SearchResult[]> {
     try {
       const exactQuery = baseQuery.clone();
-      const queryTerms = query.toLowerCase().split(/\s+/).filter(term => term.length > 2);
+      
+      // Use original query terms (not enhanced) for exact matching to avoid false positives
+      const originalQuery = query.split(' ').slice(0, 2).join(' '); // Take first 2 words of enhanced query
+      const queryTerms = originalQuery.toLowerCase().split(/\s+/).filter(term => term.length > 2);
       
       if (queryTerms.length === 0) return [];
 
-      // Build exact match conditions
-      for (let index = 0; index < queryTerms.length; index++) {
-        const term = queryTerms[index];
-        exactQuery.orWhere(`LOWER(dump.raw_content) LIKE :term${index}`, { [`term${index}`]: `%${term}%` });
-        exactQuery.orWhere(`LOWER(dump.ai_summary) LIKE :termSummary${index}`, { [`termSummary${index}`]: `%${term}%` });
-      }
+      // For exact search, require at least one core term to match
+      // Use phrase-like matching for better precision
+      const corePhrase = queryTerms.join(' ');
+      
+      exactQuery.andWhere(
+        new Brackets(qb => {
+          // Look for the full phrase first
+          qb.where(`LOWER(dump.raw_content) LIKE :fullPhrase`, { fullPhrase: `%${corePhrase}%` })
+            .orWhere(`LOWER(dump.ai_summary) LIKE :fullPhraseSum`, { fullPhraseSum: `%${corePhrase}%` });
+          
+          // If multiple terms, also allow individual term matches but require at least 2
+          if (queryTerms.length > 1) {
+            for (let i = 0; i < queryTerms.length; i++) {
+              const term = queryTerms[i];
+              qb.orWhere(`LOWER(dump.raw_content) LIKE :term${i}`, { [`term${i}`]: `%${term}%` })
+                .orWhere(`LOWER(dump.ai_summary) LIKE :termSummary${i}`, { [`termSummary${i}`]: `%${term}%` });
+            }
+          }
+        })
+      );
 
       const results = await exactQuery
         .take(limit || 20)
         .getMany();
 
-      return results.map(dump => {
+      // Filter results to ensure they have meaningful matches
+      const filteredResults = results.filter(dump => {
+        const matchScore = this.calculateExactMatchScore(dump, queryTerms);
+        return matchScore > 0.3; // Minimum relevance threshold
+      });
+
+      return filteredResults.map(dump => {
         const matchedFields = this.findMatchedFields(dump, queryTerms);
         return {
           dump,
@@ -252,6 +298,63 @@ export class SearchService {
       });
     } catch (error) {
       this.logger.error('Exact search failed:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Safe exact search that doesn't modify vectors
+   */
+  private async performExactSearchSafe(
+    query: string,
+    userId: string,
+    limit?: number,
+  ): Promise<SearchResult[]> {
+    try {
+      // Create a fresh query builder to avoid side effects
+      const queryBuilder = this.dumpRepository
+        .createQueryBuilder('dump')
+        .leftJoinAndSelect('dump.category', 'category')
+        .leftJoinAndSelect('dump.user', 'user')
+        .where('dump.user_id = :userId', { userId });
+
+      // Use original query terms (not enhanced) for exact matching
+      const originalQuery = query.split(' ').slice(0, 2).join(' '); // Take first 2 words
+      const queryTerms = originalQuery.toLowerCase().split(/\s+/).filter(term => term.length > 2);
+      
+      if (queryTerms.length === 0) return [];
+
+      // Simple exact matching without complex Brackets
+      const corePhrase = queryTerms.join(' ');
+      
+      queryBuilder.andWhere(
+        '(LOWER(dump.raw_content) LIKE :fullPhrase OR LOWER(dump.ai_summary) LIKE :fullPhrase)',
+        { fullPhrase: `%${corePhrase}%` }
+      );
+
+      const results = await queryBuilder
+        .take(limit || 20)
+        .getMany();
+
+      // Filter results to ensure relevance
+      const filteredResults = results.filter(dump => {
+        const matchScore = this.calculateExactMatchScore(dump, queryTerms);
+        return matchScore > 0.3;
+      });
+
+      return filteredResults.map(dump => {
+        const matchedFields = this.findMatchedFields(dump, queryTerms);
+        return {
+          dump,
+          relevanceScore: this.calculateExactMatchScore(dump, queryTerms),
+          matchType: 'exact' as const,
+          matchedFields,
+          highlightedContent: this.highlightMatches(dump.raw_content || dump.ai_summary, queryTerms),
+          explanation: `Exact matches in: ${matchedFields.join(', ')}`,
+        };
+      });
+    } catch (error) {
+      this.logger.error('Safe exact search failed:', error);
       return [];
     }
   }
@@ -507,24 +610,39 @@ export class SearchService {
         this.dataSource.query("SELECT COUNT(*) as count FROM dumps WHERE content_vector IS NOT NULL"),
       ]);
 
-      const totalDumps = parseInt(totalResult[0].count);
-      const dumpsWithVectors = parseInt(vectoredResult[0].count);
+      const totalDumps = Number.parseInt(totalResult[0].count);
+      const dumpsWithVectors = Number.parseInt(vectoredResult[0].count);
       const vectorCoverage = totalDumps > 0 ? (dumpsWithVectors / totalDumps) * 100 : 0;
 
       // Measure query performance
       const queryTime = Date.now() - startTime;
 
-      // Get index size information
-      const indexSizeResult = await this.dataSource.query(`
-        SELECT pg_size_pretty(pg_total_relation_size('idx_dumps_content_vector')) as size
-      `);
+      // Get index size information - check if index exists first
+      let indexSize = 'No Index';
+      try {
+        const indexExistsResult = await this.dataSource.query(`
+          SELECT 1 FROM pg_indexes 
+          WHERE tablename = 'dumps' 
+          AND indexname = 'idx_dumps_content_vector'
+        `);
+        
+        if (indexExistsResult.length > 0) {
+          const indexSizeResult = await this.dataSource.query(`
+            SELECT pg_size_pretty(pg_total_relation_size('idx_dumps_content_vector')) as size
+          `);
+          indexSize = indexSizeResult[0]?.size || 'Unknown';
+        }
+      } catch (indexError) {
+        this.logger.warn('Could not get index size:', indexError.message);
+        indexSize = 'Error';
+      }
 
       return {
         totalDumps,
         dumpsWithVectors,
-        vectorCoverage: parseFloat(vectorCoverage.toFixed(2)),
+        vectorCoverage: Number.parseFloat(vectorCoverage.toFixed(2)),
         avgQueryTime: queryTime,
-        indexSize: indexSizeResult[0]?.size || 'Unknown',
+        indexSize,
         lastUpdate: new Date(),
       };
     } catch (error) {

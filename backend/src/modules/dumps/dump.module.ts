@@ -26,6 +26,8 @@ import { WhatsAppService } from '../bots/whatsapp.service';
 
 // Import other modules
 import { UserModule } from '../users/user.module';
+import { VectorService } from '../search/vector.service';
+import { DatabaseInitService } from '../../database/database-init.service';
 
 @Module({
   imports: [
@@ -52,6 +54,10 @@ import { UserModule } from '../users/user.module';
     // Bot Services
     TelegramService,
     WhatsAppService,
+    // Vector Service for embedding generation
+    VectorService,
+    // Database initialization service
+    DatabaseInitService,
   ],
   exports: [DumpService],
 })
