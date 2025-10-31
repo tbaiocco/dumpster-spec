@@ -95,18 +95,33 @@ Based on plan.md structure: `backend/src/`, `admin-dashboard/src/`
 
 ### Implementation for User Story 2
 
-- [ ] T040 [P] [US2] Setup pgvector extension and embedding generation in backend/src/modules/search/vector.service.ts
-- [ ] T041 [P] [US2] Create SearchService with natural language processing in backend/src/modules/search/search.service.ts
-- [ ] T042 [P] [US2] Implement search query enhancement using Claude API in backend/src/modules/search/query-enhancement.service.ts
-- [ ] T043 [P] [US2] Create SearchController with search endpoints in backend/src/modules/search/search.controller.ts
-- [ ] T044 [US2] Implement semantic similarity search using pgvector in backend/src/modules/search/semantic-search.service.ts
-- [ ] T045 [US2] Add search result ranking and relevance scoring in backend/src/modules/search/ranking.service.ts
-- [ ] T046 [US2] Implement fuzzy text matching for partial queries in backend/src/modules/search/fuzzy-match.service.ts
-- [ ] T047 [US2] Add time-based filtering for search results in backend/src/modules/search/filters.service.ts
-- [ ] T048 [US2] Integrate search functionality into bot commands (/search) in backend/src/modules/bots/commands/search.command.ts
-- [ ] T049 [US2] Add search result formatting for bot responses in backend/src/modules/bots/formatters/search-formatter.service.ts
+- [x] T040 [P] [US2] Setup pgvector extension and embedding generation in backend/src/modules/search/vector.service.ts
+- [x] T041 [P] [US2] Create SearchService with natural language processing in backend/src/modules/search/search.service.ts
+- [x] T042 [P] [US2] Implement search query enhancement using Claude API in backend/src/modules/search/query-enhancement.service.ts
+- [x] T043 [P] [US2] Create SearchController with search endpoints in backend/src/modules/search/search.controller.ts
+- [x] T044 [US2] Implement semantic similarity search using pgvector in backend/src/modules/search/semantic-search.service.ts
+- [x] T045 [US2] Add search result ranking and relevance scoring in backend/src/modules/search/ranking.service.ts
+- [x] T046 [US2] Implement fuzzy text matching for partial queries in backend/src/modules/search/fuzzy-match.service.ts
+- [x] T047 [US2] Add time-based filtering for search results in backend/src/modules/search/filters.service.ts
+- [x] T048 [US2] Integrate search functionality into bot commands (/search) in backend/src/modules/bots/commands/search.command.ts
+- [x] T049 [US2] Add search result formatting for bot responses in backend/src/modules/bots/formatters/search-formatter.service.ts
 
 **Checkpoint**: At this point, User Story 2 should be fully functional - users can search and retrieve content using natural language
+
+---
+
+## Phase 4.1: US2 Production Optimization (Infrastructure) 
+
+**Purpose**: Optimize natural language search for production performance and complete vector coverage
+
+**⚠️ CRITICAL**: These tasks are essential for production-ready search performance
+
+- [x] T049A Create vector performance index in database: CREATE INDEX CONCURRENTLY idx_dumps_content_vector ON dumps USING ivfflat (content_vector vector_cosine_ops);
+- [x] T049B Run database migration 1730381000000-UpdateVectorDimension.ts to ensure schema consistency in production environment
+- [x] T049C Complete vector backfill for existing 29 dumps without embeddings using validated embedding pipeline
+- [x] T049D Add vector health monitoring and performance metrics to SearchService in backend/src/modules/search/search.service.ts
+
+**Checkpoint**: US2 search is now production-ready with optimized performance and full coverage
 
 ---
 
@@ -151,14 +166,15 @@ Based on plan.md structure: `backend/src/`, `admin-dashboard/src/`
 
 ---
 
-## Phase 7: User Story 3 - Daily Digest and Proactive Reminders (Priority: P3)
+## Phase 7: User Story 3 - Daily Digest, Proactive Reminders + Bot Search Integration (Priority: P3)
 
-**Goal**: Users receive morning digests and contextual reminders at optimal times with proactive assistance.
+**Goal**: Users receive morning digests and contextual reminders at optimal times with proactive assistance. Users can search their content through natural conversation with bots.
 
-**Independent Test**: Set up various dumps with different urgencies and verify digest content and reminder timing work correctly.
+**Independent Test**: Set up various dumps with different urgencies and verify digest content and reminder timing work correctly. Test conversational search through WhatsApp/Telegram bots.
 
-### Implementation for User Story 3
+### Implementation for User Story 3 + Bot Search
 
+#### Core Reminder & Digest Features
 - [ ] T065 [P] [US3] Create ReminderService with scheduling logic in backend/src/modules/reminders/reminder.service.ts
 - [ ] T066 [P] [US3] Implement daily digest generation service in backend/src/modules/notifications/digest.service.ts
 - [ ] T067 [P] [US3] Create ReminderController with reminder endpoints in backend/src/modules/reminders/reminder.controller.ts
@@ -169,21 +185,32 @@ Based on plan.md structure: `backend/src/`, `admin-dashboard/src/`
 - [ ] T072 [US3] Implement calendar integration for extracted events in backend/src/modules/calendar/calendar.service.ts
 - [ ] T073 [US3] Add package tracking integration for delivery updates in backend/src/modules/tracking/package-tracking.service.ts
 
-**Checkpoint**: At this point, User Story 3 should be fully functional - users receive timely digests and proactive reminders
+#### Bot Search Integration (User-Facing Search Interface)
+- [ ] T074 [P] [US2+US3] Implement /search command handler for Telegram bot in backend/src/modules/bots/commands/search.command.ts
+- [ ] T075 [P] [US2+US3] Implement /search command handler for WhatsApp bot in backend/src/modules/bots/whatsapp/search-handler.service.ts
+- [ ] T076 [US2+US3] Create conversational search result formatter in backend/src/modules/bots/formatters/search-result.formatter.ts
+- [ ] T077 [US2+US3] Integrate contextual search into daily digests ("You also have 3 items about...") in backend/src/modules/notifications/digest.service.ts
+- [ ] T078 [US2+US3] Add search suggestions in proactive reminders ("Related to your task...") in backend/src/modules/reminders/proactive.service.ts
+- [ ] T079 [US2+US3] Implement follow-up search queries ("/more" command) for additional results in backend/src/modules/bots/commands/more.command.ts
+
+**Checkpoint**: At this point, User Story 3 should be fully functional - users receive timely digests, proactive reminders, AND can search their content through conversational bot commands (/search)
 
 ---
 
 ## Phase 8: Admin Dashboard (Cross-cutting)
 
-**Purpose**: Administrative interface for monitoring and managing the system
+**Purpose**: Administrative interface for system monitoring, analytics, and management
+**Note**: Focus on monitoring and analytics - no user-facing search UI (that's handled by bots in Phase 7)
 
-- [ ] T074 [P] Create admin authentication pages in admin-dashboard/src/pages/auth/
-- [ ] T075 [P] Create user management interface in admin-dashboard/src/pages/users/UserListPage.tsx
-- [ ] T076 [P] Create dumps overview interface in admin-dashboard/src/pages/dumps/DumpsPage.tsx
-- [ ] T077 [P] Create system analytics dashboard in admin-dashboard/src/pages/analytics/AnalyticsPage.tsx
-- [ ] T078 [P] Implement API client for admin operations in admin-dashboard/src/services/api.service.ts
-- [ ] T079 [P] Create reusable UI components in admin-dashboard/src/components/
-- [ ] T080 Setup admin dashboard routing and navigation in admin-dashboard/src/App.tsx
+- [ ] T080 [P] Create admin authentication pages in admin-dashboard/src/pages/auth/
+- [ ] T081 [P] Create user management interface in admin-dashboard/src/pages/users/UserListPage.tsx
+- [ ] T082 [P] Create dumps overview and status monitoring in admin-dashboard/src/pages/dumps/DumpsPage.tsx
+- [ ] T083 [P] Create system analytics dashboard (performance, usage metrics) in admin-dashboard/src/pages/analytics/AnalyticsPage.tsx
+- [ ] T084 [P] Implement API client for admin operations in admin-dashboard/src/services/api.service.ts
+- [ ] T085 [P] Create reusable UI components library in admin-dashboard/src/components/
+- [ ] T086 [P] Add search performance monitoring dashboard (admin analytics only) in admin-dashboard/src/pages/analytics/SearchMetricsPage.tsx
+- [ ] T087 [P] Create AI processing metrics and confidence tracking interface in admin-dashboard/src/pages/analytics/AIMetricsPage.tsx
+- [ ] T088 Setup admin dashboard routing and navigation in admin-dashboard/src/App.tsx
 
 ---
 
@@ -191,16 +218,16 @@ Based on plan.md structure: `backend/src/`, `admin-dashboard/src/`
 
 **Purpose**: Final optimizations and production deployment preparation
 
-- [ ] T081 [P] Add comprehensive error logging and monitoring integration
-- [ ] T082 [P] Implement rate limiting for API endpoints in backend/src/common/guards/throttle.guard.ts
-- [ ] T083 [P] Add API documentation with Swagger in backend/src/main.ts
-- [ ] T084 [P] Setup health check endpoints in backend/src/health/health.controller.ts
-- [ ] T085 [P] Configure production environment variables and secrets
-- [ ] T086 [P] Setup CI/CD pipeline configuration
-- [ ] T087 Optimize database queries and add performance monitoring
-- [ ] T088 Add security headers and HTTPS configuration
-- [ ] T089 Setup backup and disaster recovery procedures
-- [ ] T090 Create user documentation and onboarding materials
+- [ ] T089 [P] Add comprehensive error logging and monitoring integration
+- [ ] T090 [P] Implement rate limiting for API endpoints in backend/src/common/guards/throttle.guard.ts
+- [ ] T091 [P] Add API documentation with Swagger in backend/src/main.ts
+- [ ] T092 [P] Setup health check endpoints in backend/src/health/health.controller.ts
+- [ ] T093 [P] Configure production environment variables and secrets
+- [ ] T094 [P] Setup CI/CD pipeline configuration
+- [ ] T095 Optimize database queries and add performance monitoring
+- [ ] T096 Add security headers and HTTPS configuration
+- [ ] T097 Setup backup and disaster recovery procedures
+- [ ] T098 Create user documentation and onboarding materials
 
 ---
 
@@ -240,13 +267,19 @@ This provides immediate value while establishing the technical foundation for in
 
 ## Summary
 
-- **Total Tasks**: 90 tasks across 9 phases
+- **Total Tasks**: 98 tasks across 9 phases (+ Phase 4.1 production optimization)
 - **User Story Distribution**: 
   - US1 (Basic Capture): 18 tasks
-  - US2 (Search): 10 tasks  
-  - US3 (Reminders): 9 tasks
+  - US2 (Search API): **10 tasks ✅ COMPLETE + 4 production optimization tasks**  
+  - US2+US3 (Bot Search Integration): **6 new tasks for conversational search interface**
+  - US3 (Reminders & Digest): 9 tasks + bot search integration
   - US4 (Error Recovery): 8 tasks
   - US5 (Multi-Modal): 7 tasks
-- **Parallel Opportunities**: 45 tasks marked [P] can run in parallel within their phases
-- **MVP Tasks**: 39 tasks (Phases 1-3) for core functionality
+  - Infrastructure/Admin: 9 tasks (production optimization + admin monitoring/analytics)
+- **Search Implementation Strategy**: 
+  - ✅ **API Layer Complete**: REST endpoint functional with semantic search
+  - 🔄 **User Interface**: Bot commands (Phase 7) - conversational, not web-based
+  - 📊 **Admin Interface**: Performance monitoring only (Phase 8)
+- **Parallel Opportunities**: 52 tasks marked [P] can run in parallel within their phases
+- **MVP Tasks**: 39 tasks (Phases 1-3) for core functionality, **US2 API already complete**
 - **Independent Testing**: Each user story has clear test criteria and can be validated independently

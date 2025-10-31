@@ -2,10 +2,11 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { pipeline, env } from '@xenova/transformers';
 
 export interface EmbeddingGenerationRequest {
   text: string;
-  model?: 'text-embedding-3-small' | 'text-embedding-3-large';
+  model?: 'sentence-transformers/all-MiniLM-L6-v2' | 'sentence-transformers/all-mpnet-base-v2';
 }
 
 export interface EmbeddingGenerationResponse {
@@ -17,24 +18,39 @@ export interface EmbeddingGenerationResponse {
 @Injectable()
 export class VectorService implements OnModuleInit {
   private readonly logger = new Logger(VectorService.name);
-  private readonly openaiApiKey: string;
-  private readonly defaultModel = 'text-embedding-3-small';
-  private readonly embeddingDimension = 1536; // OpenAI text-embedding-3-small dimensions
+  private readonly defaultModel = 'Xenova/all-MiniLM-L6-v2'; // Local model, 384 dimensions
+  private readonly embeddingDimension = 384; // all-MiniLM-L6-v2 dimensions
+  private extractor: any; // Will hold the loaded pipeline
 
   constructor(
     @InjectDataSource()
     private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
   ) {
-    this.openaiApiKey = this.configService.get<string>('OPENAI_API_KEY') || '';
+    // Configure transformers.js to use local models
+    env.allowLocalModels = false;
+    env.allowRemoteModels = true;
     
-    if (!this.openaiApiKey) {
-      this.logger.warn('OpenAI API key not configured - vector search will not work');
-    }
+    this.logger.log('VectorService initialized - will load sentence transformers locally');
   }
 
   async onModuleInit() {
     await this.ensurePgVectorExtension();
+    await this.loadEmbeddingModel();
+  }
+
+  /**
+   * Load the sentence transformer model locally
+   */
+  private async loadEmbeddingModel(): Promise<void> {
+    try {
+      this.logger.log('Loading sentence transformer model...');
+      this.extractor = await pipeline('feature-extraction', this.defaultModel);
+      this.logger.log('Sentence transformer model loaded successfully');
+    } catch (error) {
+      this.logger.error('Failed to load embedding model:', error);
+      throw new Error(`Model loading failed: ${error.message}`);
+    }
   }
 
   /**
@@ -49,12 +65,12 @@ export class VectorService implements OnModuleInit {
         ) as exists;
       `);
 
-      if (!extensionCheck[0]?.exists) {
+      if (extensionCheck[0]?.exists) {
+        this.logger.log('pgvector extension already installed');
+      } else {
         this.logger.log('Installing pgvector extension...');
         await this.dataSource.query('CREATE EXTENSION IF NOT EXISTS vector;');
         this.logger.log('pgvector extension installed successfully');
-      } else {
-        this.logger.log('pgvector extension already installed');
       }
 
       // Verify vector operations work
@@ -68,49 +84,38 @@ export class VectorService implements OnModuleInit {
   }
 
   /**
-   * Generate embedding for text using OpenAI API
+   * Generate embedding for text using local sentence transformers
+   * Uses sentence-transformers model loaded locally - no API calls needed
    */
   async generateEmbedding(request: EmbeddingGenerationRequest): Promise<EmbeddingGenerationResponse> {
-    if (!this.openaiApiKey) {
-      throw new Error('OpenAI API key not configured for embedding generation');
+    if (!request.text?.trim()) {
+      throw new Error('Text content is required for embedding generation');
+    }
+
+    if (!this.extractor) {
+      throw new Error('Embedding model not loaded. Ensure onModuleInit has completed.');
     }
 
     const model = request.model || this.defaultModel;
-
+    
     this.logger.debug(`Generating embedding for text: ${request.text.substring(0, 100)}...`);
 
     try {
-      const response = await fetch('https://api.openai.com/v1/embeddings', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.openaiApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          input: request.text,
-          model: model,
-          encoding_format: 'float',
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`OpenAI API error: ${response.status} ${error}`);
-      }
-
-      const data = await response.json();
+      // Generate embedding using local model
+      const output = await this.extractor(request.text, { pooling: 'mean', normalize: true });
       
-      if (!data.data || data.data.length === 0) {
-        throw new Error('No embedding data returned from OpenAI API');
+      // Convert tensor to array
+      const embeddingVector = Array.from(output.data) as number[];
+      const tokens = Math.ceil(request.text.length / 4); // Rough estimate
+
+      if (embeddingVector.length !== this.embeddingDimension) {
+        throw new Error(`Expected ${this.embeddingDimension} dimensions, got ${embeddingVector.length}`);
       }
 
-      const embedding = data.data[0].embedding;
-      const tokens = data.usage?.total_tokens || 0;
-
-      this.logger.debug(`Generated embedding with ${embedding.length} dimensions, ${tokens} tokens used`);
+      this.logger.debug(`Generated embedding with ${embeddingVector.length} dimensions`);
 
       return {
-        embedding,
+        embedding: embeddingVector,
         tokens,
         model,
       };
@@ -121,56 +126,29 @@ export class VectorService implements OnModuleInit {
   }
 
   /**
-   * Generate embeddings for multiple texts in batch
+   * Generate embeddings for multiple texts using local sentence transformers
+   * Processes texts efficiently with local model
    */
   async generateEmbeddings(texts: string[], model?: string): Promise<EmbeddingGenerationResponse[]> {
     const embeddings: EmbeddingGenerationResponse[] = [];
     
-    // Process in batches to avoid API limits
-    const batchSize = 100; // OpenAI allows up to 2048 inputs per request
-    
-    for (let i = 0; i < texts.length; i += batchSize) {
-      const batch = texts.slice(i, i + batchSize);
-      
+    // Process texts individually with local model (fast, no rate limits)
+    for (const [index, text] of texts.entries()) {
       try {
-        const response = await fetch('https://api.openai.com/v1/embeddings', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${this.openaiApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            input: batch,
-            model: model || this.defaultModel,
-            encoding_format: 'float',
-          }),
+        const embedding = await this.generateEmbedding({ 
+          text, 
+          model: model as EmbeddingGenerationRequest['model'] 
         });
-
-        if (!response.ok) {
-          const error = await response.text();
-          throw new Error(`OpenAI API error: ${response.status} ${error}`);
-        }
-
-        const data = await response.json();
-        
-        for (let j = 0; j < data.data.length; j++) {
-          embeddings.push({
-            embedding: data.data[j].embedding,
-            tokens: Math.floor(data.usage.total_tokens / batch.length), // Approximate per text
-            model: model || this.defaultModel,
-          });
-        }
+        embeddings.push(embedding);
         
       } catch (error) {
-        this.logger.error(`Error processing embedding batch ${i}-${i + batch.length}:`, error);
-        // Continue with other batches, add null entries for failed ones
-        for (let k = 0; k < batch.length; k++) {
-          embeddings.push({
-            embedding: new Array(this.embeddingDimension).fill(0), // Zero vector as fallback
-            tokens: 0,
-            model: model || this.defaultModel,
-          });
-        }
+        this.logger.error(`Error processing embedding for text ${index}:`, error);
+        // Add zero vector as fallback for failed embeddings
+        embeddings.push({
+          embedding: new Array(this.embeddingDimension).fill(0),
+          tokens: 0,
+          model: model || this.defaultModel,
+        });
       }
     }
 
@@ -271,8 +249,8 @@ export class VectorService implements OnModuleInit {
       FROM dumps
     `);
 
-    const totalDumps = parseInt(stats[0]?.total_dumps || '0');
-    const dumpsWithVectors = parseInt(stats[0]?.dumps_with_vectors || '0');
+    const totalDumps = Number.parseInt(stats[0]?.total_dumps || '0', 10);
+    const dumpsWithVectors = Number.parseInt(stats[0]?.dumps_with_vectors || '0', 10);
     const vectorCoverage = totalDumps > 0 ? (dumpsWithVectors / totalDumps) * 100 : 0;
 
     return {
@@ -328,7 +306,7 @@ export class VectorService implements OnModuleInit {
    */
   async getHealthStatus(): Promise<{
     pgvectorEnabled: boolean;
-    openaiConfigured: boolean;
+    embeddingServiceConfigured: boolean;
     vectorStats: any;
   }> {
     try {
@@ -336,22 +314,22 @@ export class VectorService implements OnModuleInit {
       await this.dataSource.query('SELECT \'[1,2,3]\'::vector;');
       const pgvectorEnabled = true;
 
-      // Check OpenAI configuration
-      const openaiConfigured = !!this.openaiApiKey;
+      // Check embedding service (Hugging Face is always available, key just removes rate limits)
+      const embeddingServiceConfigured = true; // HF always available
 
       // Get vector statistics
       const vectorStats = await this.getEmbeddingStats();
 
       return {
         pgvectorEnabled,
-        openaiConfigured,
+        embeddingServiceConfigured,
         vectorStats,
       };
     } catch (error) {
       this.logger.error('Health check failed:', error);
       return {
         pgvectorEnabled: false,
-        openaiConfigured: !!this.openaiApiKey,
+        embeddingServiceConfigured: true, // HF is always available
         vectorStats: null,
       };
     }

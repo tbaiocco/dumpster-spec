@@ -16,5 +16,15 @@ module.exports = {
   },
   modulePathIgnorePatterns: ['<rootDir>/dist/'],
   setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
-  testTimeout: 10000, // 10 second timeout for database operations
+  testTimeout: 30000, // 30 seconds for model loading
+  // Handle ES modules from @xenova/transformers
+  extensionsToTreatAsEsm: ['.ts'],
+  globals: {
+    'ts-jest': {
+      useESM: true,
+    },
+  },
+  transformIgnorePatterns: [
+    'node_modules/(?!(@xenova/transformers)/)',
+  ],
 };

@@ -27,6 +27,15 @@ export interface SearchFilters {
   includeProcessing?: boolean;
 }
 
+export interface VectorHealthMetrics {
+  totalDumps: number;
+  dumpsWithVectors: number;
+  vectorCoverage: number;
+  avgQueryTime: number;
+  indexSize: string;
+  lastUpdate: Date;
+}
+
 export interface SearchResult {
   dump: Dump;
   relevanceScore: number;
@@ -48,6 +57,7 @@ export interface SearchResponse {
     semanticResults: number;
     fuzzyResults: number;
     exactResults: number;
+    vectorHealth?: VectorHealthMetrics;
     filters: SearchFilters;
   };
 }
@@ -115,6 +125,9 @@ export class SearchService {
 
       const processingTime = Date.now() - startTime;
 
+      // Get vector health metrics for monitoring
+      const vectorHealth = await this.getVectorHealthMetrics();
+
       const response: SearchResponse = {
         results: paginatedResults,
         total: rankedResults.length,
@@ -127,6 +140,7 @@ export class SearchService {
           semanticResults: semanticResults.length,
           fuzzyResults: fuzzyResults.length,
           exactResults: exactResults.length,
+          vectorHealth,
           filters: request.filters || {},
         },
       };
@@ -477,5 +491,83 @@ export class SearchService {
       this.logger.warn(`Failed to get timezone for user ${userId}:`, error);
       return 'UTC';
     }
+  }
+
+  /**
+   * Get vector health metrics for monitoring
+   * Part of T049D: Health monitoring implementation
+   */
+  async getVectorHealthMetrics(): Promise<VectorHealthMetrics> {
+    try {
+      const startTime = Date.now();
+
+      // Get vector statistics
+      const [totalResult, vectoredResult] = await Promise.all([
+        this.dataSource.query("SELECT COUNT(*) as count FROM dumps WHERE processing_status = 'completed'"),
+        this.dataSource.query("SELECT COUNT(*) as count FROM dumps WHERE content_vector IS NOT NULL"),
+      ]);
+
+      const totalDumps = parseInt(totalResult[0].count);
+      const dumpsWithVectors = parseInt(vectoredResult[0].count);
+      const vectorCoverage = totalDumps > 0 ? (dumpsWithVectors / totalDumps) * 100 : 0;
+
+      // Measure query performance
+      const queryTime = Date.now() - startTime;
+
+      // Get index size information
+      const indexSizeResult = await this.dataSource.query(`
+        SELECT pg_size_pretty(pg_total_relation_size('idx_dumps_content_vector')) as size
+      `);
+
+      return {
+        totalDumps,
+        dumpsWithVectors,
+        vectorCoverage: parseFloat(vectorCoverage.toFixed(2)),
+        avgQueryTime: queryTime,
+        indexSize: indexSizeResult[0]?.size || 'Unknown',
+        lastUpdate: new Date(),
+      };
+    } catch (error) {
+      this.logger.error('Failed to get vector health metrics:', error);
+      throw new Error(`Vector health check failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Check if vector infrastructure is healthy
+   * Part of T049D: Health monitoring implementation
+   */
+  async checkVectorHealth(): Promise<{ 
+    healthy: boolean; 
+    issues: string[]; 
+    metrics: VectorHealthMetrics 
+  }> {
+    const issues: string[] = [];
+    const metrics = await this.getVectorHealthMetrics();
+
+    // Check coverage threshold
+    if (metrics.vectorCoverage < 95) {
+      issues.push(`Low vector coverage: ${metrics.vectorCoverage}% (expected: >95%)`);
+    }
+
+    // Check query performance
+    if (metrics.avgQueryTime > 100) {
+      issues.push(`Slow query performance: ${metrics.avgQueryTime}ms (expected: <100ms)`);
+    }
+
+    // Check if we have any vectors at all
+    if (metrics.dumpsWithVectors === 0) {
+      issues.push('No vectors found in database');
+    }
+
+    const healthy = issues.length === 0;
+
+    this.logger.log(`Vector health check: ${healthy ? 'HEALTHY' : 'ISSUES FOUND'}`, {
+      coverage: `${metrics.vectorCoverage}%`,
+      queryTime: `${metrics.avgQueryTime}ms`,
+      issues: issues.length,
+    });
+
+    return { healthy, issues, metrics };
   }
 }

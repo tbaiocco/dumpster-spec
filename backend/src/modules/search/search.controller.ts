@@ -10,11 +10,11 @@ import {
   ValidationPipe,
   UseGuards,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { GetUser } from '../../auth/decorators/get-user.decorator';
-import { User } from '../../../entities/user.entity';
-import { SearchService, SearchRequest, SearchResponse } from '../search.service';
-import { VectorService } from '../vector.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { GetUser } from '../auth/decorators/get-user.decorator';
+import { User } from '../../entities/user.entity';
+import { SearchService, SearchRequest, SearchResponse } from './search.service';
+import { VectorService } from './vector.service';
 import { IsString, IsOptional, IsArray, IsDateString, IsNumber, Min, Max } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import type { ApiResponse } from '../../../common/interfaces/api-response.interface';
