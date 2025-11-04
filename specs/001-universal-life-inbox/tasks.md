@@ -95,9 +95,9 @@ Based on plan.md structure: `backend/src/`, `admin-dashboard/src/`
 
 ### Implementation for User Story 2
 
-- [x] T040 [P] [US2] Setup pgvector extension and embedding generation in backend/src/modules/search/vector.service.ts
-- [x] T041 [P] [US2] Create SearchService with natural language processing in backend/src/modules/search/search.service.ts
-- [x] T042 [P] [US2] Implement search query enhancement using Claude API in backend/src/modules/search/query-enhancement.service.ts
+- [x] T040 [P] [US2] Setup pgvector extension and embedding generation in backend/src/modules/search/vector.service.ts (✅ Implemented)
+- [x] T041 [P] [US2] Create SearchService with natural language processing in backend/src/modules/search/search.service.ts (✅ Implemented)  
+- [x] T042 [P] [US2] Implement search query enhancement using Claude API in backend/src/modules/search/query-enhancement.service.ts (✅ Implemented)
 - [x] T043 [P] [US2] Create SearchController with search endpoints in backend/src/modules/search/search.controller.ts
 - [x] T044 [US2] Implement semantic similarity search using pgvector in backend/src/modules/search/semantic-search.service.ts
 - [x] T045 [US2] Add search result ranking and relevance scoring in backend/src/modules/search/ranking.service.ts
@@ -133,9 +133,9 @@ Based on plan.md structure: `backend/src/`, `admin-dashboard/src/`
 
 ### Implementation for User Story 4
 
-- [ ] T050 [P] [US4] Create bot command handlers for /recent, /report, /help in backend/src/modules/bots/commands/
+- [x] T050 [P] [US4] Create bot command handlers for /recent, /report, /help in backend/src/modules/bots/commands/ (✅ Implemented in telegram.service.ts)
 - [ ] T051 [P] [US4] Implement manual review flagging system in backend/src/modules/dumps/review.service.ts
-- [ ] T052 [P] [US4] Create admin interface for reviewing flagged content in admin-dashboard/src/pages/ReviewPage.tsx
+- [ ] T052 [P] [US4] Create review flagging API endpoints in backend/src/modules/dumps/review.controller.ts
 - [ ] T053 [US4] Add confidence threshold handling for low-confidence AI results in backend/src/modules/ai/confidence.service.ts
 - [ ] T054 [US4] Implement error reporting and user feedback collection in backend/src/modules/feedback/feedback.service.ts
 - [ ] T055 [US4] Create FeedbackController for error reporting endpoints in backend/src/modules/feedback/feedback.controller.ts
@@ -211,6 +211,16 @@ Based on plan.md structure: `backend/src/`, `admin-dashboard/src/`
 - [ ] T086 [P] Add search performance monitoring dashboard (admin analytics only) in admin-dashboard/src/pages/analytics/SearchMetricsPage.tsx
 - [ ] T087 [P] Create AI processing metrics and confidence tracking interface in admin-dashboard/src/pages/analytics/AIMetricsPage.tsx
 - [ ] T088 Setup admin dashboard routing and navigation in admin-dashboard/src/App.tsx
+- [ ] T089a [P] [US4] Create admin interface for reviewing flagged content in admin-dashboard/src/pages/ReviewPage.tsx
+
+### Existing Admin Endpoints (Already Implemented)
+
+**✅ COMPLETED**: The following admin functionality is already available in backend/src/app.controller.ts:
+- [x] T088a Admin vector index recreation endpoint (/admin/recreate-vector-index)
+- [x] T088b Admin vector health monitoring (/admin/vector-health) 
+- [x] T088c Admin database cleanup utilities (/admin/clean-dumps)
+- [x] T088d Admin AI service testing (/admin/test-claude)
+- [x] T088e Admin environment diagnostics (/admin/env-check)
 
 ---
 
@@ -218,16 +228,16 @@ Based on plan.md structure: `backend/src/`, `admin-dashboard/src/`
 
 **Purpose**: Final optimizations and production deployment preparation
 
-- [ ] T089 [P] Add comprehensive error logging and monitoring integration
-- [ ] T090 [P] Implement rate limiting for API endpoints in backend/src/common/guards/throttle.guard.ts
-- [ ] T091 [P] Add API documentation with Swagger in backend/src/main.ts
-- [ ] T092 [P] Setup health check endpoints in backend/src/health/health.controller.ts
-- [ ] T093 [P] Configure production environment variables and secrets
-- [ ] T094 [P] Setup CI/CD pipeline configuration
-- [ ] T095 Optimize database queries and add performance monitoring
-- [ ] T096 Add security headers and HTTPS configuration
-- [ ] T097 Setup backup and disaster recovery procedures
-- [ ] T098 Create user documentation and onboarding materials
+- [ ] T090 [P] Add comprehensive error logging and monitoring integration
+- [ ] T091 [P] Implement rate limiting for API endpoints in backend/src/common/guards/throttle.guard.ts
+- [ ] T092 [P] Add API documentation with Swagger in backend/src/main.ts
+- [ ] T093 [P] Setup health check endpoints in backend/src/health/health.controller.ts
+- [ ] T094 [P] Configure production environment variables and secrets
+- [ ] T095 [P] Setup CI/CD pipeline configuration
+- [ ] T096 Optimize database queries and add performance monitoring
+- [ ] T097 Add security headers and HTTPS configuration
+- [ ] T098 Setup backup and disaster recovery procedures
+- [ ] T099 Create user documentation and onboarding materials
 
 ---
 
@@ -262,6 +272,24 @@ Phase 1 (Setup) → Phase 2 (Foundation) → Phase 3 (US1) → Phase 4 (US2) →
 - Foundation for all other features
 
 This provides immediate value while establishing the technical foundation for incremental feature delivery.
+
+---
+
+## ✅ REMEDIATION SUMMARY (November 4, 2025)
+
+**Fixed Critical Issues:**
+1. **Phase Dependency Resolved**: Split T052 into backend API (Phase 5) and frontend UI (Phase 8) 
+2. **Task Status Updated**: Marked completed implementations (T040-T042, T050, T043-T049)
+3. **Admin Endpoints Documented**: Added existing admin functionality (T088a-T088e)
+
+**Key Changes:**
+- T052: Split into backend API + frontend UI to resolve Phase 5→8 dependency
+- T050: Marked complete (bot commands implemented in telegram.service.ts)
+- T040-T049: Marked complete (search functionality fully implemented)
+- Added T089a: Admin review interface moved to Phase 8
+- Added T088a-e: Document existing admin endpoints
+
+**Status**: Phase dependency conflicts resolved ✅ | Implementation gaps identified ✅ | Task organization improved ✅
 
 ---
 

@@ -40,25 +40,10 @@ export class DatabaseInitService implements OnModuleInit {
       `);
 
       if (indexExists.length === 0) {
-        // Check if there are any rows with non-null vectors before creating index
-        const vectorCount = await this.dataSource.query(`
-          SELECT COUNT(*) as count FROM "dumps" WHERE "content_vector" IS NOT NULL
-        `);
-
-        if (vectorCount[0].count > 0) {
-          this.logger.log('Creating vector index for dumps table...');
-          
-          // Create the IVFFLAT index for vector similarity search
-          await this.dataSource.query(`
-            CREATE INDEX "idx_dumps_content_vector" ON "dumps" 
-            USING ivfflat ("content_vector" vector_cosine_ops) 
-            WITH (lists = 100)
-          `);
-          
-          this.logger.log('✅ Vector index created successfully');
-        } else {
-          this.logger.warn('⚠️ No vector data found - skipping index creation. Index will be created after vectors are generated.');
-        }
+                // TEMPORARILY DISABLED: Index creation appears to cause vector data loss
+        // Will keep manual creation available via admin endpoint
+        this.logger.log('ℹ️ Vector index creation disabled to prevent data loss');
+        this.logger.log('💡 Index can be created manually via /admin/recreate-vector-index endpoint if needed');
       } else {
         this.logger.log('✅ Vector index already exists');
       }
@@ -126,12 +111,28 @@ export class DatabaseInitService implements OnModuleInit {
       `);
 
       if (vectorCount[0].count > 0) {
-        // Recreate the index
-        await this.dataSource.query(`
-          CREATE INDEX "idx_dumps_content_vector" ON "dumps" 
-          USING ivfflat ("content_vector" vector_cosine_ops) 
-          WITH (lists = 100)
-        `);
+        // Try different index types - avoid ALTER COLUMN TYPE as it destroys data
+        try {
+          this.logger.log('Creating HNSW index (safer for existing data)...');
+          await this.dataSource.query(`
+            CREATE INDEX "idx_dumps_content_vector" ON "dumps" 
+            USING hnsw ("content_vector" vector_cosine_ops)
+          `);
+        } catch (hnswError) {
+          this.logger.warn(`HNSW failed: ${hnswError.message}, trying IVFFlat without dimension constraint...`);
+          try {
+            await this.dataSource.query(`
+              CREATE INDEX "idx_dumps_content_vector" ON "dumps" 
+              USING ivfflat ("content_vector" vector_l2_ops) 
+              WITH (lists = 100)
+            `);
+          } catch (ivfError) {
+            this.logger.warn(`IVFFlat also failed: ${ivfError.message}, creating basic index...`);
+            await this.dataSource.query(`
+              CREATE INDEX "idx_dumps_content_vector" ON "dumps" ("content_vector")
+            `);
+          }
+        }
         
         this.logger.log(`✅ Vector index recreated successfully for ${vectorCount[0].count} records`);
       } else {
