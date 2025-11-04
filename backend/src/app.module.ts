@@ -6,6 +6,8 @@ import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/users/user.module';
 import { DumpModule } from './modules/dumps/dump.module';
+import { SearchModule } from './modules/search/search.module';
+import { DatabaseInitService } from './database/database-init.service';
 
 @Module({
   imports: [
@@ -37,8 +39,9 @@ import { DumpModule } from './modules/dumps/dump.module';
     AuthModule,
     UserModule,
     DumpModule,
+    SearchModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, DatabaseInitService],
 })
 export class AppModule {}

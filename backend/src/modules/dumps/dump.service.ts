@@ -7,6 +7,8 @@ import { ClaudeService, type ContentAnalysisResponse } from '../ai/claude.servic
 import { SpeechService } from '../ai/speech.service';
 import { VisionService } from '../ai/vision.service';
 import { UserService } from '../users/user.service';
+import { VectorService } from '../search/vector.service';
+import { DatabaseInitService } from '../../database/database-init.service';
 
 export interface CreateDumpRequest {
   userId: string;
@@ -63,6 +65,8 @@ export class DumpService {
     private readonly speechService: SpeechService,
     private readonly visionService: VisionService,
     private readonly userService: UserService,
+    private readonly vectorService: VectorService,
+    private readonly databaseInitService: DatabaseInitService,
   ) {}
 
   async createDump(request: CreateDumpRequest): Promise<DumpProcessingResult> {
@@ -195,7 +199,46 @@ export class DumpService {
       const savedDump = await this.dumpRepository.save(dump);
       processingSteps.push('Dump saved to database');
 
-      // Step 7: Update processing status
+      // Step 7: Generate content vector for semantic search
+      try {
+        const contentToEmbed = savedDump.ai_summary || savedDump.raw_content;
+        if (contentToEmbed) {
+          this.logger.debug(`Generating embedding for dump ${savedDump.id}`);
+          const embeddingResponse = await this.vectorService.generateEmbedding({
+            text: contentToEmbed,
+          });
+          
+          // Update the dump with the generated vector
+          await this.dumpRepository.update(savedDump.id, {
+            content_vector: embeddingResponse.embedding,
+          });
+          
+          processingSteps.push('Content vector generated');
+          this.logger.debug(`Vector generated successfully for dump ${savedDump.id}`);
+          
+          // Trigger vector index creation if it doesn't exist
+          try {
+            await this.databaseInitService.ensureVectorIndex();
+            this.logger.debug('Vector index ensured after embedding generation');
+          } catch (error) {
+            this.logger.warn('Failed to ensure vector index:', error.message);
+            // Try to recreate index as fallback
+            try {
+              this.logger.log('Attempting to recreate vector index...');
+              await this.databaseInitService.recreateVectorIndex();
+              this.logger.log('✅ Vector index recreated successfully');
+            } catch (recreateError) {
+              this.logger.error('❌ Failed to recreate vector index:', recreateError.message);
+            }
+          }
+        }
+      } catch (error) {
+        this.logger.error(`Failed to generate vector for dump ${savedDump.id}:`, error);
+        errors.push(`Vector generation failed: ${error.message}`);
+        // Continue processing even if vector generation fails
+      }
+
+      // Step 8: Update processing status
       await this.dumpRepository.update(savedDump.id, {
         processing_status: ProcessingStatus.COMPLETED,
         processed_at: new Date(),
@@ -486,6 +529,54 @@ export class DumpService {
       default:
         return ContentType.TEXT;
     }
+  }
+
+  /**
+   * Generate vectors for existing dumps that don't have them
+   */
+  async generateMissingVectors(): Promise<{ processed: number; errors: number }> {
+    this.logger.log('Starting to generate missing vectors for existing dumps...');
+
+    // Find dumps without vectors
+    const dumpsWithoutVectors = await this.dumpRepository
+      .createQueryBuilder('dump')
+      .where('dump.content_vector IS NULL')
+      .andWhere('dump.processing_status = :status', { status: ProcessingStatus.COMPLETED })
+      .getMany();
+
+    this.logger.log(`Found ${dumpsWithoutVectors.length} dumps without vectors`);
+
+    let processed = 0;
+    let errors = 0;
+
+    for (const dump of dumpsWithoutVectors) {
+      try {
+        const contentToEmbed = dump.ai_summary || dump.raw_content;
+        if (contentToEmbed) {
+          this.logger.debug(`Generating vector for existing dump ${dump.id}`);
+          
+          const embeddingResponse = await this.vectorService.generateEmbedding({
+            text: contentToEmbed,
+          });
+
+          await this.dumpRepository.update(dump.id, {
+            content_vector: embeddingResponse.embedding,
+          });
+
+          processed++;
+          
+          if (processed % 10 === 0) {
+            this.logger.log(`Generated vectors for ${processed}/${dumpsWithoutVectors.length} dumps`);
+          }
+        }
+      } catch (error) {
+        this.logger.error(`Failed to generate vector for dump ${dump.id}:`, error);
+        errors++;
+      }
+    }
+
+    this.logger.log(`Vector generation completed: ${processed} processed, ${errors} errors`);
+    return { processed, errors };
   }
 
   private generateRandomColor(): string {

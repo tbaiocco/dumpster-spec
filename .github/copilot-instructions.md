@@ -21,4 +21,17 @@ TypeScript 5.0+, Node.js 18+: Follow standard conventions
 - 001-universal-life-inbox: Added TypeScript 5.0+, Node.js 18+ + NestJS (backend framework), Supabase (PostgreSQL + storage), pgvector (semantic search)
 
 <!-- MANUAL ADDITIONS START -->
+## Backend Project Root
+```
+backend/
+backend/src/
+backend/tests/
+```
+## Frontend Project Root
+```
+admin-dashboard/
+admin-dashboard/src/
+admin-dashboard/tests/
+```
+
 <!-- MANUAL ADDITIONS END -->

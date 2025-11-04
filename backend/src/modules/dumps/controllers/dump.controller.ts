@@ -168,4 +168,15 @@ export class DumpController {
   async remove(@Param('id') id: string): Promise<void> {
     await this.dumpService.deleteDump(id);
   }
+
+  @Post('generate-vectors')
+  async generateMissingVectors(): Promise<ApiResponse<{ processed: number; errors: number }>> {
+    const result = await this.dumpService.generateMissingVectors();
+    
+    return {
+      success: true,
+      data: result,
+      message: `Vector generation completed: ${result.processed} processed, ${result.errors} errors`,
+    };
+  }
 }
