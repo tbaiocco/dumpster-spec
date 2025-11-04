@@ -133,7 +133,7 @@ Based on plan.md structure: `backend/src/`, `admin-dashboard/src/`
 
 ### Implementation for User Story 4
 
-- [x] T050 [P] [US4] Create bot command handlers for /recent, /report, /help in backend/src/modules/bots/commands/ (✅ Implemented in telegram.service.ts)
+- [ ] T050 [P] [US4] Create bot command handlers for /recent, /report, /help in backend/src/modules/bots/commands/ 
 - [ ] T051 [P] [US4] Implement manual review flagging system in backend/src/modules/dumps/review.service.ts
 - [ ] T052 [P] [US4] Create review flagging API endpoints in backend/src/modules/dumps/review.controller.ts
 - [ ] T053 [US4] Add confidence threshold handling for low-confidence AI results in backend/src/modules/ai/confidence.service.ts
