@@ -7,6 +7,9 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/users/user.module';
 import { DumpModule } from './modules/dumps/dump.module';
 import { SearchModule } from './modules/search/search.module';
+import { BotsModule } from './modules/bots/bots.module';
+import { FeedbackModule } from './modules/feedback/feedback.module';
+import { EmailModule } from './modules/email/email.module';
 import { DatabaseInitService } from './database/database-init.service';
 
 @Module({
@@ -40,6 +43,9 @@ import { DatabaseInitService } from './database/database-init.service';
     UserModule,
     DumpModule,
     SearchModule,
+    BotsModule,
+    FeedbackModule,
+    EmailModule,
   ],
   controllers: [AppController],
   providers: [AppService, DatabaseInitService],

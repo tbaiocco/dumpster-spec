@@ -6,9 +6,17 @@ import { Category } from '../../entities/category.entity';
 import { ClaudeService, type ContentAnalysisResponse } from '../ai/claude.service';
 import { SpeechService } from '../ai/speech.service';
 import { VisionService } from '../ai/vision.service';
-import { UserService } from '../users/user.service';
+import { FallbackHandlerService } from '../ai/fallback-handler.service';
+import { DocumentProcessorService } from '../ai/document-processor.service';
 import { VectorService } from '../search/vector.service';
+import { UserService } from '../users/user.service';
 import { DatabaseInitService } from '../../database/database-init.service';
+import { ConfidenceService } from '../ai/confidence.service';
+import { ContentRouterService, ContentType as RouterContentType } from './content-router.service';
+import { ScreenshotProcessorService } from '../ai/screenshot-processor.service';
+import { VoiceProcessorService } from '../ai/voice-processor.service';
+import { ImageProcessorService } from '../ai/image-processor.service';
+import { HandwritingService } from '../ai/handwriting.service';
 
 export interface CreateDumpRequest {
   userId: string;
@@ -67,6 +75,11 @@ export class DumpService {
     private readonly userService: UserService,
     private readonly vectorService: VectorService,
     private readonly databaseInitService: DatabaseInitService,
+    private readonly contentRouterService: ContentRouterService,
+    private readonly screenshotProcessorService: ScreenshotProcessorService,
+    private readonly voiceProcessorService: VoiceProcessorService,
+    private readonly imageProcessorService: ImageProcessorService,
+    private readonly handwritingService: HandwritingService,
   ) {}
 
   async createDump(request: CreateDumpRequest): Promise<DumpProcessingResult> {
@@ -88,16 +101,19 @@ export class DumpService {
       let confidence = 0.8;
 
       switch (request.contentType) {
-        case 'voice':
+        case 'voice': {
           if (request.mediaBuffer) {
             // Extract language from metadata, default to Portuguese for now if not specified
             const languageCode = request.metadata?.language || 'pt-BR';
             
             this.logger.debug(`Transcribing audio with language: ${languageCode}`);
             
+            const originalMimeType = request.metadata?.mimeType || 'audio/wav';
+            const fixedMimeType = this.getProperMimeType(RouterContentType.VOICE_MESSAGE, originalMimeType, request.metadata?.fileName);
+            
             const transcriptionResult = await this.speechService.transcribeAudio({
               audioBuffer: request.mediaBuffer,
-              mimeType: request.metadata?.mimeType || 'audio/wav',
+              mimeType: fixedMimeType,
               languageCode: languageCode,
               enableAutomaticPunctuation: true,
               enableWordTimeOffsets: true,
@@ -111,8 +127,9 @@ export class DumpService {
             processedContent = request.originalText || 'Voice message (transcription failed)';
           }
           break;
+        }
 
-        case 'image':
+        case 'image': {
           if (request.mediaBuffer) {
             const ocrResult = await this.visionService.extractTextFromImage(
               request.mediaBuffer,
@@ -126,19 +143,22 @@ export class DumpService {
             processedContent = request.originalText || 'Image (OCR failed)';
           }
           break;
+        }
 
-        case 'document':
+        case 'document': {
           // For now, treat documents as text content
           // In the future, we could add document parsing here
           processedContent = request.content;
           processingSteps.push('Document content processed');
           break;
+        }
 
         case 'text':
-        default:
+        default: {
           processedContent = request.content;
           processingSteps.push('Text content processed');
           break;
+        }
       }
 
       // Step 3: Analyze content with Claude
@@ -274,6 +294,278 @@ export class DumpService {
         processingSteps,
         errors: [...errors, error.message],
       };
+    }
+  }
+
+  /**
+   * Enhanced version using ContentRouterService for intelligent content processing
+   */
+  async createDumpEnhanced(request: CreateDumpRequest): Promise<DumpProcessingResult> {
+    this.logger.log(`Processing enhanced dump for user ${request.userId}, type: ${request.contentType}`);
+    
+    const processingSteps: string[] = [];
+    const errors: string[] = [];
+
+    try {
+      // Step 1: Validate user exists
+      const user = await this.userService.findOne(request.userId);
+      if (!user) {
+        throw new NotFoundException(`User with ID ${request.userId} not found`);
+      }
+      processingSteps.push('User validated');
+
+      // Step 2: Analyze content using ContentRouterService if media buffer exists
+      let processedContent: string;
+      let confidence = 0.8;
+      let routingResult: any = null;
+
+      if (request.mediaBuffer) {
+        // Use ContentRouterService for intelligent content analysis
+        const contentAnalysis = await this.contentRouterService.analyzeContent(
+          request.mediaBuffer,
+          request.metadata?.mimeType,
+          request.metadata?.fileName
+        );
+        
+        const routingDecision = await this.contentRouterService.routeContent(contentAnalysis);
+        routingResult = { analysis: contentAnalysis, routing: routingDecision };
+        
+        processingSteps.push(`Content analyzed: ${contentAnalysis.contentType} (confidence: ${Math.round(contentAnalysis.confidence * 100)}%)`);
+
+        // Route to appropriate processor based on content analysis
+        switch (routingDecision.primaryProcessor) {
+          case 'screenshot_processor': {
+            const screenshotResult = await this.screenshotProcessorService.processScreenshot(
+              request.mediaBuffer,
+              request.metadata?.mimeType || 'image/png'
+            );
+            processedContent = screenshotResult.extractedText || 'Screenshot processed';
+            confidence = screenshotResult.confidence;
+            processingSteps.push('Screenshot processed with text extraction');
+            break;
+          }
+
+          case 'voice_processor': {
+            // Fall back to speech service for voice processing
+            const originalMimeType = request.metadata?.mimeType || 'audio/wav';
+            const fixedMimeType = this.getProperMimeType(contentAnalysis.contentType, originalMimeType, request.metadata?.fileName);
+            
+            const transcriptionResult = await this.speechService.transcribeAudio({
+              audioBuffer: request.mediaBuffer,
+              mimeType: fixedMimeType,
+              languageCode: request.metadata?.language || 'pt-BR',
+              enableAutomaticPunctuation: true,
+              enableWordTimeOffsets: true,
+              maxAlternatives: 2,
+            });
+            processedContent = transcriptionResult.transcript;
+            confidence = transcriptionResult.confidence;
+            processingSteps.push('Voice message transcribed with enhanced processing');
+            break;
+          }
+
+          case 'image_processor': {
+            // Fall back to vision service for image processing
+            const ocrResult = await this.visionService.extractTextFromImage(
+              request.mediaBuffer,
+              request.metadata?.mimeType || 'image/jpeg'
+            );
+            processedContent = ocrResult.text || 'Image processed';
+            confidence = ocrResult.confidence;
+            processingSteps.push('Image processed with advanced analysis');
+            break;
+          }
+
+          case 'handwriting_processor': {
+            const handwritingResult = await this.handwritingService.recognizeHandwriting(
+              request.mediaBuffer,
+              request.metadata?.mimeType || 'image/jpeg'
+            );
+            processedContent = handwritingResult.extractedText || 'Handwriting processed';
+            confidence = handwritingResult.confidence;
+            processingSteps.push('Handwriting extracted and processed');
+            break;
+          }
+
+          default:
+            // Fall back to original processing logic
+            processedContent = await this.processContentFallback(request, processingSteps);
+        }
+      } else {
+        // Process text content directly
+        processedContent = request.content;
+        processingSteps.push('Text content processed');
+      }
+
+      // Step 3: Analyze processed content with Claude
+      const analysis = await this.claudeService.analyzeContent({
+        content: processedContent,
+        contentType: 'text',
+        context: {
+          source: request.metadata?.source || 'telegram',
+          userId: request.userId,
+          timestamp: new Date(),
+        },
+      });
+      processingSteps.push('Content analysis completed');
+
+      // Step 4: Find or create category
+      const category = await this.findOrCreateCategory(analysis.category, request.userId);
+      processingSteps.push(`Category assigned: ${category.name}`);
+
+      // Step 5: Map content type to entity enum
+      const entityContentType = this.mapContentType(request.contentType, routingResult?.analysis?.contentType);
+
+      // Step 6: Create dump entity with enhanced metadata
+      const dump = this.dumpRepository.create({
+        user_id: user.id,
+        raw_content: processedContent,
+        content_type: entityContentType,
+        ai_summary: analysis.summary,
+        ai_confidence: Math.round(Math.min(confidence, analysis.confidence) * 100),
+        category_id: category.id,
+        urgency_level: this.mapUrgencyToNumber(analysis.urgency || 'low'),
+        processing_status: ProcessingStatus.PROCESSING,
+        extracted_entities: {
+          entities: analysis.extractedEntities || {},
+          actionItems: analysis.actionItems || [],
+          sentiment: analysis.sentiment || 'neutral',
+          urgency: analysis.urgency || 'low',
+          categoryConfidence: Math.round((analysis.categoryConfidence || 0.8) * 100),
+          metadata: {
+            ...request.metadata,
+            routingInfo: routingResult,
+            enhancedProcessing: true,
+          },
+        },
+      });
+
+      const savedDump = await this.dumpRepository.save(dump);
+      processingSteps.push('Dump saved to database');
+
+      // Step 7: Generate content vector
+      await this.generateContentVector(savedDump, processingSteps, errors);
+
+      // Step 8: Update processing status
+      await this.dumpRepository.update(savedDump.id, {
+        processing_status: ProcessingStatus.COMPLETED,
+        processed_at: new Date(),
+      });
+
+      this.logger.log(`Enhanced dump created successfully: ${savedDump.id}`);
+
+      return {
+        dump: savedDump,
+        analysis,
+        processingSteps,
+        errors: errors.length > 0 ? errors : undefined,
+      };
+
+    } catch (error) {
+      this.logger.error('Error creating enhanced dump:', error);
+      
+      // Fallback to original method
+      return this.createDump(request);
+    }
+  }
+
+  /**
+   * Fallback processing for content when routing fails
+   */
+  private async processContentFallback(request: CreateDumpRequest, processingSteps: string[]): Promise<string> {
+    if (!request.mediaBuffer) {
+      return request.content;
+    }
+
+    switch (request.contentType) {
+      case 'voice': {
+        const originalMimeType = request.metadata?.mimeType || 'audio/wav';
+        const fixedMimeType = this.getProperMimeType(RouterContentType.VOICE_MESSAGE, originalMimeType, request.metadata?.fileName);
+        
+        const transcriptionResult = await this.speechService.transcribeAudio({
+          audioBuffer: request.mediaBuffer,
+          mimeType: fixedMimeType,
+          languageCode: request.metadata?.language || 'pt-BR',
+          enableAutomaticPunctuation: true,
+          enableWordTimeOffsets: true,
+          maxAlternatives: 2,
+        });
+        processingSteps.push('Audio transcribed (fallback)');
+        return transcriptionResult.transcript;
+      }
+
+      case 'image': {
+        const ocrResult = await this.visionService.extractTextFromImage(
+          request.mediaBuffer,
+          request.metadata?.mimeType || 'image/jpeg'
+        );
+        processingSteps.push('Image OCR completed (fallback)');
+        return ocrResult.text || 'Image with no readable text';
+      }
+
+      default:
+        return request.content;
+    }
+  }
+
+  /**
+   * Map content types between different type systems
+   */
+  private mapContentType(requestType: string, routerType?: RouterContentType): ContentType {
+    // Prioritize router analysis if available
+    if (routerType) {
+      switch (routerType) {
+        case RouterContentType.VOICE_MESSAGE:
+          return ContentType.VOICE;
+        case RouterContentType.SCREENSHOT:
+        case RouterContentType.IMAGE:
+          return ContentType.IMAGE;
+        case RouterContentType.DOCUMENT:
+          return ContentType.EMAIL; // Using EMAIL as closest match
+        case RouterContentType.TEXT:
+        default:
+          return ContentType.TEXT;
+      }
+    }
+
+    // Fall back to request type
+    switch (requestType) {
+      case 'voice':
+        return ContentType.VOICE;
+      case 'image':
+        return ContentType.IMAGE;
+      case 'document':
+        return ContentType.EMAIL;
+      case 'text':
+      default:
+        return ContentType.TEXT;
+    }
+  }
+
+  /**
+   * Generate content vector for semantic search
+   */
+  private async generateContentVector(dump: Dump, processingSteps: string[], errors: string[]): Promise<void> {
+    try {
+      const contentToEmbed = dump.ai_summary || dump.raw_content;
+      if (contentToEmbed) {
+        this.logger.debug(`Generating embedding for dump ${dump.id}`);
+        const embeddingResponse = await this.vectorService.generateEmbedding({
+          text: contentToEmbed,
+        });
+        
+        await this.dumpRepository.update(dump.id, {
+          content_vector: embeddingResponse.embedding,
+        });
+        
+        processingSteps.push('Content vector generated');
+        this.logger.debug(`Vector generated successfully for dump ${dump.id}`);
+        
+        await this.databaseInitService.ensureVectorIndex();
+      }
+    } catch (error) {
+      this.logger.error(`Failed to generate vector for dump ${dump.id}:`, error);
+      errors.push(`Vector generation failed: ${error.message}`);
     }
   }
 
@@ -579,6 +871,15 @@ export class DumpService {
     return { processed, errors };
   }
 
+  async getRecentByUser(userId: string, limit = 5): Promise<Dump[]> {
+    return this.dumpRepository.find({
+      where: { user: { id: userId } },
+      relations: ['category', 'user'],
+      order: { created_at: 'DESC' },
+      take: limit,
+    });
+  }
+
   private generateRandomColor(): string {
     const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8'];
     return colors[Math.floor(Math.random() * colors.length)];
@@ -594,6 +895,53 @@ export class DumpService {
         return 3;
       default:
         return 1;
+    }
+  }
+
+  /**
+   * Get proper MIME type based on ContentRouter analysis and filename
+   */
+  private getProperMimeType(routerContentType: RouterContentType | string, originalMimeType: string, filename?: string): string {
+    // If original MIME type is already specific and valid, return as-is
+    if (originalMimeType && !originalMimeType.includes('octet-stream') && !originalMimeType.includes('binary')) {
+      return originalMimeType;
+    }
+
+    // Use router analysis to determine proper MIME type
+    switch (routerContentType) {
+      case RouterContentType.VOICE_MESSAGE:
+      case 'VOICE_MESSAGE':
+        // Infer audio MIME type from filename extension
+        if (filename) {
+          const ext = filename.toLowerCase().split('.').pop();
+          if (ext) {
+            const audioMimeTypes: Record<string, string> = {
+              'mp3': 'audio/mpeg',
+              'wav': 'audio/wav',
+              'ogg': 'audio/ogg',
+              'm4a': 'audio/m4a',
+              'aac': 'audio/aac',
+              'flac': 'audio/flac',
+              'webm': 'audio/webm',
+              'opus': 'audio/opus',
+            };
+            return audioMimeTypes[ext] || 'audio/mpeg'; // Default to MP3
+          }
+        }
+        return 'audio/mpeg';
+        
+      case RouterContentType.IMAGE:
+      case RouterContentType.SCREENSHOT:
+        return 'image/jpeg';
+        
+      case RouterContentType.DOCUMENT:
+        return 'application/pdf';
+        
+      case RouterContentType.VIDEO:
+        return 'video/mp4';
+        
+      default:
+        return originalMimeType || 'application/octet-stream';
     }
   }
 }
