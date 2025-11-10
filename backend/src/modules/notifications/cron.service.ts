@@ -212,7 +212,6 @@ export class CronService {
 
     jobs.forEach((job, name) => {
       status[name] = {
-        running: job.running,
         lastDate: job.lastDate(),
         nextDate: job.nextDate(),
       };
