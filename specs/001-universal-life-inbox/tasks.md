@@ -179,11 +179,11 @@ Based on plan.md structure: `backend/src/`, `admin-dashboard/src/`
 - [x] T066 [P] [US3] Implement daily digest generation service in backend/src/modules/notifications/digest.service.ts
 - [x] T067 [P] [US3] Create ReminderController with reminder endpoints in backend/src/modules/reminders/reminder.controller.ts
 - [x] T068 [P] [US3] Setup cron jobs for digest delivery in backend/src/modules/notifications/cron.service.ts
-- [ ] T069 [US3] Implement proactive reminder logic based on content analysis in backend/src/modules/reminders/proactive.service.ts
+- [x] T069 [US3] Implement proactive reminder logic based on content analysis in backend/src/modules/notifications/proactive.service.ts
 - [x] T070 [US3] Create notification delivery service for multiple channels in backend/src/modules/notifications/delivery.service.ts
-- [ ] T071 [US3] Add reminder completion tracking and follow-up logic in backend/src/modules/reminders/tracking.service.ts
-- [ ] T072 [US3] Implement calendar integration for extracted events in backend/src/modules/calendar/calendar.service.ts
-- [ ] T073 [US3] Add package tracking integration for delivery updates in backend/src/modules/tracking/package-tracking.service.ts
+- [x] T071 [US3] Add reminder completion tracking and follow-up logic in backend/src/modules/tracking/tracking.service.ts
+- [x] T072 [US3] Implement calendar integration for extracted events in backend/src/modules/calendar/calendar.service.ts
+- [x] T073 [US3] Add package tracking integration for delivery updates in backend/src/modules/tracking/package-tracking.service.ts
 
 #### Bot Search Integration (User-Facing Search Interface)
 - [ ] T074 [P] [US2+US3] Implement /search command handler for Telegram bot in backend/src/modules/bots/commands/search.command.ts
