@@ -186,12 +186,12 @@ Based on plan.md structure: `backend/src/`, `admin-dashboard/src/`
 - [x] T073 [US3] Add package tracking integration for delivery updates in backend/src/modules/tracking/package-tracking.service.ts
 
 #### Bot Search Integration (User-Facing Search Interface)
-- [ ] T074 [P] [US2+US3] Implement /search command handler for Telegram bot in backend/src/modules/bots/commands/search.command.ts
+- [x] T074 [P] [US2+US3] Implement /search command handler for Telegram bot in backend/src/modules/bots/commands/search.command.ts (already exists)
 - [ ] T075 [P] [US2+US3] Implement /search command handler for WhatsApp bot in backend/src/modules/bots/whatsapp/search-handler.service.ts
-- [ ] T076 [US2+US3] Create conversational search result formatter in backend/src/modules/bots/formatters/search-result.formatter.ts
+- [x] T076 [US2+US3] Create conversational search result formatter in backend/src/modules/bots/formatters/search-result.formatter.ts
 - [ ] T077 [US2+US3] Integrate contextual search into daily digests ("You also have 3 items about...") in backend/src/modules/notifications/digest.service.ts
-- [ ] T078 [US2+US3] Add search suggestions in proactive reminders ("Related to your task...") in backend/src/modules/reminders/proactive.service.ts
-- [ ] T079 [US2+US3] Implement follow-up search queries ("/more" command) for additional results in backend/src/modules/bots/commands/more.command.ts
+- [ ] T078 [US2+US3] Add search suggestions in proactive reminders ("Related to your task...") in backend/src/modules/notifications/proactive.service.ts
+- [x] T079 [US2+US3] Implement follow-up search queries ("/more" command) for additional results in backend/src/modules/bots/commands/more.command.ts
 
 **Checkpoint**: At this point, User Story 3 should be fully functional - users receive timely digests, proactive reminders, AND can search their content through conversational bot commands (/search)
 
