@@ -134,23 +134,21 @@ describe('ReminderService', () => {
         { ...mockReminder, scheduled_for: new Date(now.getTime() - 2000) },
       ];
 
-      const mockQueryBuilder = {
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        leftJoinAndSelect: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        getMany: jest.fn().mockResolvedValue(pendingReminders),
-      };
-
-      reminderRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+      reminderRepository.find.mockResolvedValue(pendingReminders as any);
 
       const result = await service.getPendingReminders(now);
 
       expect(result).toHaveLength(2);
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
-        'reminder.status = :status',
-        { status: ReminderStatus.PENDING },
-      );
+      expect(reminderRepository.find).toHaveBeenCalledWith({
+        where: {
+          status: ReminderStatus.PENDING,
+          scheduled_for: expect.any(Object), // LessThan matcher
+        },
+        relations: ['user', 'dump'],
+        order: {
+          scheduled_for: 'ASC',
+        },
+      });
     });
   });
 
@@ -193,21 +191,22 @@ describe('ReminderService', () => {
     it('should return reminders in the next 24 hours', async () => {
       const upcomingReminders = [mockReminder, mockReminder];
 
-      const mockQueryBuilder = {
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        leftJoinAndSelect: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        take: jest.fn().mockReturnThis(),
-        getMany: jest.fn().mockResolvedValue(upcomingReminders),
-      };
-
-      reminderRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+      reminderRepository.find.mockResolvedValue(upcomingReminders as any);
 
       const result = await service.getUpcomingReminders('user-123', 24);
 
       expect(result).toHaveLength(2);
-      expect(mockQueryBuilder.take).toHaveBeenCalledWith(10);
+      expect(reminderRepository.find).toHaveBeenCalledWith({
+        where: {
+          user_id: 'user-123',
+          status: ReminderStatus.PENDING,
+          scheduled_for: expect.any(Object), // Between matcher
+        },
+        relations: ['dump'],
+        order: {
+          scheduled_for: 'ASC',
+        },
+      });
     });
   });
 
@@ -243,23 +242,41 @@ describe('ReminderService', () => {
 
   describe('getReminderStats', () => {
     it('should return reminder statistics', async () => {
-      const mockStats = [
-        { status: ReminderStatus.PENDING, count: '5' },
-        { status: ReminderStatus.SENT, count: '10' },
-        { status: ReminderStatus.DISMISSED, count: '3' },
+      const mockReminders = [
+        { ...mockReminder, id: '1', status: ReminderStatus.PENDING },
+        { ...mockReminder, id: '2', status: ReminderStatus.PENDING },
+        { ...mockReminder, id: '3', status: ReminderStatus.PENDING },
+        { ...mockReminder, id: '4', status: ReminderStatus.PENDING },
+        { ...mockReminder, id: '5', status: ReminderStatus.PENDING },
+        { ...mockReminder, id: '6', status: ReminderStatus.SENT },
+        { ...mockReminder, id: '7', status: ReminderStatus.SENT },
+        { ...mockReminder, id: '8', status: ReminderStatus.SENT },
+        { ...mockReminder, id: '9', status: ReminderStatus.SENT },
+        { ...mockReminder, id: '10', status: ReminderStatus.SENT },
+        { ...mockReminder, id: '11', status: ReminderStatus.SENT },
+        { ...mockReminder, id: '12', status: ReminderStatus.SENT },
+        { ...mockReminder, id: '13', status: ReminderStatus.SENT },
+        { ...mockReminder, id: '14', status: ReminderStatus.SENT },
+        { ...mockReminder, id: '15', status: ReminderStatus.SENT },
+        { ...mockReminder, id: '16', status: ReminderStatus.DISMISSED },
+        { ...mockReminder, id: '17', status: ReminderStatus.DISMISSED },
+        { ...mockReminder, id: '18', status: ReminderStatus.DISMISSED },
       ];
 
       const mockQueryBuilder = {
-        select: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
-        groupBy: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue(mockStats),
+        andWhere: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue(mockReminders),
       };
 
-      reminderRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+      (reminderRepository.createQueryBuilder as jest.Mock).mockReturnValue(mockQueryBuilder);
+      reminderRepository.find.mockResolvedValue(mockReminders.filter(r => r.status === ReminderStatus.PENDING) as any);
 
       const result = await service.getReminderStats('user-123');
 
+      expect(result.total).toBe(18);
       expect(result.pending).toBe(5);
       expect(result.sent).toBe(10);
       expect(result.dismissed).toBe(3);
