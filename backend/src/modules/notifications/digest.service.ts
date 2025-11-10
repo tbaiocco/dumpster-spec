@@ -329,9 +329,9 @@ export class DigestService {
 
       for (const item of section.items) {
         html += '<div style="margin: 10px 0; padding: 10px; background: #fafafa; border-radius: 3px;">';
-        html += `<strong>${item.title}</strong>`;
+        html += `<strong>${this.escapeHtml(item.title)}</strong>`;
         if (item.summary) {
-          html += `<p style="margin: 5px 0; color: #666;">${item.summary}</p>`;
+          html += `<p style="margin: 5px 0; color: #666;">${this.escapeHtml(item.summary)}</p>`;
         }
         if (item.dueDate) {
           html += `<p style="margin: 5px 0; color: #1976d2;">⏰ ${item.dueDate.toLocaleString()}</p>`;
@@ -348,7 +348,7 @@ export class DigestService {
       html += '<h3 style="color: #1976d2; margin-top: 0;">💡 Recommendations</h3>';
       html += '<ul>';
       for (const rec of digest.recommendations) {
-        html += `<li>${rec}</li>`;
+        html += `<li>${this.escapeHtml(rec)}</li>`;
       }
       html += '</ul>';
       html += '</div>';
@@ -357,6 +357,21 @@ export class DigestService {
     html += '</div>';
 
     return html;
+  }
+
+  /**
+   * Escape HTML special characters to prevent XSS
+   */
+  private escapeHtml(text: string): string {
+    const htmlEscapeMap: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    };
+
+    return text.replace(/[&<>"']/g, (char) => htmlEscapeMap[char]);
   }
 
   // Private helper methods

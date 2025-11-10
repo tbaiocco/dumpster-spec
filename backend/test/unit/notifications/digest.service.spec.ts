@@ -194,8 +194,9 @@ describe('DigestService', () => {
       const digest = await service.generateDailyDigest('user-123');
       const html = service.formatDigestAsHTML(digest);
 
-      expect(html).toContain('<b>');
-      expect(html).toContain('</b>');
+      expect(html).toContain('<strong>');
+      expect(html).toContain('</strong>');
+      expect(html).toContain('<div style=');
     });
 
     it('should escape HTML in content', async () => {
