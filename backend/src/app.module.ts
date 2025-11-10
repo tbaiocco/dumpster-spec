@@ -10,6 +10,10 @@ import { SearchModule } from './modules/search/search.module';
 import { BotsModule } from './modules/bots/bots.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { EmailModule } from './modules/email/email.module';
+import { ReminderModule } from './modules/reminders/reminder.module';
+import { NotificationModule } from './modules/notifications/notification.module';
+import { CalendarModule } from './modules/calendar/calendar.module';
+import { TrackingModule } from './modules/tracking/tracking.module';
 import { DatabaseInitService } from './database/database-init.service';
 
 @Module({
@@ -46,6 +50,11 @@ import { DatabaseInitService } from './database/database-init.service';
     BotsModule,
     FeedbackModule,
     EmailModule,
+    // Phase 7 modules
+    ReminderModule,
+    NotificationModule,
+    CalendarModule,
+    TrackingModule,
   ],
   controllers: [AppController],
   providers: [AppService, DatabaseInitService],
