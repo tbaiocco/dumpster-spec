@@ -1,13 +1,30 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { TrackingService } from '../../../src/modules/tracking/tracking.service';
 import { ReminderService } from '../../../src/modules/reminders/reminder.service';
 import { ReminderType } from '../../../src/entities/reminder.entity';
+import { Dump } from '../../../src/entities/dump.entity';
+import { Reminder } from '../../../src/entities/reminder.entity';
 
 describe('TrackingService', () => {
   let service: TrackingService;
   let reminderService: jest.Mocked<ReminderService>;
 
   beforeEach(async () => {
+    const mockDumpRepository = {
+      findOne: jest.fn(),
+      find: jest.fn(),
+      save: jest.fn(),
+      create: jest.fn(),
+    };
+
+    const mockReminderRepository = {
+      findOne: jest.fn(),
+      find: jest.fn(),
+      save: jest.fn(),
+      create: jest.fn(),
+    };
+
     const mockReminderService = {
       createReminder: jest.fn(),
       getReminderById: jest.fn(),
@@ -17,6 +34,14 @@ describe('TrackingService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TrackingService,
+        {
+          provide: getRepositoryToken(Dump),
+          useValue: mockDumpRepository,
+        },
+        {
+          provide: getRepositoryToken(Reminder),
+          useValue: mockReminderRepository,
+        },
         {
           provide: ReminderService,
           useValue: mockReminderService,
