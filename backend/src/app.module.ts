@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
@@ -14,6 +16,7 @@ import { ReminderModule } from './modules/reminders/reminder.module';
 import { NotificationModule } from './modules/notifications/notification.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 import { TrackingModule } from './modules/tracking/tracking.module';
+import { HealthModule } from './health/health.module';
 import { DatabaseInitService } from './database/database-init.service';
 
 @Module({
@@ -55,8 +58,35 @@ import { DatabaseInitService } from './database/database-init.service';
     NotificationModule,
     CalendarModule,
     TrackingModule,
+    // Phase 9 modules
+    ThrottlerModule.forRoot([
+      {
+        name: 'short',
+        ttl: 1000, // 1 second
+        limit: 10, // 10 requests per second
+      },
+      {
+        name: 'medium',
+        ttl: 10000, // 10 seconds
+        limit: 50, // 50 requests per 10 seconds
+      },
+      {
+        name: 'long',
+        ttl: 60000, // 60 seconds
+        limit: 100, // 100 requests per minute
+      },
+    ]),
+    HealthModule,
   ],
   controllers: [AppController],
-  providers: [AppService, DatabaseInitService],
+  providers: [
+    AppService,
+    DatabaseInitService,
+    // Global rate limiting guard (T091)
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}
