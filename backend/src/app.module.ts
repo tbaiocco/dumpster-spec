@@ -17,6 +17,8 @@ import { NotificationModule } from './modules/notifications/notification.module'
 import { CalendarModule } from './modules/calendar/calendar.module';
 import { TrackingModule } from './modules/tracking/tracking.module';
 import { HealthModule } from './health/health.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { ReviewModule } from './modules/review/review.module';
 import { DatabaseInitService } from './database/database-init.service';
 
 @Module({
@@ -58,6 +60,9 @@ import { DatabaseInitService } from './database/database-init.service';
     NotificationModule,
     CalendarModule,
     TrackingModule,
+    // Phase 8 modules
+    AdminModule,
+    ReviewModule,
     // Phase 9 modules
     ThrottlerModule.forRoot([
       {
