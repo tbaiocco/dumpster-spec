@@ -240,6 +240,34 @@ Return empty arrays for categories with no matches. Be conservative and only inc
     }
   }
 
+  /**
+   * Send a custom prompt to Claude and get raw response
+   */
+  async queryWithCustomPrompt(prompt: string): Promise<string> {
+    this.logger.log(`Sending custom prompt to Claude: ${prompt.substring(0, 100)}...`);
+
+    try {
+      const response = await this.callClaude({
+        model: this.model,
+        max_tokens: 500,
+        temperature: 0.3,
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+      });
+
+      const result = response.content[0].text;
+      this.logger.log(`Claude custom response: ${result}`);
+      return result;
+    } catch (error) {
+      this.logger.error('Error in custom Claude query:', error);
+      throw error;
+    }
+  }
+
   private async callClaude(request: ClaudeRequest): Promise<ClaudeResponse> {
     if (!this.apiKey) {
       throw new Error('Claude API key not configured');

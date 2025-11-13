@@ -72,7 +72,7 @@ export class InitialMigration1698000000000 implements MigrationInterface {
         "urgency_level" integer,
         "processing_status" "public"."processing_status_enum" NOT NULL DEFAULT 'received',
         "extracted_entities" jsonb NOT NULL DEFAULT '{}',
-        "content_vector" vector(1536),
+        "content_vector" vector(384),
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
         "processed_at" TIMESTAMP,
         CONSTRAINT "CHK_dumps_ai_confidence" CHECK (ai_confidence >= 1 AND ai_confidence <= 5),

@@ -1,11 +1,25 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/users/user.module';
 import { DumpModule } from './modules/dumps/dump.module';
+import { SearchModule } from './modules/search/search.module';
+import { BotsModule } from './modules/bots/bots.module';
+import { FeedbackModule } from './modules/feedback/feedback.module';
+import { EmailModule } from './modules/email/email.module';
+import { ReminderModule } from './modules/reminders/reminder.module';
+import { NotificationModule } from './modules/notifications/notification.module';
+import { CalendarModule } from './modules/calendar/calendar.module';
+import { TrackingModule } from './modules/tracking/tracking.module';
+import { HealthModule } from './health/health.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { ReviewModule } from './modules/review/review.module';
+import { DatabaseInitService } from './database/database-init.service';
 
 @Module({
   imports: [
@@ -37,8 +51,47 @@ import { DumpModule } from './modules/dumps/dump.module';
     AuthModule,
     UserModule,
     DumpModule,
+    SearchModule,
+    BotsModule,
+    FeedbackModule,
+    EmailModule,
+    // Phase 7 modules
+    ReminderModule,
+    NotificationModule,
+    CalendarModule,
+    TrackingModule,
+    // Phase 8 modules
+    AdminModule,
+    ReviewModule,
+    // Phase 9 modules
+    ThrottlerModule.forRoot([
+      {
+        name: 'short',
+        ttl: 1000, // 1 second
+        limit: 10, // 10 requests per second
+      },
+      {
+        name: 'medium',
+        ttl: 10000, // 10 seconds
+        limit: 50, // 50 requests per 10 seconds
+      },
+      {
+        name: 'long',
+        ttl: 60000, // 60 seconds
+        limit: 100, // 100 requests per minute
+      },
+    ]),
+    HealthModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    DatabaseInitService,
+    // Global rate limiting guard (T091)
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}
