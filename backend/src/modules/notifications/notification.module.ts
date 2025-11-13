@@ -11,6 +11,7 @@ import { ProactiveService } from './proactive.service';
 import { ReminderModule } from '../reminders/reminder.module';
 import { BotsModule } from '../bots/bots.module';
 import { UserModule } from '../users/user.module';
+import { ClaudeService } from '../ai/claude.service';
 
 /**
  * Module for notification functionality
@@ -34,6 +35,7 @@ import { UserModule } from '../users/user.module';
     DeliveryService,
     CronService,
     ProactiveService,
+    ClaudeService, // AI service for proactive reminders
   ],
   exports: [
     DigestService,
