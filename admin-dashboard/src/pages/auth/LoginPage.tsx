@@ -14,7 +14,31 @@ export const LoginPage: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
   const [error, setError] = useState('');
+
+  const handleSendCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await apiService.sendVerificationCode(phoneNumber);
+
+      if (response.success) {
+        setCodeSent(true);
+        setError(''); // Clear any previous errors
+        console.log('Verification code sent! Check the backend console for the code.');
+      } else {
+        setError(response.error?.message || 'Failed to send verification code');
+      }
+    } catch (err: any) {
+      console.error('Send code error:', err);
+      setError(err?.message || 'An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,14 +47,19 @@ export const LoginPage: React.FC = () => {
 
     try {
       const response = await apiService.login(phoneNumber, verificationCode);
+      console.log('Login response:', response);
 
       if (response.success && response.data) {
+        console.log('Access token:', response.data.access_token);
+        
         // Store authentication tokens
         apiService.setTokens({
-          accessToken: response.data.accessToken,
-          refreshToken: response.data.refreshToken,
+          accessToken: response.data.access_token,
+          refreshToken: response.data.refresh_token,
         });
 
+        console.log('Tokens stored, navigating to dashboard...');
+        
         // Redirect to dashboard
         navigate('/dashboard');
       } else {
@@ -54,37 +83,82 @@ export const LoginPage: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="rounded-md bg-red-50 p-4">
-                <p className="text-sm text-red-800">{error}</p>
+          {!codeSent ? (
+            <form onSubmit={handleSendCode} className="space-y-6">
+              {error && (
+                <div className="rounded-md bg-red-50 p-4">
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+              )}
+
+              <Input
+                label="Phone Number"
+                type="tel"
+                placeholder="+1234567890"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                required
+                disabled={loading}
+                helperText="Enter your phone number in international format (e.g., +1234567890)"
+              />
+
+              <Button type="submit" className="w-full" loading={loading}>
+                Send Verification Code
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {error && (
+                <div className="rounded-md bg-red-50 p-4">
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+              )}
+
+              <div className="rounded-md bg-green-50 p-4">
+                <p className="text-sm text-green-800">
+                  Verification code sent to {phoneNumber}
+                  <br />
+                  <strong>Development Mode:</strong> Check the backend console for the code.
+                </p>
               </div>
-            )}
 
-            <Input
-              label="Phone Number"
-              type="tel"
-              placeholder="+1234567890"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              required
-              disabled={loading}
-            />
+              <Input
+                label="Phone Number"
+                type="tel"
+                value={phoneNumber}
+                disabled
+              />
 
-            <Input
-              label="Verification Code"
-              type="text"
-              placeholder="123456"
-              value={verificationCode}
-              onChange={(e) => setVerificationCode(e.target.value)}
-              required
-              disabled={loading}
-            />
+              <Input
+                label="Verification Code"
+                type="text"
+                placeholder="123456"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                required
+                disabled={loading}
+                autoFocus
+              />
 
-            <Button type="submit" className="w-full" loading={loading}>
-              Sign In
-            </Button>
-          </form>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setCodeSent(false);
+                    setVerificationCode('');
+                    setError('');
+                  }}
+                  disabled={loading}
+                >
+                  Change Number
+                </Button>
+                <Button type="submit" className="flex-1" loading={loading}>
+                  Sign In
+                </Button>
+              </div>
+            </form>
+          )}
 
           <div className="mt-6">
             <p className="text-center text-sm text-gray-500">

@@ -13,11 +13,15 @@ interface Review {
     id: string;
     rawContent: string;
     category?: { name: string };
-    aiConfidence: number;
+    aiConfidence: number; // 0-100 integer
   };
   priority: 'low' | 'medium' | 'high' | 'critical';
   status: 'pending' | 'approved' | 'rejected';
   flaggedAt: string;
+  user?: {
+    id: string;
+    phoneNumber: string;
+  };
 }
 
 /**
@@ -30,6 +34,8 @@ export const ReviewPage: React.FC = () => {
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [showModal, setShowModal] = useState(false);
 
+  console.log('[ReviewPage] Render - showModal:', showModal, 'selectedReview:', selectedReview);
+
   useEffect(() => {
     loadReviews();
   }, []);
@@ -37,8 +43,12 @@ export const ReviewPage: React.FC = () => {
   const loadReviews = async () => {
     setLoading(true);
     const response = await apiService.getReviews({ status: 'pending' });
+    console.log('[ReviewPage] API response:', response);
     if (response.success && response.data) {
-      setReviews(response.data);
+      // Backend returns array directly in data field
+      const reviewsData = Array.isArray(response.data) ? response.data : [];
+      console.log('[ReviewPage] Setting reviews:', reviewsData);
+      setReviews(reviewsData);
     }
     setLoading(false);
   };
@@ -73,18 +83,31 @@ export const ReviewPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Content Review</h1>
+    <div className="space-y-8 animate-fade-in">
+      {/* Page Header */}
+      <div className="space-y-2">
+        <h1 className="text-4xl font-display font-bold text-gradient">✅ Content Review</h1>
+        <p className="text-lg text-slate-600">Review flagged content with low AI confidence scores</p>
+      </div>
 
-      <Card>
+      <Card hover>
         <CardHeader>
-          <CardTitle>Flagged Content ({reviews.length} pending)</CardTitle>
+          <CardTitle>
+            Flagged Content 
+            <span className="ml-2 text-sm font-medium text-slate-600">
+              ({reviews.length} pending review)
+            </span>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {reviews.length === 0 ? (
-            <p className="text-center text-gray-500 py-8">No items pending review</p>
+            <div className="text-center py-16 text-slate-500">
+              <div className="text-6xl mb-4 opacity-50">✅</div>
+              <p className="text-sm">No items pending review. All content has been processed!</p>
+            </div>
           ) : (
-            <Table>
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Content</TableHead>
@@ -105,8 +128,8 @@ export const ReviewPage: React.FC = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={review.dump.aiConfidence > 0.5 ? 'success' : 'error'}>
-                        {Math.round(review.dump.aiConfidence * 100)}%
+                      <Badge variant={review.dump.aiConfidence > 70 ? 'success' : 'error'}>
+                        {review.dump.aiConfidence}%
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -122,8 +145,10 @@ export const ReviewPage: React.FC = () => {
                         size="sm"
                         variant="outline"
                         onClick={() => {
+                          console.log('[ReviewPage] Review button clicked for:', review);
                           setSelectedReview(review);
                           setShowModal(true);
+                          console.log('[ReviewPage] Modal state set to true');
                         }}
                       >
                         Review
@@ -133,51 +158,78 @@ export const ReviewPage: React.FC = () => {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
 
       {/* Review Modal */}
-      {selectedReview && (
-        <Modal
-          isOpen={showModal}
-          onClose={() => setShowModal(false)}
-          title="Review Content"
-          size="lg"
-        >
+      <Modal
+        isOpen={showModal && selectedReview !== null}
+        onClose={() => {
+          setShowModal(false);
+          setSelectedReview(null);
+        }}
+        title="📋 Review Content Details"
+        size="lg"
+      >
+        {selectedReview && (
           <div className="space-y-4">
-            <div>
-              <h4 className="font-medium text-gray-700 mb-2">Content</h4>
-              <p className="text-gray-900">{selectedReview.dump.rawContent}</p>
+            <div style={{ 
+              padding: 'var(--spacing-md)', 
+              background: 'var(--color-gray-50)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--color-gray-200)'
+            }}>
+              <h4 className="font-medium text-gray-700 mb-2" style={{ fontSize: '0.875rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Content</h4>
+              <p className="text-gray-900" style={{ lineHeight: '1.6' }}>{selectedReview.dump.rawContent}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
-                <h4 className="font-medium text-gray-700 mb-2">Category</h4>
+                <h4 className="font-medium text-gray-700 mb-2" style={{ fontSize: '0.875rem' }}>Category</h4>
                 <Badge variant="default">
                   {selectedReview.dump.category?.name || 'Uncategorized'}
                 </Badge>
               </div>
               <div>
-                <h4 className="font-medium text-gray-700 mb-2">AI Confidence</h4>
-                <Badge variant={selectedReview.dump.aiConfidence > 0.5 ? 'success' : 'error'}>
-                  {Math.round(selectedReview.dump.aiConfidence * 100)}%
+                <h4 className="font-medium text-gray-700 mb-2" style={{ fontSize: '0.875rem' }}>AI Confidence</h4>
+                <Badge variant={selectedReview.dump.aiConfidence > 70 ? 'success' : 'error'}>
+                  {selectedReview.dump.aiConfidence}%
+                </Badge>
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-700 mb-2" style={{ fontSize: '0.875rem' }}>Priority</h4>
+                <Badge variant={priorityVariant(selectedReview.priority)}>
+                  {selectedReview.priority}
                 </Badge>
               </div>
             </div>
 
-            <div className="flex gap-4 pt-4">
+            {selectedReview.user && (
+              <div style={{ 
+                padding: 'var(--spacing-md)', 
+                background: 'var(--color-gray-50)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.875rem'
+              }}>
+                <strong>User:</strong> {selectedReview.user.phoneNumber}
+              </div>
+            )}
+
+            <div className="flex gap-4 pt-4 border-t border-slate-200">
               <Button
                 variant="default"
                 onClick={() => handleApprove(selectedReview.dump.id)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
               >
-                Approve
+                ✓ Approve
               </Button>
               <Button
                 variant="destructive"
                 onClick={() => handleReject(selectedReview.dump.id)}
               >
-                Reject
+                ✗ Reject
               </Button>
               <Button
                 variant="outline"
@@ -187,8 +239,8 @@ export const ReviewPage: React.FC = () => {
               </Button>
             </div>
           </div>
-        </Modal>
-      )}
+        )}
+      </Modal>
     </div>
   );
 };

@@ -1,7 +1,4 @@
-import React, { Fragment } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
-import { cn } from '../../lib/utils';
+import React, { useEffect } from 'react';
 
 export interface ModalProps {
   isOpen: boolean;
@@ -17,16 +14,16 @@ export interface ModalProps {
  * Modal size configurations
  */
 const modalSizes = {
-  sm: 'max-w-md',
-  md: 'max-w-lg',
-  lg: 'max-w-2xl',
-  xl: 'max-w-4xl',
-  full: 'max-w-7xl',
+  sm: '400px',
+  md: '500px',
+  lg: '700px',
+  xl: '900px',
+  full: '95vw',
 };
 
 /**
  * Modal Component
- * Accessible modal dialog using Headless UI
+ * Simple modal dialog without external dependencies
  */
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
@@ -37,78 +34,156 @@ export const Modal: React.FC<ModalProps> = ({
   size = 'md',
   showCloseButton = true,
 }) => {
+  // Close on escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
   return (
-    <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
-        {/* Backdrop */}
-        <Transition.Child
-          as={Fragment}
-          enter="ease-out duration-300"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="ease-in duration-200"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
-          <div className="fixed inset-0 bg-black bg-opacity-25" />
-        </Transition.Child>
-
-        {/* Modal Container */}
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4 text-center">
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
-            >
-              <Dialog.Panel
-                className={cn(
-                  'w-full transform overflow-hidden rounded-lg bg-white text-left align-middle shadow-xl transition-all',
-                  modalSizes[size]
-                )}
+    <div 
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem',
+      }}
+      onClick={onClose}
+    >
+      {/* Backdrop */}
+      <div 
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backdropFilter: 'blur(2px)',
+        }}
+      />
+      
+      {/* Modal Panel */}
+      <div
+        style={{
+          position: 'relative',
+          backgroundColor: 'white',
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+          maxWidth: modalSizes[size],
+          width: '100%',
+          maxHeight: '90vh',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        {(title || showCloseButton) && (
+          <div 
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              padding: '1.5rem',
+              borderBottom: '1px solid var(--color-gray-200)',
+              background: 'var(--color-gray-50)',
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              {title && (
+                <h3 
+                  style={{
+                    fontSize: '1.125rem',
+                    fontWeight: '600',
+                    color: 'var(--color-gray-900)',
+                    margin: 0,
+                  }}
+                >
+                  {title}
+                </h3>
+              )}
+              {description && (
+                <p 
+                  style={{
+                    marginTop: '0.25rem',
+                    fontSize: '0.875rem',
+                    color: 'var(--color-gray-600)',
+                  }}
+                >
+                  {description}
+                </p>
+              )}
+            </div>
+            {showCloseButton && (
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  marginLeft: '1rem',
+                  padding: '0.5rem',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--color-gray-400)',
+                  cursor: 'pointer',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '1.5rem',
+                  lineHeight: '1',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = 'var(--color-gray-600)';
+                  e.currentTarget.style.background = 'var(--color-gray-200)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--color-gray-400)';
+                  e.currentTarget.style.background = 'transparent';
+                }}
               >
-                {/* Header */}
-                {(title || showCloseButton) && (
-                  <div className="flex items-center justify-between border-b border-gray-200 p-6">
-                    <div>
-                      {title && (
-                        <Dialog.Title
-                          as="h3"
-                          className="text-lg font-medium leading-6 text-gray-900"
-                        >
-                          {title}
-                        </Dialog.Title>
-                      )}
-                      {description && (
-                        <Dialog.Description className="mt-1 text-sm text-gray-500">
-                          {description}
-                        </Dialog.Description>
-                      )}
-                    </div>
-                    {showCloseButton && (
-                      <button
-                        type="button"
-                        className="rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        onClick={onClose}
-                      >
-                        <span className="sr-only">Close</span>
-                        <XMarkIcon className="h-6 w-6" aria-hidden="true" />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Content */}
-                <div className="p-6">{children}</div>
-              </Dialog.Panel>
-            </Transition.Child>
+                ×
+              </button>
+            )}
           </div>
+        )}
+
+        {/* Content */}
+        <div 
+          style={{
+            padding: '1.5rem',
+            overflowY: 'auto',
+            flex: 1,
+          }}
+        >
+          {children}
         </div>
-      </Dialog>
-    </Transition>
+      </div>
+    </div>
   );
 };

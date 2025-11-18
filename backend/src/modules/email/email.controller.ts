@@ -10,7 +10,7 @@ import {
 
 } from '@nestjs/common';
 import { EmailProcessorService } from './email-processor.service';
-import { DumpService } from '../dumps/dump.service';
+import { DumpService } from '../dumps/services/dump.service';
 
 // Define email webhook payload interfaces
 interface EmailWebhookPayload {

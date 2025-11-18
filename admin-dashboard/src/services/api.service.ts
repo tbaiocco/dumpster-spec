@@ -223,6 +223,13 @@ class ApiService {
    * Handle successful response
    */
   private handleSuccess<T>(data: any): ApiResponse<T> {
+    // Backend already returns { success, data, message } format
+    // Just pass it through
+    if (data && typeof data === 'object' && 'success' in data) {
+      return data;
+    }
+    
+    // Fallback for non-standard responses
     return {
       success: true,
       data: data,
@@ -253,8 +260,12 @@ class ApiService {
   /**
    * Authentication
    */
+  public async sendVerificationCode(phoneNumber: string) {
+    return this.post('/auth/send-code', { phone_number: phoneNumber });
+  }
+
   public async login(phoneNumber: string, verificationCode: string) {
-    return this.post('/auth/login', { phoneNumber, verificationCode });
+    return this.post('/auth/login', { phone_number: phoneNumber, verification_code: verificationCode });
   }
 
   public async logout() {
@@ -282,7 +293,7 @@ class ApiService {
   }
 
   /**
-   * Dumps Management
+   * Dump Management
    */
   public async getDumps(params?: {
     page?: number;
@@ -293,7 +304,7 @@ class ApiService {
     startDate?: string;
     endDate?: string;
   }) {
-    return this.get('/dumps', { params });
+    return this.get('/admin/dumps', { params });
   }
 
   public async getDump(dumpId: string) {

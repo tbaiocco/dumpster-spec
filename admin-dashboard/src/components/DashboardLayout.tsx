@@ -1,6 +1,5 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button } from './ui/Button';
 import apiService from '../services/api.service';
 
 interface DashboardLayoutProps {
@@ -19,7 +18,7 @@ const navigation = [
 
 /**
  * Dashboard Layout Component
- * Provides navigation and layout for authenticated pages
+ * Beautiful Tailwind-based layout inspired by Pocket template
  */
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const location = useLocation();
@@ -31,49 +30,75 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="min-h-screen bg-slate-50">
       {/* Sidebar */}
-      <div className="w-64 bg-white shadow-lg">
+      <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-gradient-dark border-r border-slate-800">
         <div className="flex h-full flex-col">
           {/* Logo */}
-          <div className="border-b border-gray-200 p-6">
-            <h1 className="text-2xl font-bold text-gray-900">Clutter.AI</h1>
-            <p className="text-sm text-gray-500">Admin Dashboard</p>
+          <div className="flex h-16 shrink-0 items-center gap-3 px-6 border-b border-slate-800/50">
+            <Link to="/dashboard" className="flex items-center gap-3 group">
+              <span className="text-3xl transition-transform group-hover:scale-110">🗂️</span>
+              <div>
+                <div className="text-xl font-bold text-gradient">Clutter.AI</div>
+                <div className="text-xs text-slate-400 -mt-0.5">Admin Dashboard</div>
+              </div>
+            </Link>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 space-y-1 p-4">
+          <nav className="flex-1 space-y-1 px-3 py-4 custom-scrollbar overflow-y-auto">
             {navigation.map((item) => {
               const isActive = location.pathname === item.href;
               return (
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`flex items-center rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
+                  className={`
+                    group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all
+                    ${isActive 
+                      ? 'bg-primary-600 text-white shadow-glow-sm' 
+                      : 'text-slate-300 hover:bg-slate-800/50 hover:text-white'
+                    }
+                  `}
                 >
-                  <span className="mr-3 text-lg">{item.icon}</span>
-                  {item.name}
+                  <span className={`text-lg transition-transform ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
+                    {item.icon}
+                  </span>
+                  <span>{item.name}</span>
                 </Link>
               );
             })}
           </nav>
 
-          {/* Logout */}
-          <div className="border-t border-gray-200 p-4">
-            <Button variant="outline" className="w-full" onClick={handleLogout}>
-              Logout
-            </Button>
+          {/* User Section & Logout */}
+          <div className="border-t border-slate-800/50 p-4 space-y-3">
+            <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-slate-800/30">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-600 text-white text-sm font-bold">
+                A
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">Admin User</p>
+                <p className="text-xs text-slate-400 truncate">admin@clutter.ai</p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-800/50 px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white"
+            >
+              <span>🚪</span>
+              <span>Logout</span>
+            </button>
           </div>
         </div>
-      </div>
+      </aside>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-auto">
-        <div className="p-8">{children}</div>
+      <div className="pl-64">
+        <main className="py-8 px-8">
+          <div className="mx-auto max-w-7xl">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

@@ -418,4 +418,38 @@ export class AdminService {
       notes,
     };
   }
+
+  /**
+   * Get all dumps with pagination and optional search
+   * Used by admin dashboard to view all dumps across all users
+   */
+  async getAllDumps(page: number = 1, limit: number = 50, search?: string) {
+    const skip = (page - 1) * limit;
+    
+    const queryBuilder = this.dumpRepository
+      .createQueryBuilder('dump')
+      .leftJoinAndSelect('dump.category', 'category')
+      .leftJoinAndSelect('dump.user', 'user')
+      .orderBy('dump.created_at', 'DESC')
+      .skip(skip)
+      .take(limit);
+
+    // Add search filter if provided
+    if (search) {
+      queryBuilder.where(
+        'dump.raw_content ILIKE :search OR dump.extracted_content ILIKE :search',
+        { search: `%${search}%` }
+      );
+    }
+
+    const [dumps, total] = await queryBuilder.getManyAndCount();
+
+    return {
+      dumps,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
 }

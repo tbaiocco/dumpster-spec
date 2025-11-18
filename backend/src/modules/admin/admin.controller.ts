@@ -1,13 +1,13 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { AdminService } from './admin.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 /**
  * Admin Controller
  * Provides analytics and management endpoints for the admin dashboard
  */
 @Controller('admin')
-@UseGuards(JwtAuthGuard) // Require authentication for all admin endpoints
+@UseGuards(AuthGuard('jwt')) // Require authentication for all admin endpoints
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
@@ -63,6 +63,27 @@ export class AdminController {
     return {
       success: true,
       data: stats,
+    };
+  }
+
+  /**
+   * Get all dumps for admin overview
+   * Used by: DumpsPage (T082)
+   */
+  @Get('dumps')
+  async getAllDumps(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '50',
+    @Query('search') search?: string,
+  ) {
+    const pageNum = Number.parseInt(page, 10);
+    const limitNum = Number.parseInt(limit, 10);
+
+    const result = await this.adminService.getAllDumps(pageNum, limitNum, search);
+
+    return {
+      success: true,
+      data: result,
     };
   }
 }

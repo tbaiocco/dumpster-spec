@@ -46,14 +46,14 @@ export const SearchMetricsPage: React.FC = () => {
         <Card>
           <CardHeader>
             <CardDescription>Total Searches</CardDescription>
-            <CardTitle className="text-4xl">{metrics.totalSearches.toLocaleString()}</CardTitle>
+            <CardTitle className="text-4xl">{metrics.totalSearches?.toLocaleString() || 0}</CardTitle>
           </CardHeader>
         </Card>
 
         <Card>
           <CardHeader>
             <CardDescription>Avg Response Time</CardDescription>
-            <CardTitle className="text-4xl">{metrics.averageResponseTime.toFixed(0)}ms</CardTitle>
+            <CardTitle className="text-4xl">{metrics.averageResponseTime?.toFixed(0) || 0}ms</CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -67,7 +67,7 @@ export const SearchMetricsPage: React.FC = () => {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={metrics.searchesByType}
+                  data={metrics.searchesByType || []}
                   dataKey="count"
                   nameKey="type"
                   cx="50%"
@@ -75,7 +75,7 @@ export const SearchMetricsPage: React.FC = () => {
                   outerRadius={100}
                   label
                 >
-                  {metrics.searchesByType.map((entry, index) => (
+                  {(metrics.searchesByType || []).map((entry, index) => (
                     <Cell key={`cell-${entry.type}-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -92,7 +92,7 @@ export const SearchMetricsPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={metrics.popularQueries.slice(0, 10)} layout="vertical">
+              <BarChart data={(metrics.popularQueries || []).slice(0, 10)} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" />
                 <YAxis dataKey="query" type="category" width={100} />

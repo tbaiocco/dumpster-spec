@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression, SchedulerRegistry } from '@nestjs/schedule';
 import { DigestService } from './digest.service';
 import { ReminderService } from '../reminders/reminder.service';
+import { ProactiveService } from './proactive.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../entities/user.entity';
@@ -20,6 +21,7 @@ export class CronService {
   constructor(
     private readonly digestService: DigestService,
     private readonly reminderService: ReminderService,
+    private readonly proactiveService: ProactiveService,
     @InjectRepository(User)
     private userRepository: Repository<User>,
     private schedulerRegistry: SchedulerRegistry,
@@ -176,6 +178,29 @@ export class CronService {
       this.logger.log('Reminder cleanup completed (implementation pending)');
     } catch (error) {
       this.logger.error('Reminder cleanup job failed', error);
+    }
+  }
+
+  /**
+   * Daily proactive analysis - 3 AM daily
+   * Analyzes user data and generates proactive insights and recommendations
+   */
+  @Cron('0 3 * * *', {
+    name: 'daily-proactive-analysis',
+    timeZone: 'America/New_York',
+  })
+  async handleDailyProactiveAnalysis(): Promise<void> {
+    this.logger.log('Starting daily proactive analysis job');
+
+    try {
+      const result = await this.proactiveService.runDailyProactiveAnalysis();
+
+      this.logger.log(
+        `Daily proactive analysis complete: ${result.usersProcessed} users processed, ` +
+        `${result.remindersCreated} reminders created, ${result.suggestionsGenerated} suggestions generated`,
+      );
+    } catch (error) {
+      this.logger.error('Daily proactive analysis job failed', error);
     }
   }
 

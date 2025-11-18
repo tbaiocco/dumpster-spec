@@ -38,7 +38,7 @@ export const AIMetricsPage: React.FC = () => {
     return <Spinner size="lg" className="mt-20" />;
   }
 
-  const accuracyRate = ((metrics.categorization.accurate / metrics.totalProcessed) * 100).toFixed(1);
+  const accuracyRate = ((metrics.categorization?.accurate || 0) / (metrics.totalProcessed || 1) * 100).toFixed(1);
 
   return (
     <div className="space-y-6">
@@ -48,7 +48,7 @@ export const AIMetricsPage: React.FC = () => {
         <Card>
           <CardHeader>
             <CardDescription>Total Processed</CardDescription>
-            <CardTitle className="text-4xl">{metrics.totalProcessed.toLocaleString()}</CardTitle>
+            <CardTitle className="text-4xl">{metrics.totalProcessed?.toLocaleString() || 0}</CardTitle>
           </CardHeader>
         </Card>
 
@@ -75,15 +75,15 @@ export const AIMetricsPage: React.FC = () => {
           <div className="grid gap-4 md:grid-cols-3">
             <div className="flex items-center justify-between rounded-lg border p-4">
               <span className="font-medium">Accurate</span>
-              <Badge variant="success">{metrics.categorization.accurate}</Badge>
+              <Badge variant="success">{metrics.categorization?.accurate || 0}</Badge>
             </div>
             <div className="flex items-center justify-between rounded-lg border p-4">
               <span className="font-medium">Needs Review</span>
-              <Badge variant="warning">{metrics.categorization.needsReview}</Badge>
+              <Badge variant="warning">{metrics.categorization?.needsReview || 0}</Badge>
             </div>
             <div className="flex items-center justify-between rounded-lg border p-4">
               <span className="font-medium">Failed</span>
-              <Badge variant="error">{metrics.categorization.failed}</Badge>
+              <Badge variant="error">{metrics.categorization?.failed || 0}</Badge>
             </div>
           </div>
         </CardContent>
@@ -96,7 +96,7 @@ export const AIMetricsPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={metrics.confidenceDistribution}>
+              <BarChart data={metrics.confidenceDistribution || []}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="range" />
                 <YAxis />
@@ -113,7 +113,7 @@ export const AIMetricsPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={metrics.processingTimeByType}>
+              <LineChart data={metrics.processingTimeByType || []}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="type" />
                 <YAxis />

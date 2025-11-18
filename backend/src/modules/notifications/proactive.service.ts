@@ -288,7 +288,19 @@ For each insight, provide:
 - relatedDumpIds: Array of dump IDs that support this insight
 - reasoning: Why this reminder would be helpful
 
-Return valid JSON array of insights.`;
+Return ONLY a valid JSON array of insights, no additional text.
+Example format:
+[
+  {
+    "type": "expiration",
+    "title": "Passport renewal reminder",
+    "description": "Your passport expires in 3 months",
+    "suggestedDate": "2025-12-15T09:00:00Z",
+    "confidence": "high",
+    "relatedDumpIds": ["abc123"],
+    "reasoning": "Clear expiration date mentioned in content"
+  }
+]`;
 
     const userPrompt = `Analyze this user content and suggest proactive reminders:
 
@@ -300,6 +312,7 @@ Return insights as JSON array.`;
       const response = await this.claudeService.analyzeContent({
         content: userPrompt,
         contentType: 'text',
+        customSystemPrompt: systemPrompt,
         context: {
           source: 'telegram',
           userId,
@@ -307,8 +320,10 @@ Return insights as JSON array.`;
         },
       });
 
-      // Try to parse insights from the summary or use fallback
+      // Try to parse insights from the summary
       const summary = response.summary || '';
+      
+      // Try to extract JSON array from the response
       const jsonMatch = summary.match(/\[[\s\S]*\]/);
       if (!jsonMatch) {
         this.logger.warn('AI response did not contain valid JSON array');
@@ -316,7 +331,14 @@ Return insights as JSON array.`;
       }
 
       const insights = JSON.parse(jsonMatch[0]) as ContextualInsight[];
-      return insights;
+      
+      // Validate and parse dates
+      const validatedInsights = insights.map((insight) => ({
+        ...insight,
+        suggestedDate: new Date(insight.suggestedDate),
+      }));
+
+      return validatedInsights;
     } catch (error) {
       this.logger.error(`Failed to extract insights with AI: ${error.message}`);
       return [];

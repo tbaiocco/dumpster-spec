@@ -9,7 +9,6 @@ import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
 import { SearchMetricsPage } from './pages/analytics/SearchMetricsPage';
 import { AIMetricsPage } from './pages/analytics/AIMetricsPage';
 import { ReviewPage } from './pages/ReviewPage';
-import './App.css';
 
 /**
  * Main App Component (T088)
