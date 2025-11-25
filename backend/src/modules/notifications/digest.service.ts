@@ -5,6 +5,7 @@ import { Dump } from '../../entities/dump.entity';
 import { User } from '../../entities/user.entity';
 import { ReminderService } from '../reminders/reminder.service';
 import { ReminderStatus } from '../../entities/reminder.entity';
+import { TranslationService } from '../ai/translation.service';
 
 export interface DigestContent {
   userId: string;
@@ -44,8 +45,11 @@ export class DigestService {
 
   constructor(
     @InjectRepository(Dump)
-    private dumpRepository: Repository<Dump>,
-    private reminderService: ReminderService,
+    private readonly dumpRepository: Repository<Dump>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private readonly reminderService: ReminderService,
+    private readonly translationService: TranslationService,
   ) {}
 
   /**
@@ -236,53 +240,89 @@ export class DigestService {
   }
 
   /**
-   * Format digest as human-readable text
+   * Format digest as human-readable text with user's timezone and language preferences
+   * Translates all text content to the user's preferred language
    */
-  formatDigestAsText(digest: DigestContent): string {
-    const lines: string[] = [];
+  async formatDigestAsText(digest: DigestContent): Promise<string> {
+    // Fetch user to get timezone and language preferences
+    const user = await this.userRepository.findOne({
+      where: { id: digest.userId },
+    });
 
-    // Header
-    lines.push('═══════════════════════════════════');
-    lines.push(`📬 Daily Digest - ${digest.date.toLocaleDateString()}`);
-    lines.push('═══════════════════════════════════');
-    lines.push('');
+    const timezone = user?.timezone || 'UTC';
+    const language = user?.language || 'en';
 
-    // Summary
-    lines.push('📊 Summary:');
-    lines.push(`   • Total items: ${digest.summary.totalItems}`);
-    lines.push(`   • Pending reminders: ${digest.summary.pendingReminders}`);
+    // Translate static labels if not English
+    const labels = await this.translateLabels(language);
+
+    const lines: string[] = [
+      '═══════════════════════════════════',
+      `📬 ${labels.dailyDigest} - ${this.formatDate(digest.date, timezone, language)}`,
+      '═══════════════════════════════════',
+      '',
+      `📊 ${labels.summary}:`,
+      `   • ${labels.totalItems}: ${digest.summary.totalItems}`,
+      `   • ${labels.pendingReminders}: ${digest.summary.pendingReminders}`,
+    ];
+
     if (digest.summary.urgentItems > 0) {
-      lines.push(`   • ⚠️ Urgent items: ${digest.summary.urgentItems}`);
+      lines.push(`   • ⚠️ ${labels.urgentItems}: ${digest.summary.urgentItems}`);
     }
     lines.push('');
 
     // Sections
     for (const section of digest.sections) {
-      lines.push(`${section.title}`);
-      lines.push('─'.repeat(35));
+      // Translate section title
+      const translatedTitle = await this.translationService.translate({
+        text: section.title.replace(/^[^\s]+\s/, ''), // Remove emoji
+        targetLanguage: language,
+        context: 'Digest section title',
+      });
+      
+      const emojiMatch = /^[^\s]+/.exec(section.title);
+      const sectionEmoji = emojiMatch ? emojiMatch[0] : '';
+      lines.push(`${sectionEmoji} ${translatedTitle.translatedText}`, '─'.repeat(35));
 
       for (const item of section.items) {
-        const priorityIcon =
-          section.priority === 'high'
-            ? '🔴'
-            : section.priority === 'medium'
-              ? '🟡'
-              : '🟢';
-        lines.push(`${priorityIcon} ${item.title}`);
+        const priorityIcon = this.getPriorityIcon(section.priority);
+        
+        // Translate item title and summary
+        const translatedTitle = await this.translationService.translate({
+          text: item.title,
+          targetLanguage: language,
+          context: 'Digest item title',
+        });
+        
+        lines.push(`${priorityIcon} ${translatedTitle.translatedText}`);
+        
         if (item.summary) {
-          lines.push(`   ${item.summary}`);
+          const translatedSummary = await this.translationService.translate({
+            text: item.summary,
+            targetLanguage: language,
+            context: 'Digest item summary',
+          });
+          lines.push(`   ${translatedSummary.translatedText}`);
         }
+        
         if (item.dueDate) {
-          lines.push(`   ⏰ ${item.dueDate.toLocaleString()}`);
+          lines.push(`   ⏰ ${this.formatDateTime(item.dueDate, timezone, language)}`);
         }
+        
         lines.push('');
       }
     }
 
     // Recommendations
     if (digest.recommendations.length > 0) {
-      lines.push('💡 Recommendations:');
-      for (const rec of digest.recommendations) {
+      lines.push(`💡 ${labels.recommendations}:`);
+      
+      // Translate recommendations in batch for efficiency
+      const translatedRecs = await this.translationService.translateBatch(
+        digest.recommendations,
+        language,
+      );
+      
+      for (const rec of translatedRecs) {
         lines.push(`   • ${rec}`);
       }
       lines.push('');
@@ -291,6 +331,82 @@ export class DigestService {
     lines.push('═══════════════════════════════════');
 
     return lines.join('\n');
+  }
+
+  /**
+   * Translate static UI labels for digest
+   */
+  private async translateLabels(language: string): Promise<{
+    dailyDigest: string;
+    summary: string;
+    totalItems: string;
+    pendingReminders: string;
+    urgentItems: string;
+    recommendations: string;
+  }> {
+    if (language === 'en') {
+      return {
+        dailyDigest: 'Daily Digest',
+        summary: 'Summary',
+        totalItems: 'Total items',
+        pendingReminders: 'Pending reminders',
+        urgentItems: 'Urgent items',
+        recommendations: 'Recommendations',
+      };
+    }
+
+    const labels = [
+      'Daily Digest',
+      'Summary',
+      'Total items',
+      'Pending reminders',
+      'Urgent items',
+      'Recommendations',
+    ];
+
+    const translated = await this.translationService.translateBatch(
+      labels,
+      language,
+    );
+
+    return {
+      dailyDigest: translated[0],
+      summary: translated[1],
+      totalItems: translated[2],
+      pendingReminders: translated[3],
+      urgentItems: translated[4],
+      recommendations: translated[5],
+    };
+  }
+
+  /**
+   * Get priority icon for section
+   */
+  private getPriorityIcon(priority: 'high' | 'medium' | 'low'): string {
+    if (priority === 'high') return '🔴';
+    if (priority === 'medium') return '🟡';
+    return '🟢';
+  }
+
+  /**
+   * Format date according to user's timezone and language
+   */
+  private formatDate(date: Date, timezone: string, language: string): string {
+    return new Intl.DateTimeFormat(language, {
+      timeZone: timezone,
+      dateStyle: 'full',
+    }).format(date);
+  }
+
+  /**
+   * Format date and time according to user's timezone and language
+   */
+  private formatDateTime(date: Date, timezone: string, language: string): string {
+    return new Intl.DateTimeFormat(language, {
+      timeZone: timezone,
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(date);
   }
 
   /**

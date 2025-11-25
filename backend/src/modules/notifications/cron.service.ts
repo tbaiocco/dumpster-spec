@@ -3,38 +3,25 @@ import { Cron, CronExpression, SchedulerRegistry } from '@nestjs/schedule';
 import { DigestService } from './digest.service';
 import { ReminderService } from '../reminders/reminder.service';
 import { ProactiveService } from './proactive.service';
+import { DeliveryService } from './delivery.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../entities/user.entity';
-import { Reminder, ReminderStatus } from '../../entities/reminder.entity';
-
-export interface DeliveryService {
-  sendDigest(userId: string, digestContent: string): Promise<void>;
-  sendReminder(userId: string, reminderMessage: string): Promise<void>;
-}
+import { Reminder } from '../../entities/reminder.entity';
 
 @Injectable()
 export class CronService {
   private readonly logger = new Logger(CronService.name);
-  private deliveryService: DeliveryService | null = null;
 
   constructor(
     private readonly digestService: DigestService,
     private readonly reminderService: ReminderService,
     private readonly proactiveService: ProactiveService,
+    private readonly deliveryService: DeliveryService,
     @InjectRepository(User)
-    private userRepository: Repository<User>,
-    private schedulerRegistry: SchedulerRegistry,
+    private readonly userRepository: Repository<User>,
+    private readonly schedulerRegistry: SchedulerRegistry,
   ) {}
-
-  /**
-   * Set the delivery service for sending notifications
-   * This allows circular dependency resolution
-   */
-  setDeliveryService(service: DeliveryService): void {
-    this.deliveryService = service;
-    this.logger.log('Delivery service configured for cron jobs');
-  }
 
   /**
    * Morning digest delivery - 8 AM daily
@@ -42,7 +29,7 @@ export class CronService {
    */
   @Cron('0 8 * * *', {
     name: 'morning-digest',
-    timeZone: 'America/New_York', // Default timezone, should be user-specific
+    timeZone: 'Europe/Lisbon', // Default timezone, should be user-specific
   })
   async handleMorningDigest(): Promise<void> {
     this.logger.log('Starting morning digest delivery job');
@@ -79,7 +66,7 @@ export class CronService {
    */
   @Cron('0 20 * * *', {
     name: 'evening-digest',
-    timeZone: 'America/New_York',
+    timeZone: 'Europe/Lisbon',
   })
   async handleEveningDigest(): Promise<void> {
     this.logger.log('Starting evening digest delivery job');
@@ -187,7 +174,7 @@ export class CronService {
    */
   @Cron('0 3 * * *', {
     name: 'daily-proactive-analysis',
-    timeZone: 'America/New_York',
+    timeZone: 'Europe/Lisbon',
   })
   async handleDailyProactiveAnalysis(): Promise<void> {
     this.logger.log('Starting daily proactive analysis job');
@@ -235,12 +222,12 @@ export class CronService {
     const jobs = this.schedulerRegistry.getCronJobs();
     const status: Record<string, any> = {};
 
-    jobs.forEach((job, name) => {
+    for (const [name, job] of jobs) {
       status[name] = {
         lastDate: job.lastDate(),
         nextDate: job.nextDate(),
       };
-    });
+    }
 
     return status;
   }
@@ -279,13 +266,19 @@ export class CronService {
     this.logger.debug(`Generating morning digest for user ${userId}`);
 
     const digest = await this.digestService.generateMorningDigest(userId);
-    const digestText = this.digestService.formatDigestAsText(digest);
+    const digestText = await this.digestService.formatDigestAsText(digest);
 
-    if (this.deliveryService) {
-      await this.deliveryService.sendDigest(userId, digestText);
-      this.logger.debug(`Morning digest delivered to user ${userId}`);
+    const result = await this.deliveryService.sendDigest(userId, digestText);
+    
+    if (result.success) {
+      const messageIdPart = result.messageId ? ` (messageId: ${result.messageId})` : '';
+      this.logger.log(
+        `Morning digest delivered to user ${userId} via ${result.channel} at ${result.deliveredAt.toISOString()}${messageIdPart}`
+      );
     } else {
-      this.logger.warn('Delivery service not configured, digest not sent');
+      this.logger.error(
+        `Failed to deliver morning digest to user ${userId} via ${result.channel}: ${result.error}`
+      );
     }
   }
 
@@ -293,13 +286,19 @@ export class CronService {
     this.logger.debug(`Generating evening digest for user ${userId}`);
 
     const digest = await this.digestService.generateEveningDigest(userId);
-    const digestText = this.digestService.formatDigestAsText(digest);
+    const digestText = await this.digestService.formatDigestAsText(digest);
 
-    if (this.deliveryService) {
-      await this.deliveryService.sendDigest(userId, digestText);
-      this.logger.debug(`Evening digest delivered to user ${userId}`);
+    const result = await this.deliveryService.sendDigest(userId, digestText);
+    
+    if (result.success) {
+      const messageIdPart = result.messageId ? ` (messageId: ${result.messageId})` : '';
+      this.logger.log(
+        `Evening digest delivered to user ${userId} via ${result.channel} at ${result.deliveredAt.toISOString()}${messageIdPart}`
+      );
     } else {
-      this.logger.warn('Delivery service not configured, digest not sent');
+      this.logger.error(
+        `Failed to deliver evening digest to user ${userId} via ${result.channel}: ${result.error}`
+      );
     }
   }
 
@@ -308,12 +307,18 @@ export class CronService {
 
     const message = this.formatReminderMessage(reminder);
 
-    if (this.deliveryService) {
-      await this.deliveryService.sendReminder(reminder.user_id, message);
+    const result = await this.deliveryService.sendReminder(reminder.user_id, message);
+    
+    if (result.success) {
       await this.reminderService.markReminderAsSent(reminder.id);
-      this.logger.debug(`Reminder ${reminder.id} delivered and marked as sent`);
+      const messageIdPart = result.messageId ? ` (messageId: ${result.messageId})` : '';
+      this.logger.log(
+        `Reminder ${reminder.id} delivered to user ${reminder.user_id} via ${result.channel} at ${result.deliveredAt.toISOString()}${messageIdPart}`
+      );
     } else {
-      this.logger.warn('Delivery service not configured, reminder not sent');
+      this.logger.error(
+        `Failed to deliver reminder ${reminder.id} to user ${reminder.user_id} via ${result.channel}: ${result.error}`
+      );
     }
   }
 

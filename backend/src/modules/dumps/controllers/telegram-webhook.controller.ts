@@ -151,7 +151,7 @@ export class TelegramWebhookController {
         // Send registration prompt
         await this.telegramService.sendMessage({
           chat_id: message.chat.id,
-          text: '👋 Welcome! Please register first by providing your phone number to start using this service.\n\nExample: +351964938153',
+          text: '👋 Welcome! Please register first by providing your phone number to start using this service.\n\nExample: +351999888777',
         });
         return;
       }
