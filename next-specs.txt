@@ -7,11 +7,20 @@
     It must be used when receiving a new dump that is time-sensitive (package deliveries, applications, subscriptions, warranties, etc)
     persist?
     send specific section/reminder for these?
+    In the digest, a section like: Packages/deliveries arriving today
+
+- Dashboard for the users
+    Should be able to search the dumps, simply, with natural lang
+    Should enable users to update the dumps, not only accept/reject but enable corrections
+    Should enable category creation, and use those in the categorization mechanism
+    Should present a dashboard ordered by date and priority of the dumps, showing by day, week and month (like: actions for today, tomorrow, then dates). In day view the next days appear collapsed but with a button to show, same happens in week and month view, in order to load the next actions in time
 
 - E-mail dumps
     The user can forward mails to create dumps from them, with images, docs, etc
 
 - Calendar integration?
     Checking calendar to detect possible conflicts, suggest changes
+    2-way integration: reading and writting
 
 - Agentic personas?
+    Identify which agents are important, order them by priority to implement and when to introduce them
