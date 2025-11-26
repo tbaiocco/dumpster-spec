@@ -30,7 +30,7 @@ jobs:
     
     steps:
       - name: Debug npm config & lockfile
-        working-directory: ./backend
+        working-directory: backend
         run: |
           echo "=== where am I ==="
           pwd
@@ -57,15 +57,15 @@ jobs:
           cache-dependency-path: backend/package-lock.json
 
       - name: Install dependencies
-        working-directory: ./backend
+        working-directory: backend
         run: npm ci
 
       - name: Run ESLint
-        working-directory: ./backend
+        working-directory: backend
         run: npm run lint
 
       - name: Run unit tests
-        working-directory: ./backend
+        working-directory: backend
         run: npm test -- --coverage --passWithNoTests
         env:
           NODE_ENV: test
