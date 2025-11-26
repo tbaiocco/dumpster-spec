@@ -1,5 +1,7 @@
 - change the phoneNumberRegistration (telegram/whatsapp) to request if the new user wants to add his/her email to receive the digests and reminders.
 
+- send security code for frontend login via Telegram or WhatsApp (maybe email)
+
 - Feedbacks must be persisted, first in DATABASE
     /home/baiocte/personal/dumpster/backend/src/modules/feedback/feedback.service.ts
 

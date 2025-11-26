@@ -7,6 +7,8 @@ on:
       - main
       - develop
       - '001-universal-life-inbox-implementation-*'
+      - '002-universal-life-inbox-implementation-*'
+      - '003-universal-life-inbox-implementation-*'
   pull_request:
     branches:
       - main
