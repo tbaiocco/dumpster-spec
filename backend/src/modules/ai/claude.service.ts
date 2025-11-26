@@ -9,6 +9,7 @@ export interface ContentAnalysisRequest {
     userId: string;
     timestamp: Date;
   };
+  customSystemPrompt?: string;
 }
 
 export interface ContentAnalysisResponse {
@@ -86,7 +87,8 @@ export class ClaudeService {
     );
 
     try {
-      const systemPrompt = this.buildSystemPrompt();
+      // Use custom system prompt if provided, otherwise use default
+      const systemPrompt = request.customSystemPrompt || this.buildSystemPrompt();
       const userPrompt = this.buildUserPrompt(request);
 
       const response = await this.callClaude({
@@ -237,6 +239,34 @@ Return empty arrays for categories with no matches. Be conservative and only inc
     } catch (error) {
       this.logger.error('Error extracting entities:', error);
       return {};
+    }
+  }
+
+  /**
+   * Send a custom prompt to Claude and get raw response
+   */
+  async queryWithCustomPrompt(prompt: string): Promise<string> {
+    this.logger.log(`Sending custom prompt to Claude: ${prompt.substring(0, 100)}...`);
+
+    try {
+      const response = await this.callClaude({
+        model: this.model,
+        max_tokens: 500,
+        temperature: 0.3,
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+      });
+
+      const result = response.content[0].text;
+      this.logger.log(`Claude custom response: ${result}`);
+      return result;
+    } catch (error) {
+      this.logger.error('Error in custom Claude query:', error);
+      throw error;
     }
   }
 

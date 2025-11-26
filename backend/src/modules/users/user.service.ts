@@ -9,11 +9,13 @@ import { User } from '../../entities/user.entity';
 
 export interface CreateUserDto {
   phone_number: string;
+  email?: string;
   timezone?: string;
   language?: string;
 }
 
 export interface UpdateUserDto {
+  email?: string;
   timezone?: string;
   language?: string;
   digest_time?: string;
@@ -24,6 +26,7 @@ export interface UpdateUserDto {
 
 export interface UserSearchDto {
   phone_number?: string;
+  email?: string;
   chat_id_telegram?: string;
   chat_id_whatsapp?: string;
 }
@@ -110,12 +113,24 @@ export class UserService {
     });
   }
 
+  async findByEmail(email: string): Promise<User | null> {
+    return this.userRepository.findOne({
+      where: { email },
+    });
+  }
+
   async search(searchDto: UserSearchDto): Promise<User[]> {
     const query = this.userRepository.createQueryBuilder('user');
 
     if (searchDto.phone_number) {
       query.andWhere('user.phone_number ILIKE :phone', {
         phone: `%${searchDto.phone_number}%`,
+      });
+    }
+
+    if (searchDto.email) {
+      query.andWhere('user.email ILIKE :email', {
+        email: `%${searchDto.email}%`,
       });
     }
 

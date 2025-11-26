@@ -1,6 +1,6 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { DumpService } from './dump.service';
+import { DumpService } from './services/dump.service';
 import { DumpController } from './controllers/dump.controller';
 import { TelegramWebhookController } from './controllers/telegram-webhook.controller';
 import { WhatsAppWebhookController } from './controllers/whatsapp-webhook.controller';
@@ -18,24 +18,34 @@ import { ResponseFormatterService } from '../ai/formatter.service';
 import { MediaProcessorService } from '../ai/media-processor.service';
 import { VoiceProcessorService } from '../ai/voice-processor.service';
 import { ImageProcessorService } from '../ai/image-processor.service';
+import { ReviewService } from './services/review.service';
+import { ReviewController } from './controllers/review.controller';
+import { ConfidenceService } from '../ai/confidence.service';
 import { FallbackHandlerService } from '../ai/fallback-handler.service';
-
-// Import bot services
-import { TelegramService } from '../bots/telegram.service';
-import { WhatsAppService } from '../bots/whatsapp.service';
+import { DocumentProcessorService } from '../ai/document-processor.service';
+import { ScreenshotProcessorService } from '../ai/screenshot-processor.service';
+import { ContentRouterService } from './content-router.service';
+import { MultiLanguageSpeechService } from '../ai/multi-lang-speech.service';
+import { HandwritingService } from '../ai/handwriting.service';
+import { CategorizationService } from './services/categorization.service';
 
 // Import other modules
 import { UserModule } from '../users/user.module';
+import { VectorService } from '../search/vector.service';
+import { DatabaseInitService } from '../../database/database-init.service';
+import { BotsModule } from '../bots/bots.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Dump, Category, Reminder, User]),
     UserModule, // Import UserModule to make UserService available
+    forwardRef(() => BotsModule), // Use forwardRef to resolve circular dependency
   ],
   controllers: [
     DumpController,
     TelegramWebhookController,
     WhatsAppWebhookController,
+    ReviewController,
   ],
   providers: [
     DumpService,
@@ -49,10 +59,21 @@ import { UserModule } from '../users/user.module';
     VoiceProcessorService,
     ImageProcessorService,
     FallbackHandlerService,
-    // Bot Services
-    TelegramService,
-    WhatsAppService,
+    DocumentProcessorService,
+    ScreenshotProcessorService,
+    ContentRouterService,
+    MultiLanguageSpeechService,
+    HandwritingService,
+    CategorizationService,
+    // Vector Service for embedding generation
+    VectorService,
+    // Database initialization service
+    DatabaseInitService,
+    // Review service for error recovery
+    ReviewService,
+    // Confidence service for AI result validation
+    ConfidenceService,
   ],
-  exports: [DumpService],
+  exports: [DumpService, ReviewService, ConfidenceService, DocumentProcessorService],
 })
 export class DumpModule {}

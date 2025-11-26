@@ -25,6 +25,46 @@ export enum ProcessingStatus {
   FAILED = 'failed',
 }
 
+export interface ExtractedEntitiesData {
+  // Entity extraction data from EntityExtractionService
+  entities?: {
+    dates: string[];
+    times: string[];
+    locations: string[];
+    people: string[];
+    organizations: string[];
+    amounts: string[];
+    contacts: {
+      phones: string[];
+      emails: string[];
+      urls: string[];
+    };
+  };
+  entityDetails?: Array<{
+    type: string;
+    value: string;
+    confidence: number;
+    context: string;
+    position?: { start: number; end: number };
+  }>;
+  entitySummary?: {
+    totalEntities: number;
+    entitiesByType: Record<string, number>;
+    averageConfidence: number;
+  };
+  // AI analysis data from Claude
+  actionItems?: string[];
+  sentiment?: string;
+  urgency?: string;
+  // Categorization data from CategorizationService
+  categoryConfidence?: number;
+  categoryReasoning?: string;
+  alternativeCategories?: string[];
+  autoApplied?: boolean;
+  // Metadata
+  metadata?: Record<string, any>;
+}
+
 @Entity('dumps')
 export class Dump {
   @PrimaryGeneratedColumn('uuid')
@@ -65,7 +105,7 @@ export class Dump {
   processing_status: ProcessingStatus;
 
   @Column({ type: 'jsonb', default: '{}' })
-  extracted_entities: Record<string, any>;
+  extracted_entities: ExtractedEntitiesData;
 
   @Column({ type: 'vector', nullable: true })
   content_vector: number[];

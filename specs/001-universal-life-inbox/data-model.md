@@ -65,7 +65,7 @@ Core content unit containing original user input and AI analysis results.
 | urgency_level | INTEGER | CHECK 1-5 | Urgency rating (1=low, 5=urgent) |
 | processing_status | ENUM | DEFAULT 'received' | received, processing, completed, failed |
 | extracted_entities | JSONB | DEFAULT '{}' | Simplified entity storage |
-| content_vector | VECTOR(1536) | NULL | Semantic search embedding |
+| content_vector | VECTOR(384) | NULL | Semantic search embedding |
 | created_at | TIMESTAMP | DEFAULT NOW() | Dump creation time |
 | processed_at | TIMESTAMP | NULL | AI processing completion |
 
@@ -194,7 +194,7 @@ created → scheduled → completed
 ## Semantic Search Schema
 
 ### Vector Embeddings
-- **dumps.content_vector**: Content embeddings for semantic similarity (1536 dimensions for OpenAI)
+- **dumps.content_vector**: Content embeddings for semantic similarity (384 dimensions using all-MiniLM-L6-v2)
 
 ### pgvector Configuration
 ```sql
