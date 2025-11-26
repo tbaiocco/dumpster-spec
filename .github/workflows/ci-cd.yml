@@ -39,9 +39,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
-      - name: npm login
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-  
       - name: Install dependencies
         working-directory: backend
         run: npm ci
@@ -94,9 +91,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
-      - name: npm login
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-  
       - name: Install dependencies
         working-directory: backend
         run: npm ci
@@ -135,9 +129,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: admin-dashboard/package-lock.json
 
-      - name: npm login
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-  
       - name: Install dependencies
         working-directory: admin-dashboard
         run: npm ci
