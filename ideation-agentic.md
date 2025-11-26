@@ -1,115 +1,130 @@
-# 🧠 Ideation & Brainstorming: Evolução para Agentic AI
+# 🧠 Ideation & Brainstorming: Evolução para Agentic AI (Foco em Neurodivergência e Sobrecarga)
 **Projeto:** App "Saco Sem Fundo" (Gestão de Conhecimento Pessoal/Familiar)  
-**Objetivo:** Transformar um repositório passivo de dados em um Sistema de Assistência Ativa.
+**Público-Alvo:** Pessoas desorganizadas, com TDAH, disfunção executiva ou rotinas familiares/profissionais intensas.
+**Objetivo:** Evoluir de um repositório passivo para uma **Prótese Executiva** que remove barreiras de ação.
 
 ---
 
 ## 1. O Conceito Central
-A transição de **Automação** para **Agência**.
+A transição de **"Lembrar"** para **"Facilitar o Início"**.
 
 * **Estado Atual (O "Saco Sem Fundo"):**
-    * *Modelo:* Input -> Processamento (Classificação/IA) -> Armazenamento -> Busca.
-    * *Valor:* Centralização e Organização. "Eu lembro para você."
-* **Estado Futuro (O "Mordomo Executivo"):**
-    * *Modelo:* Percepção -> Raciocínio -> Ação Autônoma -> Feedback.
-    * *Valor:* Resolução e Antecipação. "Eu resolvo e planejo para você."
+    * *Função:* Centralização e Organização. "Onde eu pus aquilo?"
+    * *Limitação:* O utilizador sabe o que fazer, mas não consegue começar (*Wall of Awful*).
+* **Estado Futuro (A "Prótese Executiva"):**
+    * *Função:* Resolução, Decomposição e Estímulo. "Como eu começo isso agora?"
+    * *Valor:* Redução da Ansiedade e da Carga Mental.
 
 ---
 
 ## 2. Personas de Agentes (Feature Ideas)
-Como a IA pode atuar em diferentes contextos dentro do app.
 
-### 🤖 1. O Agente "Concierge" (Execução)
-Focado em reduzir a fricção de tarefas burocráticas e financeiras. A ideia é ir além do lembrete e facilitar a ação final.
+### 👑 O "Game Changer": Agente Concierge (Execução)
+*Prioridade Máxima para este público.*
+Reduz a fricção de tarefas burocráticas que geram procrastinação por ansiedade.
 
-* **O Gatilho:** Upload de boleto, foto de fatura ou nota fiscal.
-* **A Lógica:** Extração de dados (OCR/LLM) + Verificação de Data + Formatação para Pagamento.
+* **O Problema:** A "Parede do Terrível" para iniciar tarefas chatas (pagar contas, preencher formulários).
+* **A Solução:** O Agente faz o trabalho "braçal".
 * **Cenário de Uso:**
-    > Usuário envia PDF da conta de luz. O Agente lê, identifica o vencimento e, no dia correto, envia via WhatsApp: *"Bom dia! Aqui está o código de barras da luz para você copiar e pagar. Posso marcar como 'pago' no sistema?"*
+    > Usuário envia PDF da conta da luz. Em vez de apenas lembrar, o Agente processa e no dia do vencimento diz: *"Aqui está o código de barras pronto a colar. Só tens de abrir o banco."* (Removeu 3 passos do processo).
 
-### ⚖️ 2. O Agente "Mediador" (Resolução de Conflitos)
-Atua como guardião do tempo, cruzando intenções com a realidade da agenda.
+### 🔪 1. O Agente "Fatiador" (Task Decomposer)
+Combate a paralisia por complexidade.
 
-* **O Gatilho:** Nova entrada de evento/compromisso via áudio ou texto.
-* **A Lógica:** Verificação cruzada com Calendários (Google/Outlook) + Detecção de sobreposição ou "tempo de deslocamento" insuficiente.
+* **O Problema:** Tarefas vagas como "Organizar aniversário" ou "Arranjar o carro" são assustadoras e levam à inércia.
+* **A Solução:** O Agente quebra projetos em micro-passos acionáveis.
 * **Cenário de Uso:**
-    > Usuário manda áudio: "Dentista terça às 14h". O Agente checa a agenda e responde: *"Salvei o dentista. Mas atenção: você tem uma call importante às 13:30. Se atrasar, vai encavalar. Quer que eu sugira outro horário?"*
+    > Usuário: *"Preciso tratar do Visto."*
+    > Agente: *"Ok, 'Visto' é muito grande. Queres que eu crie um plano passo-a-passo? 1. Achar passaporte hoje; 2. Ver site do consulado amanhã..."*
 
-### 📚 3. O Agente "Preparador" (Enriquecimento Contextual)
-Garante que o usuário nunca chegue despreparado a um evento.
+### ⏳ 2. O Agente de "Cegueira Temporal" (Time Blindness Corrector)
+Combate o otimismo irrealista sobre o tempo e atrasos crónicos.
 
-* **O Gatilho:** Tempo (ex: 30 min antes de um evento).
-* **A Lógica:** Recuperação de Entidades (RAG - Retrieval Augmented Generation) baseada no título/participantes do evento.
+* **O Problema:** Achar que "sair de casa" demora 5 minutos, ignorando o trânsito e o tempo de preparação.
+* **A Solução:** Traduzir "Hora do Evento" para "Hora de Agir".
 * **Cenário de Uso:**
-    > Antes de uma reunião com "Cliente X", o agente busca no histórico do app e envia um *Flash Digest*: *"Reunião com Cliente X em breve. Lembre-se: mês passado você anotou que precisava cobrar a proposta Y deles."*
+    > Agente: *"A reunião é às 14h. Com trânsito (30m) e banho/vestir (20m), a tua **hora real de saída é 13:10**. Vou mandar um alerta crítico nessa hora, ok?"*
 
-### 🏠 4. O Agente "Gerente Doméstico" (Coordenação de Grupo)
-Para contas de casal ou família, atua na logística compartilhada.
+### 🤝 3. O Agente "Body Doubling" (Parceiro de Foco)
+Simula a presença de outra pessoa para manter a responsabilidade.
 
-* **O Gatilho:** Detecção de eventos simultâneos ou conflitantes entre membros do grupo.
-* **A Lógica:** Cruzamento de agendas de múltiplos usuários + Identificação de gargalos logísticos.
+* **O Problema:** Dificuldade em manter o foco numa tarefa iniciada.
+* **A Solução:** O Agente atua como um companheiro passivo.
 * **Cenário de Uso:**
-    > *"Notei que o Pedro tem natação e a Ana tem médico na mesma manhã. Vocês já definiram quem leva o Pedro ou precisam chamar um Uber?"*
+    > Agente: *"Disseste que ias focar no relatório agora. Vou ficar em silêncio aqui. Daqui a 20 minutos dou um toque para ver se não te distraíste. Podes começar!"*
 
-### 🩺 5. O Agente de "Insights de Vida" (Reconhecimento de Padrões)
-Transforma dados soltos em sabedoria e bem-estar.
+### ⚖️ 4. O Agente "Mediador" (Gestão de Conflitos e Energia)
+Evita o *burnout* e o *overscheduling*.
 
-* **O Gatilho:** Análise periódica (semanal/mensal) do banco de dados vetorial.
-* **A Lógica:** Identificação de repetições semânticas e análise de sentimento ao longo do tempo.
+* **O Problema:** Aceitar compromissos sem perceber que já se está sobrecarregado.
+* **A Solução:** Verificação cruzada de agenda e carga de esforço.
 * **Cenário de Uso:**
-    > *"Oi! Fiz uma análise dos seus 'dumps' do mês. Você mencionou 'dor de cabeça' 6 vezes e 'estresse' 4 vezes. Talvez seja um padrão. Quer que eu resgate aquela indicação de neurologista que você salvou ano passado?"*
+    > Usuário (Audio): *"Marcar dentista terça às 14h".*
+    > Agente: *"Salvei. Atenção: tens uma call pesada às 13:30. Vais ter energia e tempo de deslocação? Queres tentar outro dia?"*
+
+### 🍬 5. O Agente de "Dopamina Imediata" (Gamificação Sutil)
+Combate o desânimo com listas longas.
+
+* **O Problema:** Ver 50 tarefas pendentes causa fuga e ansiedade.
+* **A Solução:** O "Modo Apenas 3 Coisas". Oculta o resto.
+* **Cenário de Uso:**
+    > Agente: *"Hoje parece caótico. Vamos ignorar o resto e focar só nestas 3 coisas críticas? Se fizeres isto, ganhaste o dia."* (Celebração variável ao concluir).
+
+### 🔍 6. O Agente "Perdidos e Achados" (Memória de Curto Prazo)
+Recupera intenções perdidas por distração.
+
+* **O Problema:** Abrir o app para anotar algo, receber uma notificação e esquecer o que ia fazer.
+* **A Solução:** Deteção de inatividade após abertura.
+* **Cenário de Uso:**
+    > Agente (após 5 min): *"Ei, abriste o chat há pouco e não escreveste nada. Lembras-te do que era ou já fugiu?"*
+
+### 🏠 7. O Agente "Gerente Doméstico" (Coordenação Familiar)
+Para casais/famílias sobrecarregadas.
+
+* **A Solução:** Cruzamento de agendas de múltiplos utilizadores.
+* **Cenário de Uso:**
+    > *"Atenção: O Pedro tem natação e a Ana tem médico à mesma hora amanhã. Quem leva quem?"*
 
 ---
 
 ## 3. Modos de Acionamento (Arquitetura)
 
-Para que os agentes funcionem, eles precisam de "Gatilhos":
-
 1.  **Event-Driven (Baseado em Eventos):**
-    * *Imediato.* Ocorre assim que o usuário envia uma mensagem ou o sistema detecta uma mudança (ex: Agente Concierge e Mediador).
-2.  **Time-Based (Agendado):**
-    * *Rotina.* Ocorre em horários fixos (ex: Digest matinal, Agente Preparador checando a agenda do dia).
-3.  **Polling (Sondagem):**
-    * *Monitoramento.* O agente verifica APIs externas periodicamente (ex: Rastrear preço de passagem ou status de encomenda).
+    * Gatilho imediato na entrada de dados (ex: Agente Fatiador ao receber tarefa grande).
+2.  **Time-Based (Agendado/Calculado):**
+    * Alertas de "Hora de Saída" (Cegueira Temporal).
+    * Digests matinais focados ("Modo 3 Coisas").
+3.  **Polling (Monitorização):**
+    * Verificar trânsito para ajustar alertas de saída.
+    * Verificar e-mails de confirmação.
 
 ---
 
-## 4. Roadmap de Implementação Sugerido
+## 4. Estratégia de Roadmap Atualizada
 
-### Fase 1: Integração Passiva (Fundação)
-* **Objetivo:** Dar "olhos" ao sistema fora do chat.
+### Fase 1: Fundação & Empatia (O "Saco Sem Fundo" Inteligente)
+* **Foco:** Reduzir a carga mental na entrada.
 * **Features:**
-    * Integração bidirecional com Google Calendar/Outlook (Ler e Gravar).
-    * Parser de E-mails (Forward para o app).
+    * Integração de Calendário (Ler e Escrever).
+    * **Agente Fatiador (V1):** Sugerir sub-tarefas simples via chat.
+    * **Agente de Dopamina:** Feedback positivo ao completar tarefas ("Boa! Menos uma!").
 
-### Fase 2: Proatividade (A Mudança de Paradigma)
-* **Objetivo:** O Bot inicia a conversa.
+### Fase 2: A Prótese Temporal (Gestão de Tempo)
+* **Foco:** Combater a cegueira temporal e atrasos.
 * **Features:**
-    * Configurar *Cron Jobs* para gatilhos de tempo.
-    * Implementar lógica de detecção de conflitos na ingestão de dados.
-    * Envio de mensagens ativas no WhatsApp/Telegram (Notificações inteligentes, não apenas spam).
+    * Cálculo de tempo de deslocamento (integração Maps).
+    * Alertas de "Hora de Agir" vs "Hora do Evento".
+    * Agente Concierge (Leitura de Boletos/Docs simples).
 
-### Fase 3: Tool Use & Agentes Autônomos (Avançado)
-* **Objetivo:** O Agente executa ações no mundo real.
-* **Tech Stack:** LangChain ou Semantic Kernel.
+### Fase 3: Agência Proativa (O Mordomo Completo)
+* **Foco:** Execução e Manutenção do Foco.
 * **Features:**
-    * Pesquisa na Web (Search Tool) para enriquecer notas.
-    * Integrações via API (Trello, Notion, Apps Financeiros).
+    * **Modo Body Doubling:** Sessões de foco interativas.
+    * **Modo Foco na UI Web:** Esconder distrações/projetos não urgentes.
+    * Agente Mediador gerindo conflitos de agenda familiar.
 
 ---
 
-## 5. Ideia Bônus: "The Killer Feature"
-
-### 🎯 Modo Foco Inteligente
-Um filtro dinâmico no Dashboard Web.
-* **Problema:** O "Saco sem fundo" pode ficar caótico com mistura de vida pessoal, trabalho e ideias.
-* **Solução:** Um botão que reconfigura a UI.
-    * *Modo Trabalho:* Oculta compras, escola das crianças e memes. Mostra apenas deadlines, reuniões e notas de projetos.
-    * *Modo Fim de Semana:* Oculta projetos e tarefas, mostra eventos sociais, lista de compras e ideias de lazer.
-
----
-
-## 6. Próximos Passos
-1.  **Validar:** Qual dessas personas resolve a maior dor do seu usuário atual?
-2.  **Prototipar:** Tentar criar *um* fluxo simples (ex: O "Mediador" de agenda) usando a integração atual.
-3.  **Arquitetura:** Estudar como manter o contexto (memória) do agente para que ele aprenda as preferências do usuário (ex: "O usuário odeia reuniões antes das 09h").
+## 5. Próximos Passos Práticos
+1.  **Validar o "Cálculo de Saída":** Implementar uma lógica simples que subtraia 30-45min do horário de qualquer evento físico e notifique o usuário nessa "nova hora".
+2.  **Testar o "Fatiamento":** Quando a IA detetar verbos vagos ("Planear", "Organizar", "Fazer"), devolver uma pergunta: *"Isso parece grande. Queres ajuda para dividir em passos menores?"*
