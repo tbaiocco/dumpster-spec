@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { IsString, IsOptional, IsIn, IsObject } from 'class-validator';
-import { DumpService, CreateDumpRequest, DumpProcessingResult } from '../dump.service';
+import { DumpService, CreateDumpRequest, DumpProcessingResult } from '../services/dump.service';
 import { Dump } from '../../../entities/dump.entity';
 import type { ApiResponse } from '../../../common/interfaces/api-response.interface';
 

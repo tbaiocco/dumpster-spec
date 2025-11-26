@@ -9,6 +9,7 @@ export interface ContentAnalysisRequest {
     userId: string;
     timestamp: Date;
   };
+  customSystemPrompt?: string;
 }
 
 export interface ContentAnalysisResponse {
@@ -86,7 +87,8 @@ export class ClaudeService {
     );
 
     try {
-      const systemPrompt = this.buildSystemPrompt();
+      // Use custom system prompt if provided, otherwise use default
+      const systemPrompt = request.customSystemPrompt || this.buildSystemPrompt();
       const userPrompt = this.buildUserPrompt(request);
 
       const response = await this.callClaude({

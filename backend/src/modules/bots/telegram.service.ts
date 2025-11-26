@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UserService } from '../users/user.service';
-import { DumpService, CreateDumpRequest, DumpProcessingResult } from '../dumps/dump.service';
+import { DumpService, CreateDumpRequest, DumpProcessingResult } from '../dumps/services/dump.service';
 import { HelpCommand } from './commands/help.command';
 import { RecentCommand } from './commands/recent.command';
 import { ReportCommand } from './commands/report.command';

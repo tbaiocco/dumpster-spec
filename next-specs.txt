@@ -1,0 +1,9 @@
+- change the phoneNumberRegistration (telegram/whatsapp) to request if the new user wants to add his/her email to receive the digests and reminders.
+
+- Feedbacks must be persisted, first in DATABASE
+    /home/baiocte/personal/dumpster/backend/src/modules/feedback/feedback.service.ts
+
+- Tracking feature is not used/connected to anything.
+    It must be used when receiving a new dump that is time-sensitive (package deliveries, applications, subscriptions, warranties, etc)
+    persist?
+    send specific section/reminder for these?

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DumpService } from '../../dumps/dump.service';
+import { DumpService } from '../../dumps/services/dump.service';
 import { User } from '../../../entities/user.entity';
 
 @Injectable()

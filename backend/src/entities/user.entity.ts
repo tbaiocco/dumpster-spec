@@ -17,6 +17,9 @@ export class User {
   @Column({ type: 'varchar', length: 20, unique: true })
   phone_number: string;
 
+  @Column({ type: 'varchar', length: 255, unique: true, nullable: true })
+  email: string;
+
   @Column({ type: 'timestamp', nullable: true })
   verified_at: Date;
 

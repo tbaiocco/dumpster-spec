@@ -10,7 +10,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { ReviewService, ReviewFlag, ReviewPriority, ReviewRequest } from './review.service';
+import { ReviewService, ReviewFlag, ReviewPriority, ReviewRequest } from '../services/review.service';
 
 export class FlagReviewDto {
   dumpId: string;
