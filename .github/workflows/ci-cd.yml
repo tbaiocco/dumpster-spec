@@ -29,6 +29,20 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      - name: Debug npm config & lockfile
+        run: |
+          echo "=== npm config ==="
+          npm config list
+          echo "=== repo root .npmrc ==="
+          [ -f .npmrc ] && sed -n '1,200p' .npmrc || echo "(no repo .npmrc)"
+          echo "=== backend/.npmrc ==="
+          [ -f backend/.npmrc ] && sed -n '1,200p' backend/.npmrc || echo "(no backend .npmrc)"
+          echo "=== package.json dependencies ==="
+          jq '.dependencies + .devDependencies' backend/package.json || true
+          echo "=== package-lock resolved entries (first 80 lines with 'resolved' or 'registry') ==="
+          grep -nE '"resolved":|"registry"' backend/package-lock.json | head -n 80 || true
+        shell: bash
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -119,19 +133,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Debug npm config & lockfile
-        run: |
-          echo "=== npm config ==="
-          npm config list
-          echo "=== repo root .npmrc ==="
-          [ -f .npmrc ] && sed -n '1,200p' .npmrc || echo "(no repo .npmrc)"
-          echo "=== backend/.npmrc ==="
-          [ -f backend/.npmrc ] && sed -n '1,200p' backend/.npmrc || echo "(no backend .npmrc)"
-          echo "=== package.json dependencies ==="
-          jq '.dependencies + .devDependencies' backend/package.json || true
-          echo "=== package-lock resolved entries (first 80 lines with 'resolved' or 'registry') ==="
-          grep -nE '"resolved":|"registry"' backend/package-lock.json | head -n 80 || true
-        shell: bash
 
       - name: Checkout code
         uses: actions/checkout@v4
