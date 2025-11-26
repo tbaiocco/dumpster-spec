@@ -7,3 +7,11 @@
     It must be used when receiving a new dump that is time-sensitive (package deliveries, applications, subscriptions, warranties, etc)
     persist?
     send specific section/reminder for these?
+
+- E-mail dumps
+    The user can forward mails to create dumps from them, with images, docs, etc
+
+- Calendar integration?
+    Checking calendar to detect possible conflicts, suggest changes
+
+- Agentic personas?
