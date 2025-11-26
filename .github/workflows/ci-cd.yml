@@ -30,17 +30,20 @@ jobs:
     
     steps:
       - name: Debug npm config & lockfile
+        working-directory: ./backend
         run: |
+          echo "=== where am I ==="
+          pwd
           echo "=== npm config ==="
           npm config list
           echo "=== repo root .npmrc ==="
           [ -f .npmrc ] && sed -n '1,200p' .npmrc || echo "(no repo .npmrc)"
-          echo "=== backend/.npmrc ==="
-          [ -f backend/.npmrc ] && sed -n '1,200p' backend/.npmrc || echo "(no backend .npmrc)"
+          echo "=== ../.npmrc ==="
+          [ -f ../.npmrc ] && sed -n '1,200p' ../.npmrc || echo "(no ../.npmrc)"
           echo "=== package.json dependencies ==="
-          jq '.dependencies + .devDependencies' backend/package.json || true
+          jq '.dependencies + .devDependencies' package.json || true
           echo "=== package-lock resolved entries (first 80 lines with 'resolved' or 'registry') ==="
-          grep -nE '"resolved":|"registry"' backend/package-lock.json | head -n 80 || true
+          grep -nE '"resolved":|"registry"' package-lock.json | head -n 80 || true
         shell: bash
 
       - name: Checkout code
@@ -54,15 +57,15 @@ jobs:
           cache-dependency-path: backend/package-lock.json
 
       - name: Install dependencies
-        working-directory: backend
+        working-directory: ./backend
         run: npm ci
 
       - name: Run ESLint
-        working-directory: backend
+        working-directory: ./backend
         run: npm run lint
 
       - name: Run unit tests
-        working-directory: backend
+        working-directory: ./backend
         run: npm test -- --coverage --passWithNoTests
         env:
           NODE_ENV: test
