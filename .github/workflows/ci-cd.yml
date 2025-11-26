@@ -29,6 +29,9 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Debug npm config & lockfile
         working-directory: backend
         run: |
@@ -45,9 +48,6 @@ jobs:
           echo "=== package-lock resolved entries (first 80 lines with 'resolved' or 'registry') ==="
           grep -nE '"resolved":|"registry"' package-lock.json | head -n 80 || true
         shell: bash
-
-      - name: Checkout code
-        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
