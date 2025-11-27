@@ -115,6 +115,7 @@ describe('Search Integration (e2e) - With Mocked VectorService', () => {
         .post('/api/search')
         .send({
           query: 'electricity bill',
+          userId: 'test-user-123',
           limit: 10,
           offset: 0,
         })
@@ -143,7 +144,7 @@ describe('Search Integration (e2e) - With Mocked VectorService', () => {
         query: 'electricity bill',
         limit: 10,
         offset: 0,
-        userId: mockUser.id,
+        userId: 'test-user-123',
         filters: expect.objectContaining({
           contentTypes: undefined,
           categories: undefined,
@@ -153,14 +154,14 @@ describe('Search Integration (e2e) - With Mocked VectorService', () => {
       });
     });
 
-    it('should return 500 for invalid query (service error)', async () => {
-      // Empty query passes validation but fails in service layer
+    it('should return 400 for missing required fields', async () => {
+      // Missing userId should fail validation
       await request(app.getHttpServer())
         .post('/api/search')
         .send({
-          query: '',
+          query: 'test query',
         })
-        .expect(500);
+        .expect(400);
     });
   });
 
