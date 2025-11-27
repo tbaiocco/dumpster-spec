@@ -2,7 +2,7 @@
 # This file handles building from the monorepo root
 
 # Multi-stage build for production
-FROM node:22-alpine AS builder
+FROM node:22-slim AS builder
 
 # Set working directory to backend
 WORKDIR /app/backend
@@ -20,7 +20,7 @@ COPY backend/ ./
 RUN npm run build
 
 # Production stage
-FROM node:22-alpine
+FROM node:22-slim
 
 WORKDIR /app
 
