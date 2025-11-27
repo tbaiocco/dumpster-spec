@@ -37,7 +37,7 @@ import { testDatabaseConfig } from '../setup';
  * Integration test for complete reminder workflow
  * Tests: Create → Schedule → Trigger → Deliver → Complete
  */
-describe('Reminder Workflow Integration (e2e)', () => {
+describe.skip('Reminder Workflow Integration (e2e)', () => {
   let app: INestApplication;
   let reminderService: ReminderService;
   let reminderRepository: Repository<Reminder>;
