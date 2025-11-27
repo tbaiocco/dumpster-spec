@@ -6,9 +6,11 @@ import {
   ContentType,
   ProcessingStatus,
 } from '../../../src/entities/dump.entity';
+import { User } from '../../../src/entities/user.entity';
 import { ReminderService } from '../../../src/modules/reminders/reminder.service';
 import { ReminderStatus } from '../../../src/entities/reminder.entity';
 import { Repository } from 'typeorm';
+import { TranslationService } from '../../../src/modules/ai/translation.service';
 
 describe('DigestService', () => {
   let service: DigestService;
@@ -57,6 +59,18 @@ describe('DigestService', () => {
       getUserReminders: jest.fn(),
     };
 
+    const mockUserRepo = {
+      findOne: jest.fn(),
+    };
+
+    const mockTranslationService = {
+      translate: jest.fn().mockResolvedValue({
+        translatedText: 'Translated text',
+        detectedSourceLanguage: 'en',
+      }),
+      translateBatch: jest.fn().mockResolvedValue(['Translated text']),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DigestService,
@@ -65,8 +79,16 @@ describe('DigestService', () => {
           useValue: mockDumpRepo,
         },
         {
+          provide: getRepositoryToken(User),
+          useValue: mockUserRepo,
+        },
+        {
           provide: ReminderService,
           useValue: mockReminderService,
+        },
+        {
+          provide: TranslationService,
+          useValue: mockTranslationService,
         },
       ],
     }).compile();
@@ -242,7 +264,7 @@ describe('DigestService', () => {
       ] as any);
 
       const digest = await service.generateDailyDigest('user-123');
-      const text = service.formatDigestAsText(digest);
+      const text = await service.formatDigestAsText(digest);
 
       expect(text).toBeDefined();
       expect(text).not.toContain('<b>');
