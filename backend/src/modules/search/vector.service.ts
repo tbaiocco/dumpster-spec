@@ -117,7 +117,8 @@ export class VectorService implements OnModuleInit {
       });
 
       // Convert tensor to array
-      const embeddingVector = Array.from(output.data);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+      const embeddingVector = Array.from(output.data) as number[];
       const tokens = Math.ceil(request.text.length / 4); // Rough estimate
 
       if (embeddingVector.length !== this.embeddingDimension) {
