@@ -2,7 +2,7 @@
 # This file handles building from the monorepo root
 
 # Multi-stage build for production
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
 
 # Set working directory to backend
 WORKDIR /app/backend
@@ -20,7 +20,7 @@ COPY backend/ ./
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
@@ -51,4 +51,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Start application
-CMD ["node", "dist/main"]
+CMD ["node", "dist/main.js"]
