@@ -52,4 +52,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 
 # Start application
 # Force redeploy - fixed start command to include .js extension
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]
