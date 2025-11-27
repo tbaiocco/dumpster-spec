@@ -9,7 +9,7 @@ import {
 
 describe('EmailProcessorService', () => {
   let service: EmailProcessorService;
-  let mockConfigService: jest.Mocked<ConfigService>;
+  let _mockConfigService: jest.Mocked<ConfigService>;
   let mockDocumentProcessor: jest.Mocked<DocumentProcessorService>;
 
   beforeEach(async () => {
@@ -38,7 +38,7 @@ describe('EmailProcessorService', () => {
     }).compile();
 
     service = module.get<EmailProcessorService>(EmailProcessorService);
-    mockConfigService = module.get(ConfigService);
+    _mockConfigService = module.get(ConfigService);
     mockDocumentProcessor = module.get(DocumentProcessorService);
   });
 
@@ -279,15 +279,20 @@ describe('EmailProcessorService', () => {
         },
       };
 
-      mockDocumentProcessor.processDocument.mockImplementation((buffer, contentType) => {
-        if (contentType === 'image/jpeg') {
-          return Promise.resolve(mockImageResult);
-        }
-        if (contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      mockDocumentProcessor.processDocument.mockImplementation(
+        (buffer, contentType) => {
+          if (contentType === 'image/jpeg') {
+            return Promise.resolve(mockImageResult);
+          }
+          if (
+            contentType ===
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          ) {
+            return Promise.resolve(mockDocumentResult);
+          }
           return Promise.resolve(mockDocumentResult);
-        }
-        return Promise.resolve(mockDocumentResult);
-      });
+        },
+      );
 
       // Act
       const result = await service.processEmail(emailMessage);
