@@ -1,8 +1,10 @@
 // Mock @xenova/transformers before any imports
 jest.mock('@xenova/transformers', () => ({
-  pipeline: jest.fn(() => Promise.resolve({
-    predict: jest.fn(() => Promise.resolve([1, 2, 3, 4, 5])),
-  })),
+  pipeline: jest.fn(() =>
+    Promise.resolve({
+      predict: jest.fn(() => Promise.resolve([1, 2, 3, 4, 5])),
+    }),
+  ),
   env: {
     backends: {
       onnx: {
@@ -19,7 +21,11 @@ import { INestApplication } from '@nestjs/common';
 import { TypeOrmModule, getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ReminderModule } from '../../src/modules/reminders/reminder.module';
-import { Reminder, ReminderStatus, ReminderType } from '../../src/entities/reminder.entity';
+import {
+  Reminder,
+  ReminderStatus,
+  ReminderType,
+} from '../../src/entities/reminder.entity';
 import { User } from '../../src/entities/user.entity';
 import { Dump, ContentType } from '../../src/entities/dump.entity';
 import { Category } from '../../src/entities/category.entity';
@@ -45,17 +51,16 @@ describe('Reminder Workflow Integration (e2e)', () => {
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [
-        TypeOrmModule.forRoot(testDatabaseConfig),
-        ReminderModule,
-      ],
+      imports: [TypeOrmModule.forRoot(testDatabaseConfig), ReminderModule],
     })
-    .overrideProvider(DeliveryService)
-    .useValue({
-      sendReminder: jest.fn().mockResolvedValue({ success: true, platform: 'telegram' }),
-      sendDigest: jest.fn().mockResolvedValue({ success: true }),
-    })
-    .compile();
+      .overrideProvider(DeliveryService)
+      .useValue({
+        sendReminder: jest
+          .fn()
+          .mockResolvedValue({ success: true, platform: 'telegram' }),
+        sendDigest: jest.fn().mockResolvedValue({ success: true }),
+      })
+      .compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();
@@ -114,7 +119,8 @@ describe('Reminder Workflow Integration (e2e)', () => {
 
       const reminder = await reminderService.createReminder({
         userId: testUser.id,
-        message: 'Follow up on meeting - Review action items from today\'s meeting',
+        message:
+          "Follow up on meeting - Review action items from today's meeting",
         scheduledFor: scheduledFor,
         reminderType: ReminderType.FOLLOW_UP,
         dumpId: testDump.id,
@@ -141,7 +147,10 @@ describe('Reminder Workflow Integration (e2e)', () => {
       });
 
       expect(reminder.reminder_type).toBe(ReminderType.RECURRING);
-      expect(reminder.recurrence_pattern).toEqual({ frequency: 'daily', interval: 1 });
+      expect(reminder.recurrence_pattern).toEqual({
+        frequency: 'daily',
+        interval: 1,
+      });
       expect(reminder.status).toBe(ReminderStatus.PENDING);
     });
 
@@ -185,7 +194,9 @@ describe('Reminder Workflow Integration (e2e)', () => {
       );
 
       expect(snoozedReminder.status).toBe(ReminderStatus.SNOOZED);
-      expect(snoozedReminder.scheduled_for.getTime()).toBeGreaterThan(Date.now());
+      expect(snoozedReminder.scheduled_for.getTime()).toBeGreaterThan(
+        Date.now(),
+      );
     });
 
     it('should dismiss reminders', async () => {
@@ -244,7 +255,7 @@ describe('Reminder Workflow Integration (e2e)', () => {
     it('should get user reminders by status', async () => {
       // Create reminders in various states
       const now = Date.now();
-      
+
       await reminderService.createReminder({
         userId: testUser.id,
         message: 'Pending 1',
@@ -265,15 +276,20 @@ describe('Reminder Workflow Integration (e2e)', () => {
         scheduledFor: new Date(now + 10000),
         reminderType: ReminderType.FOLLOW_UP,
       });
-      await reminderService.updateReminder(sent.id, { status: ReminderStatus.SENT });
+      await reminderService.updateReminder(sent.id, {
+        status: ReminderStatus.SENT,
+      });
 
       const pending = await reminderService.getUserReminders(testUser.id, {
         status: ReminderStatus.PENDING,
       });
 
-      const sentReminders = await reminderService.getUserReminders(testUser.id, {
-        status: ReminderStatus.SENT,
-      });
+      const sentReminders = await reminderService.getUserReminders(
+        testUser.id,
+        {
+          status: ReminderStatus.SENT,
+        },
+      );
 
       expect(pending.length).toBe(2);
       expect(sentReminders.length).toBe(1);

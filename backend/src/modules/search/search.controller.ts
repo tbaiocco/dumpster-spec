@@ -15,7 +15,15 @@ import { GetUser } from '../auth/decorators/get-user.decorator';
 import { User } from '../../entities/user.entity';
 import { SearchService, SearchRequest, SearchResponse } from './search.service';
 import { VectorService } from './vector.service';
-import { IsString, IsOptional, IsArray, IsDateString, IsNumber, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsDateString,
+  IsNumber,
+  Min,
+  Max,
+} from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import type { ApiResponse } from '../../common/interfaces/api-response.interface';
 
@@ -161,9 +169,7 @@ export class SearchController {
   }
 
   @Get('analytics')
-  async getSearchAnalytics(
-    @GetUser() user: User,
-  ): Promise<ApiResponse<any>> {
+  async getSearchAnalytics(@GetUser() user: User): Promise<ApiResponse<any>> {
     const analytics = await this.searchService.getSearchAnalytics(user.id);
 
     return {
@@ -175,19 +181,17 @@ export class SearchController {
 
   @Post('reindex')
   @HttpCode(HttpStatus.OK)
-  async reindexUserContent(
-    @GetUser() user: User,
-  ): Promise<ApiResponse<any>> {
+  async reindexUserContent(@GetUser() user: User): Promise<ApiResponse<any>> {
     // This would typically be an admin-only operation
     // but for MVP, users can trigger their own reindexing
-    
+
     try {
       // Get user's dumps that need vector indexing
       const stats = await this.vectorService.getEmbeddingStats();
-      
+
       // Trigger migration for existing dumps without vectors
       await this.vectorService.migrateExistingDumps(50);
-      
+
       const updatedStats = await this.vectorService.getEmbeddingStats();
 
       return {
@@ -274,7 +278,8 @@ export class SearchController {
   @Post('feedback')
   @HttpCode(HttpStatus.OK)
   async submitSearchFeedback(
-    @Body() feedback: {
+    @Body()
+    feedback: {
       query: string;
       resultId?: string;
       rating: 1 | 2 | 3 | 4 | 5;
@@ -284,7 +289,7 @@ export class SearchController {
   ): Promise<ApiResponse<any>> {
     // Log search feedback for improving search quality
     // This would typically go to a search_feedback table
-    
+
     return {
       success: true,
       data: { received: true },

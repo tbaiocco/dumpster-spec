@@ -47,13 +47,18 @@ export class MediaProcessorService {
     image: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
     audio: ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/m4a', 'audio/aac'],
     video: ['video/mp4', 'video/mov', 'video/avi', 'video/webm'],
-    document: ['application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+    document: [
+      'application/pdf',
+      'text/plain',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ],
   };
 
   constructor(private readonly configService: ConfigService) {
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
     const supabaseKey = this.configService.get<string>('SUPABASE_ANON_KEY');
-    
+
     if (!supabaseUrl || !supabaseKey) {
       throw new Error('Supabase configuration missing');
     }
@@ -61,7 +66,9 @@ export class MediaProcessorService {
     this.supabase = createClient(supabaseUrl, supabaseKey);
   }
 
-  async processMedia(request: MediaProcessingRequest): Promise<MediaProcessingResult> {
+  async processMedia(
+    request: MediaProcessingRequest,
+  ): Promise<MediaProcessingResult> {
     const startTime = Date.now();
     this.logger.log(`Processing media: ${request.url} (type: ${request.type})`);
 
@@ -97,17 +104,21 @@ export class MediaProcessorService {
       await this.cleanupTempFile(tempFile.path);
 
       const processingTime = Date.now() - startTime;
-      this.logger.log(`Media processed successfully: ${fileId} (${processingTime}ms)`);
+      this.logger.log(
+        `Media processed successfully: ${fileId} (${processingTime}ms)`,
+      );
 
       return {
         file: mediaFile,
         processed: true,
         processingTime,
       };
-
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      this.logger.error(`Media processing failed: ${error.message}`, error.stack);
+      this.logger.error(
+        `Media processing failed: ${error.message}`,
+        error.stack,
+      );
 
       return {
         file: null,
@@ -154,7 +165,6 @@ export class MediaProcessorService {
           format: fileInfo.metadata?.format,
         },
       };
-
     } catch (error) {
       this.logger.error(`Error retrieving media file ${fileId}:`, error);
       return null;
@@ -174,7 +184,6 @@ export class MediaProcessorService {
 
       this.logger.log(`Media file deleted: ${fileId}`);
       return true;
-
     } catch (error) {
       this.logger.error(`Error deleting media file ${fileId}:`, error);
       return false;
@@ -186,7 +195,10 @@ export class MediaProcessorService {
       throw new Error('Media URL is required');
     }
 
-    if (!request.type || !Object.keys(this.allowedTypes).includes(request.type)) {
+    if (
+      !request.type ||
+      !Object.keys(this.allowedTypes).includes(request.type)
+    ) {
       throw new Error(`Invalid media type: ${request.type}`);
     }
 
@@ -213,13 +225,16 @@ export class MediaProcessorService {
   }> {
     // Simple implementation that creates a mock file for demonstration
     // In a real implementation, you would use fetch() or a proper HTTP client
-    
+
     const tempDir = os.tmpdir();
     const tempFileName = `media_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     const tempFilePath = path.join(tempDir, tempFileName);
 
     // Create a mock file with some content
-    const mockContent = Buffer.from(`Mock ${request.type} file from ${request.url}`, 'utf-8');
+    const mockContent = Buffer.from(
+      `Mock ${request.type} file from ${request.url}`,
+      'utf-8',
+    );
     await fs.writeFile(tempFilePath, mockContent);
 
     return {
@@ -229,7 +244,10 @@ export class MediaProcessorService {
     };
   }
 
-  private async validateFile(tempFile: { path: string; mimeType: string; size: number }, type: string): Promise<void> {
+  private async validateFile(
+    tempFile: { path: string; mimeType: string; size: number },
+    type: string,
+  ): Promise<void> {
     // Check file size
     if (tempFile.size === 0) {
       throw new Error('Downloaded file is empty');
@@ -248,7 +266,6 @@ export class MediaProcessorService {
 
       // Validate file signatures for common types
       this.validateFileSignature(buffer, tempFile.mimeType);
-
     } catch (error) {
       throw new Error(`File validation failed: ${error.message}`);
     }
@@ -256,16 +273,16 @@ export class MediaProcessorService {
 
   private validateFileSignature(buffer: Buffer, mimeType: string): void {
     const signatures: Record<string, Buffer[]> = {
-      'image/jpeg': [Buffer.from([0xFF, 0xD8, 0xFF])],
-      'image/png': [Buffer.from([0x89, 0x50, 0x4E, 0x47])],
+      'image/jpeg': [Buffer.from([0xff, 0xd8, 0xff])],
+      'image/png': [Buffer.from([0x89, 0x50, 0x4e, 0x47])],
       'image/gif': [Buffer.from([0x47, 0x49, 0x46, 0x38])],
       'application/pdf': [Buffer.from([0x25, 0x50, 0x44, 0x46])],
     };
 
     const expectedSignatures = signatures[mimeType];
     if (expectedSignatures) {
-      const matches = expectedSignatures.some(signature => 
-        buffer.subarray(0, signature.length).equals(signature)
+      const matches = expectedSignatures.some((signature) =>
+        buffer.subarray(0, signature.length).equals(signature),
       );
 
       if (!matches) {
@@ -276,10 +293,17 @@ export class MediaProcessorService {
 
   private generateFileId(request: MediaProcessingRequest): string {
     const data = `${request.userId}_${request.messageId}_${request.url}_${Date.now()}`;
-    return crypto.createHash('sha256').update(data).digest('hex').substring(0, 16);
+    return crypto
+      .createHash('sha256')
+      .update(data)
+      .digest('hex')
+      .substring(0, 16);
   }
 
-  private async extractMetadata(tempFile: { path: string; mimeType: string; size: number }, type: string): Promise<MediaFile['metadata']> {
+  private async extractMetadata(
+    tempFile: { path: string; mimeType: string; size: number },
+    type: string,
+  ): Promise<MediaFile['metadata']> {
     const fileContent = await fs.readFile(tempFile.path);
     const checksum = crypto.createHash('md5').update(fileContent).digest('hex');
 
@@ -305,7 +329,7 @@ export class MediaProcessorService {
   private async uploadToStorage(
     tempFile: { path: string; mimeType: string; size: number },
     fileId: string,
-    request: MediaProcessingRequest
+    request: MediaProcessingRequest,
   ): Promise<string> {
     const fileBuffer = await fs.readFile(tempFile.path);
     const fileName = `${request.source}/${request.userId}/${fileId}`;
@@ -371,7 +395,10 @@ export class MediaProcessorService {
 
       const stats = {
         totalFiles: data.length,
-        totalSize: data.reduce((sum, file) => sum + (file.metadata?.size || 0), 0),
+        totalSize: data.reduce(
+          (sum, file) => sum + (file.metadata?.size || 0),
+          0,
+        ),
         filesByType: {} as Record<string, number>,
       };
 
@@ -381,7 +408,6 @@ export class MediaProcessorService {
       }
 
       return stats;
-
     } catch (error) {
       this.logger.error('Error getting storage stats:', error);
       return {

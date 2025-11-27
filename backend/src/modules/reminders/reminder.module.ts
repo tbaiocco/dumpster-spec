@@ -8,16 +8,14 @@ import { ReminderController } from './reminder.controller';
 
 /**
  * Module for reminder functionality
- * 
+ *
  * Provides:
  * - ReminderService: Core reminder scheduling and management
  * - ReminderController: REST API endpoints
  * - Reminder entity repository
  */
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Reminder, Dump, User]),
-  ],
+  imports: [TypeOrmModule.forFeature([Reminder, Dump, User])],
   providers: [ReminderService],
   controllers: [ReminderController],
   exports: [ReminderService], // Export for use in other modules

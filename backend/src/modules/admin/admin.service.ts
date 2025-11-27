@@ -33,7 +33,7 @@ export class AdminService {
     // Using created_at as proxy for now
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
+
     const recentUsers = await this.userRepository
       .createQueryBuilder('user')
       .where('user.created_at >= :thirtyDaysAgo', { thirtyDaysAgo })
@@ -45,9 +45,8 @@ export class AdminService {
       .where('dump.category_id IS NOT NULL')
       .getCount();
 
-    const processingSuccessRate = totalDumps > 0 
-      ? (categorizedDumps / totalDumps) * 100 
-      : 0;
+    const processingSuccessRate =
+      totalDumps > 0 ? (categorizedDumps / totalDumps) * 100 : 0;
 
     // Daily statistics for the last 30 days
     const dailyStats = await this.getDailyStatistics(30);
@@ -70,7 +69,9 @@ export class AdminService {
   /**
    * Get daily statistics for specified number of days
    */
-  private async getDailyStatistics(days: number = 30): Promise<Array<{ date: string; dumps: number; users: number }>> {
+  private async getDailyStatistics(
+    days: number = 30,
+  ): Promise<Array<{ date: string; dumps: number; users: number }>> {
     const stats: Array<{ date: string; dumps: number; users: number }> = [];
     const today = new Date();
 
@@ -118,11 +119,14 @@ export class AdminService {
       .groupBy('dump.content_type')
       .getRawMany();
 
-    const totalMediaFiles = result.reduce((sum, item) => sum + Number.parseInt(item.count, 10), 0);
+    const totalMediaFiles = result.reduce(
+      (sum, item) => sum + Number.parseInt(item.count, 10),
+      0,
+    );
 
     return {
       totalFiles: totalMediaFiles,
-      byType: result.map(item => ({
+      byType: result.map((item) => ({
         type: item.type,
         count: Number.parseInt(item.count, 10),
       })),
@@ -137,9 +141,9 @@ export class AdminService {
   async getSearchMetrics() {
     // In a real implementation, this would query a search_logs table
     // For now, we'll provide mock data based on dumps
-    
+
     const totalDumps = await this.dumpRepository.count();
-    
+
     // Category distribution (proxy for search queries)
     const categoryStats = await this.dumpRepository
       .createQueryBuilder('dump')
@@ -150,13 +154,13 @@ export class AdminService {
       .groupBy('category.name')
       .getRawMany();
 
-    const sortedStats = [...categoryStats].sort((a, b) => Number.parseInt(b.count, 10) - Number.parseInt(a.count, 10));
-    const topQueries = sortedStats
-      .slice(0, 10)
-      .map(item => ({
-        query: item.category,
-        count: Number.parseInt(item.count, 10),
-      }));
+    const sortedStats = [...categoryStats].sort(
+      (a, b) => Number.parseInt(b.count, 10) - Number.parseInt(a.count, 10),
+    );
+    const topQueries = sortedStats.slice(0, 10).map((item) => ({
+      query: item.category,
+      count: Number.parseInt(item.count, 10),
+    }));
 
     // Search type distribution
     const queryDistribution = [
@@ -199,13 +203,13 @@ export class AdminService {
     const confidenceStats = await this.dumpRepository
       .createQueryBuilder('dump')
       .select(
-        "CASE " +
-        "WHEN dump.ai_confidence >= 90 THEN '0.9-1.0' " +
-        "WHEN dump.ai_confidence >= 80 THEN '0.8-0.9' " +
-        "WHEN dump.ai_confidence >= 70 THEN '0.7-0.8' " +
-        "WHEN dump.ai_confidence >= 60 THEN '0.6-0.7' " +
-        "ELSE '0.0-0.6' END",
-        'range'
+        'CASE ' +
+          "WHEN dump.ai_confidence >= 90 THEN '0.9-1.0' " +
+          "WHEN dump.ai_confidence >= 80 THEN '0.8-0.9' " +
+          "WHEN dump.ai_confidence >= 70 THEN '0.7-0.8' " +
+          "WHEN dump.ai_confidence >= 60 THEN '0.6-0.7' " +
+          "ELSE '0.0-0.6' END",
+        'range',
       )
       .addSelect('COUNT(*)', 'count')
       .where('dump.ai_confidence IS NOT NULL')
@@ -213,7 +217,7 @@ export class AdminService {
       .orderBy('range', 'DESC')
       .getRawMany();
 
-    const confidenceDistribution = confidenceStats.map(item => ({
+    const confidenceDistribution = confidenceStats.map((item) => ({
       range: item.range,
       count: Number.parseInt(item.count, 10),
     }));
@@ -230,7 +234,7 @@ export class AdminService {
       .orderBy('count', 'DESC')
       .getRawMany();
 
-    const categoryStats = categoryBreakdown.map(item => ({
+    const categoryStats = categoryBreakdown.map((item) => ({
       category: item.category,
       count: Number.parseInt(item.count, 10),
       avgConfidence: Number.parseFloat(item.avgConfidence).toFixed(2),
@@ -243,14 +247,13 @@ export class AdminService {
       .where('dump.ai_confidence IS NOT NULL')
       .getRawOne();
 
-    const averageConfidence = avgConfidenceResult.avg 
+    const averageConfidence = avgConfidenceResult.avg
       ? Number.parseFloat(avgConfidenceResult.avg) / 100 // Convert from 0-100 to 0-1
       : 0;
 
     // Processing success rate
-    const processingSuccessRate = totalDumps > 0 
-      ? (categorizedDumps / totalDumps) * 100 
-      : 0;
+    const processingSuccessRate =
+      totalDumps > 0 ? (categorizedDumps / totalDumps) * 100 : 0;
 
     // Low confidence dumps (flagged for review) - confidence stored as 0-100
     const lowConfidenceDumps = await this.dumpRepository
@@ -275,7 +278,7 @@ export class AdminService {
    */
   async getUserStats() {
     const totalUsers = await this.userRepository.count();
-    
+
     // Users by activity (last 7, 30, 90 days) - using created_at as proxy
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -312,13 +315,19 @@ export class AdminService {
   /**
    * Get monthly user registrations
    */
-  private async getMonthlyRegistrations(months: number = 12): Promise<Array<{ month: string; count: number }>> {
+  private async getMonthlyRegistrations(
+    months: number = 12,
+  ): Promise<Array<{ month: string; count: number }>> {
     const stats: Array<{ month: string; count: number }> = [];
     const today = new Date();
 
     for (let i = months - 1; i >= 0; i--) {
       const startDate = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      const endDate = new Date(today.getFullYear(), today.getMonth() - i + 1, 0);
+      const endDate = new Date(
+        today.getFullYear(),
+        today.getMonth() - i + 1,
+        0,
+      );
 
       const count = await this.userRepository
         .createQueryBuilder('user')
@@ -338,7 +347,11 @@ export class AdminService {
   /**
    * Get flagged content for review
    */
-  async getFlaggedContent(status?: string, priority?: string, limit: number = 50) {
+  async getFlaggedContent(
+    status?: string,
+    priority?: string,
+    limit: number = 50,
+  ) {
     const queryBuilder = this.dumpRepository
       .createQueryBuilder('dump')
       .leftJoinAndSelect('dump.category', 'category')
@@ -349,7 +362,7 @@ export class AdminService {
 
     const flaggedDumps = await queryBuilder.getMany();
 
-    return flaggedDumps.map(dump => ({
+    return flaggedDumps.map((dump) => ({
       id: dump.id,
       dump: {
         id: dump.id,
@@ -370,7 +383,9 @@ export class AdminService {
   /**
    * Calculate priority based on confidence score (0-100 scale)
    */
-  private calculatePriority(confidence: number): 'low' | 'medium' | 'high' | 'critical' {
+  private calculatePriority(
+    confidence: number,
+  ): 'low' | 'medium' | 'high' | 'critical' {
     if (confidence < 30) return 'critical';
     if (confidence < 50) return 'high';
     if (confidence < 60) return 'medium';
@@ -384,7 +399,7 @@ export class AdminService {
     // In production, this would update a review_status table
     // For now, we'll just verify the dump exists
     const dump = await this.dumpRepository.findOne({ where: { id: dumpId } });
-    
+
     if (!dump) {
       throw new Error('Dump not found');
     }
@@ -404,7 +419,7 @@ export class AdminService {
   async rejectDump(dumpId: string, reason: string, notes?: string) {
     // In production, this would update a review_status table
     const dump = await this.dumpRepository.findOne({ where: { id: dumpId } });
-    
+
     if (!dump) {
       throw new Error('Dump not found');
     }
@@ -425,7 +440,7 @@ export class AdminService {
    */
   async getAllDumps(page: number = 1, limit: number = 50, search?: string) {
     const skip = (page - 1) * limit;
-    
+
     const queryBuilder = this.dumpRepository
       .createQueryBuilder('dump')
       .leftJoinAndSelect('dump.category', 'category')
@@ -438,7 +453,7 @@ export class AdminService {
     if (search) {
       queryBuilder.where(
         'dump.raw_content ILIKE :search OR dump.extracted_content ILIKE :search',
-        { search: `%${search}%` }
+        { search: `%${search}%` },
       );
     }
 

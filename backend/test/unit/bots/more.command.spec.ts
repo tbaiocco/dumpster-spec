@@ -1,8 +1,10 @@
 // Mock @xenova/transformers before any imports
 jest.mock('@xenova/transformers', () => ({
-  pipeline: jest.fn(() => Promise.resolve({
-    predict: jest.fn(() => Promise.resolve([1, 2, 3, 4, 5])),
-  })),
+  pipeline: jest.fn(() =>
+    Promise.resolve({
+      predict: jest.fn(() => Promise.resolve([1, 2, 3, 4, 5])),
+    }),
+  ),
   env: {
     backends: {
       onnx: {

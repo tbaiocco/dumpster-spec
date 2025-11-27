@@ -9,7 +9,7 @@ import { ReminderModule } from '../reminders/reminder.module';
 
 /**
  * Module for tracking functionality
- * 
+ *
  * Provides:
  * - TrackingService: General time-sensitive item tracking
  * - PackageTrackingService: Carrier-specific package tracking
@@ -20,13 +20,7 @@ import { ReminderModule } from '../reminders/reminder.module';
     HttpModule, // For external carrier APIs
     ReminderModule, // For auto-reminder creation
   ],
-  providers: [
-    TrackingService,
-    PackageTrackingService,
-  ],
-  exports: [
-    TrackingService,
-    PackageTrackingService,
-  ],
+  providers: [TrackingService, PackageTrackingService],
+  exports: [TrackingService, PackageTrackingService],
 })
 export class TrackingModule {}

@@ -45,7 +45,9 @@ export class TranslationService {
     const cacheKey = this.getCacheKey(text, targetLanguage);
     const cached = this.translationCache.get(cacheKey);
     if (cached) {
-      this.logger.debug(`Using cached translation for language: ${targetLanguage}`);
+      this.logger.debug(
+        `Using cached translation for language: ${targetLanguage}`,
+      );
       return {
         translatedText: cached,
         detectedSourceLanguage: sourceLanguage,
@@ -62,7 +64,8 @@ export class TranslationService {
         context,
       );
 
-      const translatedText = await this.claudeService.queryWithCustomPrompt(prompt);
+      const translatedText =
+        await this.claudeService.queryWithCustomPrompt(prompt);
 
       // Cache the translation
       this.translationCache.set(cacheKey, translatedText);
@@ -82,7 +85,7 @@ export class TranslationService {
         `Translation failed for language ${targetLanguage}`,
         error,
       );
-      
+
       // Fallback to original text if translation fails
       return {
         translatedText: text,

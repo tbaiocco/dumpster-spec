@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UserService } from '../users/user.service';
-import { DumpService, CreateDumpRequest, DumpProcessingResult } from '../dumps/services/dump.service';
+import {
+  DumpService,
+  CreateDumpRequest,
+  DumpProcessingResult,
+} from '../dumps/services/dump.service';
 import { HelpCommand } from './commands/help.command';
 import { RecentCommand } from './commands/recent.command';
 import { ReportCommand } from './commands/report.command';
@@ -203,7 +207,7 @@ export class TelegramService {
       }
 
       const fileInfo = await fileInfoResponse.json();
-      
+
       if (!fileInfo.ok || !fileInfo.result?.file_path) {
         throw new Error('Invalid file info response from Telegram');
       }
@@ -250,17 +254,20 @@ export class TelegramService {
         this.logger.log(
           `User not found for Telegram chat ${chatId}, checking for registration`,
         );
-        
+
         // Check if this is a phone number registration attempt
-        if (message.text && await this.handlePhoneNumberRegistration(message)) {
+        if (
+          message.text &&
+          (await this.handlePhoneNumberRegistration(message))
+        ) {
           return; // Registration handled
         }
-        
+
         // Ask for phone number registration
         await this.sendTextMessage(
           chatId,
           '👋 Welcome! Please complete your registration by sending your phone number to get started.\n\n' +
-          'Example: +351999888777'
+            'Example: +351999888777',
         );
         return;
       }
@@ -292,8 +299,6 @@ export class TelegramService {
     }
   }
 
-
-
   // New method to handle phone number registration
   async handlePhoneNumberRegistration(
     message: TelegramMessage,
@@ -304,7 +309,7 @@ export class TelegramService {
     // Detect phone number pattern (international format)
     const phonePattern = /^\+?[1-9]\d{1,14}$/;
     const cleanPhone = text.replaceAll(/[\s\-()]/g, '');
-    
+
     if (!phonePattern.test(cleanPhone)) {
       return false; // Not a valid phone number
     }
@@ -312,25 +317,27 @@ export class TelegramService {
     try {
       // Check if user already exists with this phone number
       const existingUser = await this.userService.findByPhone(cleanPhone);
-      
+
       if (existingUser) {
         // Update existing user with Telegram chat ID
         await this.userService.update(existingUser.id, {
           chat_id_telegram: chatId.toString(),
         });
-        
+
         await this.sendTextMessage(
           chatId,
           `✅ Welcome back! Your account has been linked to Telegram.\n\n` +
-          `You can now send me:\n` +
-          `📝 Text messages to save thoughts\n` +
-          `🎤 Voice messages\n` +
-          `📸 Photos\n` +
-          `📄 Documents\n\n` +
-          `Try sending: "Preciso lembrar de comprar leite hoje"`
+            `You can now send me:\n` +
+            `📝 Text messages to save thoughts\n` +
+            `🎤 Voice messages\n` +
+            `📸 Photos\n` +
+            `📄 Documents\n\n` +
+            `Try sending: "Preciso lembrar de comprar leite hoje"`,
         );
-        
-        this.logger.log(`Linked existing user ${existingUser.id} to Telegram chat ${chatId}`);
+
+        this.logger.log(
+          `Linked existing user ${existingUser.id} to Telegram chat ${chatId}`,
+        );
         return true;
       } else {
         // Create new user
@@ -339,31 +346,33 @@ export class TelegramService {
           timezone: 'Europe/Lisbon', // Default for Portuguese users
           language: 'pt',
         });
-        
+
         // Update with Telegram chat ID
         await this.userService.update(newUser.id, {
           chat_id_telegram: chatId.toString(),
         });
-        
+
         await this.sendTextMessage(
           chatId,
           `🎉 Registration complete! Welcome to your personal life inbox.\n\n` +
-          `I'll help you capture and organize everything:\n` +
-          `📝 Notes and reminders\n` +
-          `🎤 Voice messages\n` +
-          `📸 Photos and documents\n` +
-          `🔍 Smart search and categorization\n\n` +
-          `Try sending: "Reunião com cliente amanhã às 15h"`
+            `I'll help you capture and organize everything:\n` +
+            `📝 Notes and reminders\n` +
+            `🎤 Voice messages\n` +
+            `📸 Photos and documents\n` +
+            `🔍 Smart search and categorization\n\n` +
+            `Try sending: "Reunião com cliente amanhã às 15h"`,
         );
-        
-        this.logger.log(`Created new user ${newUser.id} for Telegram chat ${chatId}`);
+
+        this.logger.log(
+          `Created new user ${newUser.id} for Telegram chat ${chatId}`,
+        );
         return true;
       }
     } catch (error) {
       this.logger.error('Error during phone registration:', error);
       await this.sendTextMessage(
         chatId,
-        '❌ Sorry, there was an error during registration. Please try again or contact support.'
+        '❌ Sorry, there was an error during registration. Please try again or contact support.',
       );
       return true; // Handled, even if failed
     }
@@ -399,7 +408,7 @@ export class TelegramService {
 
       // Process with enhanced ContentRouterService integration
       const result = await this.dumpService.createDumpEnhanced(dumpRequest);
-      
+
       // Send success response with processing details
       await this.sendFormattedResponse(
         chatId,
@@ -409,7 +418,6 @@ export class TelegramService {
         (result.dump.ai_confidence || 95) / 100,
         message.message_id,
       );
-
     } catch (error) {
       this.logger.error('Error processing text message:', error);
       await this.sendTextMessage(
@@ -431,7 +439,7 @@ export class TelegramService {
     try {
       // Download the voice file
       const voiceBuffer = await this.downloadFile(voice.file_id);
-      
+
       // Create dump request for enhanced voice processing
       const dumpRequest: CreateDumpRequest = {
         userId,
@@ -449,7 +457,7 @@ export class TelegramService {
 
       // Process with enhanced ContentRouterService integration
       const result = await this.dumpService.createDumpEnhanced(dumpRequest);
-      
+
       // Send success response with processing details
       await this.sendFormattedResponse(
         chatId,
@@ -459,7 +467,6 @@ export class TelegramService {
         (result.dump.ai_confidence || 90) / 100,
         message.message_id,
       );
-
     } catch (error) {
       this.logger.error('Error handling voice message:', error);
       await this.sendTextMessage(chatId, '❌ Failed to process voice message.');
@@ -485,7 +492,7 @@ export class TelegramService {
     try {
       // Download the photo file
       const photoBuffer = await this.downloadFile(largestPhoto.file_id);
-      
+
       // Create dump request for enhanced image processing
       const dumpRequest: CreateDumpRequest = {
         userId,
@@ -504,7 +511,7 @@ export class TelegramService {
 
       // Process with enhanced ContentRouterService integration
       const result = await this.dumpService.createDumpEnhanced(dumpRequest);
-      
+
       // Send success response with processing details
       await this.sendFormattedResponse(
         chatId,
@@ -514,7 +521,6 @@ export class TelegramService {
         (result.dump.ai_confidence || 85) / 100,
         message.message_id,
       );
-
     } catch (error) {
       this.logger.error('Error handling photo message:', error);
       await this.sendTextMessage(chatId, '❌ Failed to process image.');
@@ -533,7 +539,7 @@ export class TelegramService {
     try {
       // Download the document file
       const documentBuffer = await this.downloadFile(document.file_id);
-      
+
       // Create dump request for enhanced document processing
       const dumpRequest: CreateDumpRequest = {
         userId,
@@ -553,7 +559,7 @@ export class TelegramService {
 
       // Process with enhanced ContentRouterService integration
       const result = await this.dumpService.createDumpEnhanced(dumpRequest);
-      
+
       // Send success response with processing details
       await this.sendFormattedResponse(
         chatId,
@@ -563,7 +569,6 @@ export class TelegramService {
         (result.dump.ai_confidence || 85) / 100,
         message.message_id,
       );
-
     } catch (error) {
       this.logger.error('Error handling document message:', error);
       await this.sendTextMessage(chatId, '❌ Failed to process document.');
@@ -687,29 +692,29 @@ export class TelegramService {
   private formatProcessingResult(result: DumpProcessingResult): string {
     const { dump } = result;
     const entities = dump.extracted_entities;
-    
+
     let content = '';
-    
+
     // Summary (clean, no asterisks)
     if (dump.ai_summary) {
       content += `📝 <b>Summary:</b> ${dump.ai_summary}\n\n`;
     }
-    
+
     // Extract structured data for beautiful display
     let urgency = 'low';
     let actionItems: string[] = [];
-    
+
     if (entities) {
       urgency = entities.urgency || 'low';
       actionItems = entities.actionItems || [];
     }
-    
+
     // Show urgency if not low
     if (urgency !== 'low') {
       const urgencyEmoji = urgency === 'high' ? '🔴' : '🟡';
       content += `${urgencyEmoji} <b>Urgency:</b> ${urgency.charAt(0).toUpperCase() + urgency.slice(1)}\n\n`;
     }
-    
+
     // Show action items if any
     if (actionItems.length > 0) {
       content += `✅ <b>Action Items:</b>\n`;
@@ -722,10 +727,10 @@ export class TelegramService {
       }
       content += '\n';
     }
-    
+
     // Clean content (remove any remaining asterisks and technical details)
     content = content.replaceAll('*', ''); // Remove markdown asterisks
-    
+
     return content.length > 3500 ? content.substring(0, 3500) + '...' : content;
   }
 }

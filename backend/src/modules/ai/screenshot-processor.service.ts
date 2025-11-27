@@ -47,7 +47,7 @@ export class ScreenshotProcessorService {
     metadata?: Partial<ScreenshotMetadata>,
   ): Promise<ProcessedScreenshot> {
     const startTime = Date.now();
-    
+
     try {
       this.logger.log('Processing screenshot for text extraction');
 
@@ -59,7 +59,10 @@ export class ScreenshotProcessorService {
       );
 
       // Detect UI elements and structure
-      const elements = await this.detectScreenshotElements(imageBuffer, mimeType);
+      const elements = await this.detectScreenshotElements(
+        imageBuffer,
+        mimeType,
+      );
 
       // Generate metadata with defaults
       const completeMetadata: ScreenshotMetadata = {
@@ -69,7 +72,10 @@ export class ScreenshotProcessorService {
       };
 
       // Try to get image dimensions
-      completeMetadata.dimensions ??= await this.getImageDimensions(imageBuffer, mimeType);
+      completeMetadata.dimensions ??= await this.getImageDimensions(
+        imageBuffer,
+        mimeType,
+      );
 
       const processingDuration = Date.now() - startTime;
 
@@ -81,11 +87,15 @@ export class ScreenshotProcessorService {
         processingDuration,
       };
 
-      this.logger.log(`Screenshot processed in ${processingDuration}ms with confidence ${ocrResult.confidence}`);
+      this.logger.log(
+        `Screenshot processed in ${processingDuration}ms with confidence ${ocrResult.confidence}`,
+      );
       return result;
-
     } catch (error) {
-      this.logger.error(`Failed to process screenshot: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to process screenshot: ${error.message}`,
+        error.stack,
+      );
       throw new Error(`Screenshot processing failed: ${error.message}`);
     }
   }
@@ -104,13 +114,15 @@ export class ScreenshotProcessorService {
         mimeType,
         features: { textDetection: true },
       });
-      
+
       const elements: ScreenshotElement[] = [];
 
       // Convert analysis results to screenshot elements
       // Use extracted text to create elements (simplified approach)
       if (analysisResult.extractedText) {
-        const lines = analysisResult.extractedText.split('\n').filter(line => line.trim());
+        const lines = analysisResult.extractedText
+          .split('\n')
+          .filter((line) => line.trim());
         for (const line of lines) {
           elements.push({
             type: this.classifyTextElement(line),
@@ -121,7 +133,6 @@ export class ScreenshotProcessorService {
       }
 
       return elements;
-
     } catch (error) {
       this.logger.warn(`Element detection failed: ${error.message}`);
       return [];
@@ -168,7 +179,7 @@ export class ScreenshotProcessorService {
    */
   private isCodeLike(text: string): boolean {
     const codePatterns = [
-      /^\s*[{}[\]();,]+\s*$/,  // Brackets and punctuation
+      /^\s*[{}[\]();,]+\s*$/, // Brackets and punctuation
       /^\s*(function|class|import|export|const|let|var|if|for|while)\s/i,
       /^\s*[a-zA-Z_$][a-zA-Z0-9_$]*\s*[=:]\s*/, // Variable assignments
       /^\s*\/\/|^\s*\/\*|\*\/\s*$/, // Comments
@@ -176,7 +187,7 @@ export class ScreenshotProcessorService {
       /^\s*#[a-zA-Z_-]+/, // CSS selectors or comments
     ];
 
-    return codePatterns.some(pattern => pattern.test(text));
+    return codePatterns.some((pattern) => pattern.test(text));
   }
 
   /**
@@ -184,13 +195,27 @@ export class ScreenshotProcessorService {
    */
   private isNavigationLike(text: string): boolean {
     const navKeywords = [
-      'home', 'back', 'next', 'previous', 'menu', 'settings',
-      'profile', 'logout', 'login', 'dashboard', 'search',
-      'help', 'about', 'contact', 'breadcrumb'
+      'home',
+      'back',
+      'next',
+      'previous',
+      'menu',
+      'settings',
+      'profile',
+      'logout',
+      'login',
+      'dashboard',
+      'search',
+      'help',
+      'about',
+      'contact',
+      'breadcrumb',
     ];
 
-    return navKeywords.some(keyword => text.includes(keyword)) ||
-           /^\s*[←→↑↓<>]+\s*$/.test(text); // Arrow characters
+    return (
+      navKeywords.some((keyword) => text.includes(keyword)) ||
+      /^\s*[←→↑↓<>]+\s*$/.test(text)
+    ); // Arrow characters
   }
 
   /**
@@ -201,10 +226,10 @@ export class ScreenshotProcessorService {
       /^\s*(email|password|username|phone|address|zip|postal)/i,
       /^\s*(submit|cancel|save|delete|update|create)/i,
       /^\s*\*\s*(required|mandatory)/i,
-      /^\s*[a-zA-Z\s]+:\s*$/,  // Label pattern
+      /^\s*[a-zA-Z\s]+:\s*$/, // Label pattern
     ];
 
-    return formPatterns.some(pattern => pattern.test(text));
+    return formPatterns.some((pattern) => pattern.test(text));
   }
 
   /**
@@ -212,9 +237,11 @@ export class ScreenshotProcessorService {
    */
   private isTableLike(text: string): boolean {
     // Check for multiple columns/rows separated by whitespace or pipes
-    return /\s*\|\s*/.test(text) ||
-           /^\s*\d+\s+[a-zA-Z]/.test(text) ||
-           text.split(/\s+/).length >= 3;
+    return (
+      /\s*\|\s*/.test(text) ||
+      /^\s*\d+\s+[a-zA-Z]/.test(text) ||
+      text.split(/\s+/).length >= 3
+    );
   }
 
   /**
@@ -222,13 +249,27 @@ export class ScreenshotProcessorService {
    */
   private isUIElementLike(text: string): boolean {
     const uiKeywords = [
-      'button', 'click', 'tap', 'select', 'choose',
-      'download', 'upload', 'share', 'copy', 'paste',
-      'close', 'minimize', 'maximize', 'expand', 'collapse'
+      'button',
+      'click',
+      'tap',
+      'select',
+      'choose',
+      'download',
+      'upload',
+      'share',
+      'copy',
+      'paste',
+      'close',
+      'minimize',
+      'maximize',
+      'expand',
+      'collapse',
     ];
 
-    return uiKeywords.some(keyword => text.includes(keyword)) ||
-           /^\s*[✓✗×◯◉▢▣]+\s*/.test(text); // Checkbox/radio patterns
+    return (
+      uiKeywords.some((keyword) => text.includes(keyword)) ||
+      /^\s*[✓✗×◯◉▢▣]+\s*/.test(text)
+    ); // Checkbox/radio patterns
   }
 
   /**
@@ -243,7 +284,7 @@ export class ScreenshotProcessorService {
       if (mimeType === 'image/png') {
         return this.getPNGDimensions(imageBuffer);
       }
-      
+
       if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') {
         return this.getJPEGDimensions(imageBuffer);
       }
@@ -258,10 +299,17 @@ export class ScreenshotProcessorService {
   /**
    * Extract PNG dimensions from buffer
    */
-  private getPNGDimensions(buffer: Buffer): { width: number; height: number } | undefined {
+  private getPNGDimensions(
+    buffer: Buffer,
+  ): { width: number; height: number } | undefined {
     try {
       // PNG signature: 89 50 4E 47 0D 0A 1A 0A
-      if (buffer.length < 24 || !buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]))) {
+      if (
+        buffer.length < 24 ||
+        !buffer
+          .subarray(0, 8)
+          .equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+      ) {
         return undefined;
       }
 
@@ -278,27 +326,30 @@ export class ScreenshotProcessorService {
   /**
    * Extract JPEG dimensions from buffer (simplified)
    */
-  private getJPEGDimensions(buffer: Buffer): { width: number; height: number } | undefined {
+  private getJPEGDimensions(
+    buffer: Buffer,
+  ): { width: number; height: number } | undefined {
     try {
       // Look for SOF (Start of Frame) markers
       let offset = 2; // Skip JPEG signature
-      
+
       while (offset < buffer.length - 8) {
-        if (buffer[offset] === 0xFF) {
+        if (buffer[offset] === 0xff) {
           const marker = buffer[offset + 1];
-          
+
           // SOF markers (0xC0-0xCF, excluding 0xC4, 0xC8, 0xCC)
-          if ((marker >= 0xC0 && marker <= 0xC3) || 
-              (marker >= 0xC5 && marker <= 0xC7) ||
-              (marker >= 0xC9 && marker <= 0xCB) ||
-              (marker >= 0xCD && marker <= 0xCF)) {
-            
+          if (
+            (marker >= 0xc0 && marker <= 0xc3) ||
+            (marker >= 0xc5 && marker <= 0xc7) ||
+            (marker >= 0xc9 && marker <= 0xcb) ||
+            (marker >= 0xcd && marker <= 0xcf)
+          ) {
             const height = buffer.readUInt16BE(offset + 5);
             const width = buffer.readUInt16BE(offset + 7);
-            
+
             return { width, height };
           }
-          
+
           // Skip this marker
           const length = buffer.readUInt16BE(offset + 2);
           offset += length + 2;
@@ -320,7 +371,12 @@ export class ScreenshotProcessorService {
     imageBuffer: Buffer,
     mimeType: string,
     context: {
-      type: 'mobile_app' | 'desktop_app' | 'web_page' | 'code_editor' | 'document';
+      type:
+        | 'mobile_app'
+        | 'desktop_app'
+        | 'web_page'
+        | 'code_editor'
+        | 'document';
       expectedLanguages?: string[];
       enhanceFor?: 'readability' | 'accuracy' | 'speed';
     },

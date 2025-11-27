@@ -7,14 +7,18 @@ async function testVectorDimensions() {
 
     // Test different vector dimensions
     const dimensions = [384, 1536];
-    
+
     for (const dim of dimensions) {
       try {
         const testVector = new Array(dim).fill(0.1);
-        await AppDataSource.query('SELECT $1::vector', [JSON.stringify(testVector)]);
+        await AppDataSource.query('SELECT $1::vector', [
+          JSON.stringify(testVector),
+        ]);
         console.log(`✅ ${dim}-dimensional vectors: SUPPORTED`);
       } catch (error) {
-        console.log(`❌ ${dim}-dimensional vectors: FAILED - ${(error as Error).message}`);
+        console.log(
+          `❌ ${dim}-dimensional vectors: FAILED - ${(error as Error).message}`,
+        );
       }
     }
 
@@ -31,7 +35,6 @@ async function testVectorDimensions() {
       AND column_name = 'content_vector'
     `);
     console.log('Vector column:', tableStructure);
-
   } catch (error) {
     console.error('Error:', (error as Error).message);
   } finally {

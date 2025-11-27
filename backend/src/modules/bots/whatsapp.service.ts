@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UserService } from '../users/user.service';
-import { DumpService, CreateDumpRequest, DumpProcessingResult } from '../dumps/services/dump.service';
+import {
+  DumpService,
+  CreateDumpRequest,
+  DumpProcessingResult,
+} from '../dumps/services/dump.service';
 
 export interface WhatsAppMessage {
   MessageSid: string;
@@ -120,9 +124,12 @@ export class WhatsAppService {
     private readonly dumpService: DumpService,
   ) {
     // Twilio WhatsApp API Configuration
-    this.authToken = this.configService.get<string>('WHATSAPP_AUTH_TOKEN') || '';
-    this.accountSid = this.configService.get<string>('WHATSAPP_ACCOUNT_SID') || '';
-    this.phoneNumber = this.configService.get<string>('WHATSAPP_PHONE_NUMBER') || '';
+    this.authToken =
+      this.configService.get<string>('WHATSAPP_AUTH_TOKEN') || '';
+    this.accountSid =
+      this.configService.get<string>('WHATSAPP_ACCOUNT_SID') || '';
+    this.phoneNumber =
+      this.configService.get<string>('WHATSAPP_PHONE_NUMBER') || '';
     this.apiUrl = `https://api.twilio.com/2010-04-01/Accounts/${this.accountSid}`;
 
     if (!this.authToken || !this.accountSid || !this.phoneNumber) {
@@ -216,7 +223,8 @@ export class WhatsAppService {
     return {
       id: mediaUrl,
       url: mediaUrl,
-      mime_type: response.headers.get('content-type') || 'application/octet-stream',
+      mime_type:
+        response.headers.get('content-type') || 'application/octet-stream',
       file_size: Number.parseInt(response.headers.get('content-length') || '0'),
     };
   }
@@ -276,7 +284,6 @@ export class WhatsAppService {
     message: WhatsAppMessage,
     contact?: WhatsAppContact,
   ): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const _contact = contact;
     try {
       const phoneNumber = message.from;
@@ -284,24 +291,30 @@ export class WhatsAppService {
 
       // Skip processing for test phone numbers
       if (phoneNumber.includes('1234567890') || phoneNumber.includes('test')) {
-        this.logger.log('Test message detected - skipping user lookup and response');
+        this.logger.log(
+          'Test message detected - skipping user lookup and response',
+        );
         return;
       }
 
       // Test mode for development - simulate processing without API calls
-      const isTestMode = process.env.NODE_ENV === 'development' || process.env.WHATSAPP_TEST_MODE === 'true';
-      
+      const isTestMode =
+        process.env.NODE_ENV === 'development' ||
+        process.env.WHATSAPP_TEST_MODE === 'true';
+
       // Find user by WhatsApp chat ID
       const user = await this.userService.findByChatId(phoneNumber, 'whatsapp');
 
       if (!user) {
         this.logger.log(`User not found for WhatsApp number ${phoneNumber}`);
-        
+
         if (isTestMode) {
-          this.logger.log('TEST MODE: Would send welcome message - simulating success');
+          this.logger.log(
+            'TEST MODE: Would send welcome message - simulating success',
+          );
           return;
         }
-        
+
         // For now, we'll need a phone number to create a user
         // This will be handled by the authentication flow
         await this.sendTextMessage(
@@ -348,7 +361,9 @@ export class WhatsAppService {
   ): Promise<void> {
     const phoneNumber = message.from;
     const text = message.text?.body || '';
-    const isTestMode = process.env.NODE_ENV === 'development' || process.env.WHATSAPP_TEST_MODE === 'true';
+    const isTestMode =
+      process.env.NODE_ENV === 'development' ||
+      process.env.WHATSAPP_TEST_MODE === 'true';
 
     this.logger.log(`Handling text message: "${text.substring(0, 50)}..."`);
 
@@ -377,15 +392,21 @@ export class WhatsAppService {
 
       // Process with enhanced ContentRouterService integration
       const result = await this.dumpService.createDumpEnhanced(dumpRequest);
-      
-      this.logger.log(`✅ Message processed successfully: ${result.dump.ai_summary}`);
-      this.logger.log(`📊 Analysis: Category=${result.dump.category?.name}, Confidence=${result.dump.ai_confidence}%`);
-      
+
+      this.logger.log(
+        `✅ Message processed successfully: ${result.dump.ai_summary}`,
+      );
+      this.logger.log(
+        `📊 Analysis: Category=${result.dump.category?.name}, Confidence=${result.dump.ai_confidence}%`,
+      );
+
       if (isTestMode) {
-        this.logger.log('TEST MODE: Would send formatted response - simulating success');
+        this.logger.log(
+          'TEST MODE: Would send formatted response - simulating success',
+        );
         return;
       }
-      
+
       // Send success response with processing details
       await this.sendFormattedResponse(
         phoneNumber,
@@ -394,15 +415,16 @@ export class WhatsAppService {
         result.dump.category?.name || 'General',
         (result.dump.ai_confidence || 95) / 100,
       );
-
     } catch (error) {
       this.logger.error('Error processing text message:', error);
-      
+
       if (isTestMode) {
-        this.logger.log('TEST MODE: Would send error message - simulating error handling');
+        this.logger.log(
+          'TEST MODE: Would send error message - simulating error handling',
+        );
         return;
       }
-      
+
       await this.sendTextMessage(
         phoneNumber,
         '❌ Sorry, something went wrong while processing your message. Please try again later.',
@@ -430,7 +452,7 @@ export class WhatsAppService {
     try {
       // For Twilio, audio.id is actually the media URL
       const audioBuffer = await this.downloadMedia(audio.id);
-      
+
       // Create dump request for enhanced voice processing
       const dumpRequest: CreateDumpRequest = {
         userId,
@@ -447,7 +469,7 @@ export class WhatsAppService {
 
       // Process with enhanced ContentRouterService integration
       const result = await this.dumpService.createDumpEnhanced(dumpRequest);
-      
+
       // Send success response with processing details
       await this.sendFormattedResponse(
         phoneNumber,
@@ -456,7 +478,6 @@ export class WhatsAppService {
         result.dump.category?.name || 'Audio',
         (result.dump.ai_confidence || 90) / 100,
       );
-
     } catch (error) {
       this.logger.error('Error handling audio message:', error);
       await this.sendTextMessage(
@@ -483,7 +504,7 @@ export class WhatsAppService {
     try {
       // For Twilio, image.id is actually the media URL
       const imageBuffer = await this.downloadMedia(image.id);
-      
+
       // Create dump request for enhanced image processing
       const dumpRequest: CreateDumpRequest = {
         userId,
@@ -501,7 +522,7 @@ export class WhatsAppService {
 
       // Process with enhanced ContentRouterService integration
       const result = await this.dumpService.createDumpEnhanced(dumpRequest);
-      
+
       // Send success response with processing details
       await this.sendFormattedResponse(
         phoneNumber,
@@ -510,7 +531,6 @@ export class WhatsAppService {
         result.dump.category?.name || 'Media',
         (result.dump.ai_confidence || 85) / 100,
       );
-
     } catch (error) {
       this.logger.error('Error handling image message:', error);
       await this.sendTextMessage(phoneNumber, '❌ Failed to process image.');
@@ -534,7 +554,7 @@ export class WhatsAppService {
     try {
       // For Twilio, document.id is actually the media URL
       const documentBuffer = await this.downloadMedia(document.id);
-      
+
       // Create dump request for enhanced document processing
       const dumpRequest: CreateDumpRequest = {
         userId,
@@ -553,7 +573,7 @@ export class WhatsAppService {
 
       // Process with enhanced ContentRouterService integration
       const result = await this.dumpService.createDumpEnhanced(dumpRequest);
-      
+
       // Send success response with processing details
       await this.sendFormattedResponse(
         phoneNumber,
@@ -562,7 +582,6 @@ export class WhatsAppService {
         result.dump.category?.name || 'Documents',
         (result.dump.ai_confidence || 80) / 100,
       );
-
     } catch (error) {
       this.logger.error('Error handling document message:', error);
       await this.sendTextMessage(phoneNumber, '❌ Failed to process document.');
@@ -574,7 +593,6 @@ export class WhatsAppService {
     phoneNumber: string,
     userId: string,
   ): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const _userId = userId;
     const normalizedCommand = command.toLowerCase();
 
@@ -631,10 +649,9 @@ export class WhatsAppService {
   async processTwilioWebhook(body: any): Promise<void> {
     try {
       this.logger.log('Processing Twilio WhatsApp webhook');
-      
+
       const message = this.convertTwilioToMessage(body);
       await this.processMessage(message);
-      
     } catch (error) {
       this.logger.error('Error processing Twilio WhatsApp webhook:', error);
       throw error;
@@ -651,7 +668,7 @@ export class WhatsAppService {
     const mediaType = twilioBody.MediaContentType0;
 
     let type: WhatsAppMessage['type'] = 'text';
-    let processedMessage: Partial<WhatsAppMessage> = {};
+    const processedMessage: Partial<WhatsAppMessage> = {};
 
     if (hasMedia && mediaType) {
       if (mediaType.startsWith('image/')) {
@@ -713,30 +730,30 @@ export class WhatsAppService {
    */
   private formatProcessingResult(result: DumpProcessingResult): string {
     const { dump, processingSteps } = result;
-    
+
     let summary = `📝 Processed and saved`;
-    
+
     if (dump.ai_summary) {
       summary += `\n\n*Summary:* ${dump.ai_summary}`;
     }
-    
+
     // Check for enhanced processing metadata
     const metadata = dump.extracted_entities?.metadata;
     const enhancedProcessing = metadata?.enhancedProcessing;
     const routingInfo = metadata?.routingInfo;
-    
+
     if (enhancedProcessing && routingInfo) {
       summary += `\n\n*Analysis:* ${routingInfo.contentType} content (${Math.round(routingInfo.confidence * 100)}% confidence)`;
-      
+
       if (routingInfo.processingTimeEstimate) {
         summary += `\n*Processing time:* ${routingInfo.processingTimeEstimate}ms`;
       }
     }
-    
+
     if (processingSteps && processingSteps.length > 0) {
       summary += `\n\n*Processing:* ${processingSteps.at(-1)}`;
     }
-    
+
     return summary.length > 4000 ? summary.substring(0, 4000) + '...' : summary;
   }
 }

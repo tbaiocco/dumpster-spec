@@ -83,19 +83,35 @@ export class ContentRouterService {
     additionalMetadata?: Record<string, any>,
   ): Promise<ContentAnalysis> {
     try {
-      this.logger.log(`Analyzing content: ${mimeType || 'unknown mime'}, ${filename || 'no filename'}`);
+      this.logger.log(
+        `Analyzing content: ${mimeType || 'unknown mime'}, ${filename || 'no filename'}`,
+      );
 
       // Determine content type based on multiple factors
       const contentType = this.determineContentType(buffer, mimeType, filename);
-      
+
       // Calculate confidence based on available information
-      const confidence = this.calculateConfidence(buffer, mimeType, filename, contentType);
-      
+      const confidence = this.calculateConfidence(
+        buffer,
+        mimeType,
+        filename,
+        contentType,
+      );
+
       // Extract metadata
-      const metadata = await this.extractContentMetadata(buffer, mimeType, contentType);
-      
+      const metadata = await this.extractContentMetadata(
+        buffer,
+        mimeType,
+        contentType,
+      );
+
       // Analyze characteristics
-      const characteristics = this.analyzeCharacteristics(buffer, mimeType, contentType, metadata);
+      const characteristics = this.analyzeCharacteristics(
+        buffer,
+        mimeType,
+        contentType,
+        metadata,
+      );
 
       const analysis: ContentAnalysis = {
         contentType,
@@ -105,11 +121,15 @@ export class ContentRouterService {
         characteristics,
       };
 
-      this.logger.log(`Content analyzed as ${contentType} with confidence ${confidence}`);
+      this.logger.log(
+        `Content analyzed as ${contentType} with confidence ${confidence}`,
+      );
       return analysis;
-
     } catch (error) {
-      this.logger.error(`Failed to analyze content: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to analyze content: ${error.message}`,
+        error.stack,
+      );
       return {
         contentType: ContentType.UNKNOWN,
         confidence: 0.1,
@@ -153,11 +173,15 @@ export class ContentRouterService {
         analysis,
       );
 
-      this.logger.log(`Content routed to ${decision.primaryProcessor} with ${decision.secondaryProcessors.length} secondary processors`);
+      this.logger.log(
+        `Content routed to ${decision.primaryProcessor} with ${decision.secondaryProcessors.length} secondary processors`,
+      );
       return decision;
-
     } catch (error) {
-      this.logger.error(`Failed to route content: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to route content: ${error.message}`,
+        error.stack,
+      );
       // Return safe fallback routing
       return {
         primaryProcessor: RoutingDestination.TEXT_PROCESSOR,
@@ -179,13 +203,20 @@ export class ContentRouterService {
     filename?: string,
   ): ContentType {
     // Check mime type first
-    const mimeResult = this.determineContentTypeFromMime(mimeType, buffer, filename);
+    const mimeResult = this.determineContentTypeFromMime(
+      mimeType,
+      buffer,
+      filename,
+    );
     if (mimeResult !== ContentType.UNKNOWN) {
       return mimeResult;
     }
 
     // Check filename extension
-    const filenameResult = this.determineContentTypeFromFilename(filename, buffer);
+    const filenameResult = this.determineContentTypeFromFilename(
+      filename,
+      buffer,
+    );
     if (filenameResult !== ContentType.UNKNOWN) {
       return filenameResult;
     }
@@ -205,32 +236,35 @@ export class ContentRouterService {
     if (!mimeType) return ContentType.UNKNOWN;
 
     // Treat generic binary MIME types as unknown to trigger filename detection
-    if (mimeType === 'application/octet-stream' || mimeType === 'binary/octet-stream') {
+    if (
+      mimeType === 'application/octet-stream' ||
+      mimeType === 'binary/octet-stream'
+    ) {
       return ContentType.UNKNOWN;
     }
 
     if (mimeType.startsWith('image/')) {
-      return this.isLikelyScreenshot(buffer || Buffer.alloc(0), filename) 
-        ? ContentType.SCREENSHOT 
+      return this.isLikelyScreenshot(buffer || Buffer.alloc(0), filename)
+        ? ContentType.SCREENSHOT
         : ContentType.IMAGE;
     }
-    
+
     if (mimeType.startsWith('audio/')) {
       return ContentType.VOICE_MESSAGE;
     }
-    
+
     if (mimeType.startsWith('video/')) {
       return ContentType.VIDEO;
     }
-    
+
     if (mimeType.startsWith('text/')) {
       return ContentType.TEXT;
     }
-    
+
     if (mimeType === 'message/rfc822') {
       return ContentType.EMAIL;
     }
-    
+
     if (this.isDocumentMimeType(mimeType)) {
       return ContentType.DOCUMENT;
     }
@@ -241,33 +275,36 @@ export class ContentRouterService {
   /**
    * Determine content type from filename
    */
-  private determineContentTypeFromFilename(filename?: string, buffer?: Buffer): ContentType {
+  private determineContentTypeFromFilename(
+    filename?: string,
+    buffer?: Buffer,
+  ): ContentType {
     if (!filename) return ContentType.UNKNOWN;
 
     const ext = this.getFileExtension(filename).toLowerCase();
-    
+
     if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(ext)) {
       return this.isLikelyScreenshot(buffer || Buffer.alloc(0), filename)
         ? ContentType.SCREENSHOT
         : ContentType.IMAGE;
     }
-    
+
     if (['mp3', 'wav', 'ogg', 'm4a', 'aac'].includes(ext)) {
       return ContentType.VOICE_MESSAGE;
     }
-    
+
     if (['mp4', 'avi', 'mov', 'webm', 'mkv'].includes(ext)) {
       return ContentType.VIDEO;
     }
-    
+
     if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext)) {
       return ContentType.DOCUMENT;
     }
-    
+
     if (['txt', 'md', 'json', 'xml', 'csv'].includes(ext)) {
       return ContentType.TEXT;
     }
-    
+
     if (['js', 'ts', 'py', 'java', 'cpp', 'c', 'html', 'css'].includes(ext)) {
       return ContentType.CODE;
     }
@@ -283,12 +320,20 @@ export class ContentRouterService {
     if (filename) {
       const lowerFilename = filename.toLowerCase();
       const screenshotPatterns = [
-        'screenshot', 'screen_shot', 'screen-shot',
-        'capture', 'screen_capture', 'screen-capture',
-        'snap', 'screen_snap', 'screen-snap'
+        'screenshot',
+        'screen_shot',
+        'screen-shot',
+        'capture',
+        'screen_capture',
+        'screen-capture',
+        'snap',
+        'screen_snap',
+        'screen-snap',
       ];
-      
-      if (screenshotPatterns.some(pattern => lowerFilename.includes(pattern))) {
+
+      if (
+        screenshotPatterns.some((pattern) => lowerFilename.includes(pattern))
+      ) {
         return true;
       }
     }
@@ -311,7 +356,7 @@ export class ContentRouterService {
       'application/vnd.ms-powerpoint',
       'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     ];
-    
+
     return documentMimeTypes.includes(mimeType);
   }
 
@@ -343,18 +388,24 @@ export class ContentRouterService {
 
     // Check binary signatures
     const signature = buffer.subarray(0, 16);
-    
+
     // PDF signature
-    if (signature.subarray(0, 4).equals(Buffer.from([0x25, 0x50, 0x44, 0x46]))) {
+    if (
+      signature.subarray(0, 4).equals(Buffer.from([0x25, 0x50, 0x44, 0x46]))
+    ) {
       return ContentType.DOCUMENT;
     }
-    
+
     // Image signatures
-    if (signature.subarray(0, 2).equals(Buffer.from([0xFF, 0xD8]))) {
+    if (signature.subarray(0, 2).equals(Buffer.from([0xff, 0xd8]))) {
       return ContentType.IMAGE; // JPEG
     }
-    
-    if (signature.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]))) {
+
+    if (
+      signature
+        .subarray(0, 8)
+        .equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+    ) {
       return ContentType.IMAGE; // PNG
     }
 
@@ -366,11 +417,13 @@ export class ContentRouterService {
    */
   private isLikelyText(text: string): boolean {
     // Check for printable characters ratio
-    const printableChars = text.split('').filter(char => {
+    const printableChars = text.split('').filter((char) => {
       const code = char.codePointAt(0) || 0;
-      return (code >= 32 && code <= 126) || code === 9 || code === 10 || code === 13;
+      return (
+        (code >= 32 && code <= 126) || code === 9 || code === 10 || code === 13
+      );
     });
-    
+
     return printableChars.length / text.length > 0.8;
   }
 
@@ -384,8 +437,8 @@ export class ContentRouterService {
       /^\s*<[^>]+>/m, // HTML tags
       /^\s*#[a-zA-Z_-]+/m, // CSS selectors or comments
     ];
-    
-    return codeIndicators.some(pattern => pattern.test(text));
+
+    return codeIndicators.some((pattern) => pattern.test(text));
   }
 
   /**
@@ -398,22 +451,22 @@ export class ContentRouterService {
     contentType?: ContentType,
   ): number {
     let confidence = 0.5; // Base confidence
-    
+
     // Mime type provides strong indication
     if (mimeType) {
       confidence += 0.3;
     }
-    
+
     // Filename extension provides good indication
     if (filename && this.getFileExtension(filename)) {
       confidence += 0.2;
     }
-    
+
     // Buffer analysis provides additional confidence
     if (buffer.length > 0) {
       confidence += 0.1;
     }
-    
+
     return Math.min(1, confidence);
   }
 
@@ -511,7 +564,9 @@ export class ContentRouterService {
   /**
    * Determine primary processor for content type
    */
-  private determinePrimaryProcessor(analysis: ContentAnalysis): RoutingDestination {
+  private determinePrimaryProcessor(
+    analysis: ContentAnalysis,
+  ): RoutingDestination {
     switch (analysis.contentType) {
       case ContentType.SCREENSHOT:
         return RoutingDestination.SCREENSHOT_PROCESSOR;
@@ -539,18 +594,24 @@ export class ContentRouterService {
   /**
    * Determine secondary processors that might be needed
    */
-  private determineSecondaryProcessors(analysis: ContentAnalysis): RoutingDestination[] {
+  private determineSecondaryProcessors(
+    analysis: ContentAnalysis,
+  ): RoutingDestination[] {
     const secondary: RoutingDestination[] = [];
 
     // Add OCR processor if needed
-    if (analysis.characteristics.requiresOCR && 
-        analysis.contentType !== ContentType.SCREENSHOT) {
+    if (
+      analysis.characteristics.requiresOCR &&
+      analysis.contentType !== ContentType.SCREENSHOT
+    ) {
       secondary.push(RoutingDestination.IMAGE_PROCESSOR);
     }
 
     // Add voice processor if needed
-    if (analysis.characteristics.requiresTranscription &&
-        analysis.contentType !== ContentType.VOICE_MESSAGE) {
+    if (
+      analysis.characteristics.requiresTranscription &&
+      analysis.contentType !== ContentType.VOICE_MESSAGE
+    ) {
       secondary.push(RoutingDestination.VOICE_PROCESSOR);
     }
 
@@ -567,15 +628,20 @@ export class ContentRouterService {
     }
 
     // Normal priority for most content
-    if (analysis.contentType === ContentType.DOCUMENT ||
-        analysis.contentType === ContentType.IMAGE ||
-        analysis.contentType === ContentType.SCREENSHOT) {
+    if (
+      analysis.contentType === ContentType.DOCUMENT ||
+      analysis.contentType === ContentType.IMAGE ||
+      analysis.contentType === ContentType.SCREENSHOT
+    ) {
       return ProcessingPriority.NORMAL;
     }
 
     // Low priority for media that requires heavy processing
-    if (analysis.contentType === ContentType.VIDEO ||
-        analysis.metadata.fileSize && analysis.metadata.fileSize > 10 * 1024 * 1024) {
+    if (
+      analysis.contentType === ContentType.VIDEO ||
+      (analysis.metadata.fileSize &&
+        analysis.metadata.fileSize > 10 * 1024 * 1024)
+    ) {
       return ProcessingPriority.LOW;
     }
 
@@ -613,7 +679,7 @@ export class ContentRouterService {
     // Adjust for file size
     if (analysis.metadata.fileSize) {
       const sizeFactor = Math.log10(analysis.metadata.fileSize / 1000) / 3;
-      baseTime *= (1 + sizeFactor);
+      baseTime *= 1 + sizeFactor;
     }
 
     return Math.round(baseTime);

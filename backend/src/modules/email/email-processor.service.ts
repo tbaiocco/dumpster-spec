@@ -61,16 +61,23 @@ export class EmailProcessorService {
    */
   async processEmail(emailMessage: EmailMessage): Promise<ProcessedEmail> {
     try {
-      this.logger.log(`Processing email from ${emailMessage.from} with subject: ${emailMessage.subject}`);
+      this.logger.log(
+        `Processing email from ${emailMessage.from} with subject: ${emailMessage.subject}`,
+      );
 
       // Extract text content from email body
       const extractedText = this.extractEmailText(emailMessage);
-      
+
       // Process attachments
-      const processedAttachments = await this.processAttachments(emailMessage.attachments);
-      
+      const processedAttachments = await this.processAttachments(
+        emailMessage.attachments,
+      );
+
       // Generate metadata
-      const metadata = this.generateMetadata(emailMessage, processedAttachments);
+      const metadata = this.generateMetadata(
+        emailMessage,
+        processedAttachments,
+      );
 
       const result: ProcessedEmail = {
         originalMessage: emailMessage,
@@ -79,11 +86,15 @@ export class EmailProcessorService {
         metadata,
       };
 
-      this.logger.log(`Successfully processed email with ${processedAttachments.length} attachments`);
+      this.logger.log(
+        `Successfully processed email with ${processedAttachments.length} attachments`,
+      );
       return result;
-
     } catch (error) {
-      this.logger.error(`Failed to process email: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to process email: ${error.message}`,
+        error.stack,
+      );
       throw new Error(`Email processing failed: ${error.message}`);
     }
   }
@@ -93,27 +104,31 @@ export class EmailProcessorService {
    */
   private extractEmailText(emailMessage: EmailMessage): string {
     let text = '';
-    
+
     // Prefer plain text if available
     if (emailMessage.textBody) {
       text = emailMessage.textBody;
     }
-    
+
     // Fall back to HTML body if no plain text
     if (!text && emailMessage.htmlBody) {
       text = this.stripHtmlTags(emailMessage.htmlBody);
     }
-    
+
     // Add subject to the extracted text
-    const subject = emailMessage.subject ? `Subject: ${emailMessage.subject}\n\n` : '';
-    
+    const subject = emailMessage.subject
+      ? `Subject: ${emailMessage.subject}\n\n`
+      : '';
+
     return subject + text;
   }
 
   /**
    * Process email attachments for text extraction
    */
-  private async processAttachments(attachments: EmailAttachment[]): Promise<ProcessedAttachment[]> {
+  private async processAttachments(
+    attachments: EmailAttachment[],
+  ): Promise<ProcessedAttachment[]> {
     const results: ProcessedAttachment[] = [];
 
     for (const attachment of attachments) {
@@ -121,7 +136,9 @@ export class EmailProcessorService {
         const processed = await this.processAttachment(attachment);
         results.push(processed);
       } catch (error) {
-        this.logger.error(`Failed to process attachment ${attachment.filename}: ${error.message}`);
+        this.logger.error(
+          `Failed to process attachment ${attachment.filename}: ${error.message}`,
+        );
         results.push({
           originalFilename: attachment.filename,
           contentType: attachment.contentType,
@@ -137,7 +154,9 @@ export class EmailProcessorService {
   /**
    * Process individual attachment based on its type
    */
-  private async processAttachment(attachment: EmailAttachment): Promise<ProcessedAttachment> {
+  private async processAttachment(
+    attachment: EmailAttachment,
+  ): Promise<ProcessedAttachment> {
     const baseResult: ProcessedAttachment = {
       originalFilename: attachment.filename,
       contentType: attachment.contentType,
@@ -170,7 +189,7 @@ export class EmailProcessorService {
           attachment.content,
           attachment.contentType,
         );
-        
+
         return {
           ...baseResult,
           extractedText: processedDoc.extractedText,
@@ -231,12 +250,16 @@ export class EmailProcessorService {
   /**
    * Determine email priority based on headers and content
    */
-  private determinePriority(emailMessage: EmailMessage): 'low' | 'normal' | 'high' {
+  private determinePriority(
+    emailMessage: EmailMessage,
+  ): 'low' | 'normal' | 'high' {
     // Check priority headers
-    const priority = emailMessage.headers['x-priority'] || emailMessage.headers['priority'];
+    const priority =
+      emailMessage.headers['x-priority'] || emailMessage.headers['priority'];
     if (priority) {
       const priorityValue = priority.toLowerCase();
-      if (priorityValue.includes('high') || priorityValue === '1') return 'high';
+      if (priorityValue.includes('high') || priorityValue === '1')
+        return 'high';
       if (priorityValue.includes('low') || priorityValue === '5') return 'low';
     }
 
@@ -247,8 +270,14 @@ export class EmailProcessorService {
 
     // Check subject for urgency indicators
     const subject = emailMessage.subject?.toLowerCase() || '';
-    const urgentKeywords = ['urgent', 'asap', 'emergency', 'critical', 'important'];
-    if (urgentKeywords.some(keyword => subject.includes(keyword))) {
+    const urgentKeywords = [
+      'urgent',
+      'asap',
+      'emergency',
+      'critical',
+      'important',
+    ];
+    if (urgentKeywords.some((keyword) => subject.includes(keyword))) {
       return 'high';
     }
 
@@ -284,7 +313,7 @@ export class EmailProcessorService {
     forwardChain: string[];
   } {
     const headers = emailMessage.headers;
-    
+
     // Check for forwarding indicators
     const isForwarded = !!(
       headers['x-forwarded-for'] ||
@@ -294,15 +323,16 @@ export class EmailProcessorService {
     );
 
     const forwardChain: string[] = [];
-    
+
     // Extract forwarding chain from headers
     if (headers['x-forwarded-for']) {
       forwardChain.push(headers['x-forwarded-for']);
     }
 
     // Extract original sender if forwarded
-    const originalSender = headers['x-original-sender'] || headers['x-forwarded-from'];
-    
+    const originalSender =
+      headers['x-original-sender'] || headers['x-forwarded-from'];
+
     return {
       isForwarded,
       originalSender,

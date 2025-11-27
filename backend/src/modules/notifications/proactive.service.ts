@@ -15,7 +15,12 @@ type ConfidenceLevel = 'high' | 'medium' | 'low';
 /**
  * Type of contextual insight
  */
-type InsightType = 'expiration' | 'deadline' | 'follow-up' | 'recurring-task' | 'preparation';
+type InsightType =
+  | 'expiration'
+  | 'deadline'
+  | 'follow-up'
+  | 'recurring-task'
+  | 'preparation';
 
 /**
  * Contextual insight extracted from user's dumps
@@ -41,7 +46,7 @@ interface ProactiveAnalysisResult {
 
 /**
  * Service for proactive reminder generation based on user content analysis
- * 
+ *
  * This service uses AI to analyze user dumps and automatically suggest
  * contextual reminders (e.g., "Your passport expires in 3 months").
  */
@@ -94,7 +99,9 @@ export class ProactiveService {
         .take(maxDumps);
 
       if (categories && categories.length > 0) {
-        queryBuilder.andWhere('category.name IN (:...categories)', { categories });
+        queryBuilder.andWhere('category.name IN (:...categories)', {
+          categories,
+        });
       }
 
       const dumps = await queryBuilder.getMany();
@@ -114,9 +121,15 @@ export class ProactiveService {
       const insights = await this.extractInsightsWithAI(contentSummary, userId);
 
       // Filter by confidence threshold
-      const filteredInsights = this.filterByConfidence(insights, confidenceThreshold);
+      const filteredInsights = this.filterByConfidence(
+        insights,
+        confidenceThreshold,
+      );
 
-      const summary = this.generateAnalysisSummary(filteredInsights, dumps.length);
+      const summary = this.generateAnalysisSummary(
+        filteredInsights,
+        dumps.length,
+      );
 
       return {
         insights: filteredInsights,
@@ -124,7 +137,10 @@ export class ProactiveService {
         processingTimeMs: Date.now() - startTime,
       };
     } catch (error) {
-      this.logger.error(`Failed to analyze user content: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to analyze user content: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }
@@ -164,7 +180,9 @@ export class ProactiveService {
           suggestions.push(insight);
         }
       } catch (error) {
-        this.logger.warn(`Failed to create reminder from insight: ${error.message}`);
+        this.logger.warn(
+          `Failed to create reminder from insight: ${error.message}`,
+        );
         suggestions.push(insight); // Fall back to suggestion
       }
     }
@@ -214,7 +232,9 @@ export class ProactiveService {
           `User ${user.id}: Created ${result.created.length} reminders, ${result.suggestions.length} suggestions`,
         );
       } catch (error) {
-        this.logger.error(`Failed to process user ${user.id}: ${error.message}`);
+        this.logger.error(
+          `Failed to process user ${user.id}: ${error.message}`,
+        );
       }
     }
 
@@ -249,7 +269,9 @@ export class ProactiveService {
     const dumpSummaries = dumps.map((dump, index) => {
       const category = dump.category?.name || 'Uncategorized';
       const content = dump.raw_content?.substring(0, 500) || ''; // Limit content length
-      const entities = dump.extracted_entities ? JSON.stringify(dump.extracted_entities) : '';
+      const entities = dump.extracted_entities
+        ? JSON.stringify(dump.extracted_entities)
+        : '';
 
       return `[${index + 1}] Dump ${dump.id.substring(0, 8)}
 Category: ${category}
@@ -322,7 +344,7 @@ Return insights as JSON array.`;
 
       // Try to parse insights from the summary
       const summary = response.summary || '';
-      
+
       // Try to extract JSON array from the response
       const jsonMatch = summary.match(/\[[\s\S]*\]/);
       if (!jsonMatch) {
@@ -331,7 +353,7 @@ Return insights as JSON array.`;
       }
 
       const insights = JSON.parse(jsonMatch[0]) as ContextualInsight[];
-      
+
       // Validate and parse dates
       const validatedInsights = insights.map((insight) => ({
         ...insight,

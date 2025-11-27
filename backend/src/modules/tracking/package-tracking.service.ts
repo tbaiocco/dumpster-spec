@@ -146,11 +146,14 @@ export class PackageTrackingService {
 
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`https://onlinetools.ups.com/track/v1/details/${trackingNumber}`, {
-          headers: {
-            'AccessLicenseNumber': apiKey,
+        this.httpService.get(
+          `https://onlinetools.ups.com/track/v1/details/${trackingNumber}`,
+          {
+            headers: {
+              AccessLicenseNumber: apiKey,
+            },
           },
-        }),
+        ),
       );
 
       return this.parseUPSResponse(response.data, trackingNumber);
@@ -163,7 +166,9 @@ export class PackageTrackingService {
   /**
    * Track FedEx package
    */
-  private async trackFedEx(trackingNumber: string): Promise<PackageTrackingInfo> {
+  private async trackFedEx(
+    trackingNumber: string,
+  ): Promise<PackageTrackingInfo> {
     const apiKey = this.configService.get<string>('FEDEX_API_KEY');
     if (!apiKey) {
       this.logger.warn('FedEx API key not configured');
@@ -172,19 +177,23 @@ export class PackageTrackingService {
 
     try {
       const response = await firstValueFrom(
-        this.httpService.post('https://apis.fedex.com/track/v1/trackingnumbers', {
-          trackingInfo: [
-            {
-              trackingNumberInfo: {
-                trackingNumber,
+        this.httpService.post(
+          'https://apis.fedex.com/track/v1/trackingnumbers',
+          {
+            trackingInfo: [
+              {
+                trackingNumberInfo: {
+                  trackingNumber,
+                },
               },
-            },
-          ],
-        }, {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
+            ],
           },
-        }),
+          {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+            },
+          },
+        ),
       );
 
       return this.parseFedExResponse(response.data, trackingNumber);
@@ -197,7 +206,9 @@ export class PackageTrackingService {
   /**
    * Track USPS package
    */
-  private async trackUSPS(trackingNumber: string): Promise<PackageTrackingInfo> {
+  private async trackUSPS(
+    trackingNumber: string,
+  ): Promise<PackageTrackingInfo> {
     const apiKey = this.configService.get<string>('USPS_API_KEY');
     if (!apiKey) {
       this.logger.warn('USPS API key not configured');
@@ -206,12 +217,15 @@ export class PackageTrackingService {
 
     try {
       const response = await firstValueFrom(
-        this.httpService.get('https://secure.shippingapis.com/ShippingAPI.dll', {
-          params: {
-            API: 'TrackV2',
-            XML: `<TrackRequest USERID="${apiKey}"><TrackID ID="${trackingNumber}"></TrackID></TrackRequest>`,
+        this.httpService.get(
+          'https://secure.shippingapis.com/ShippingAPI.dll',
+          {
+            params: {
+              API: 'TrackV2',
+              XML: `<TrackRequest USERID="${apiKey}"><TrackID ID="${trackingNumber}"></TrackID></TrackRequest>`,
+            },
           },
-        }),
+        ),
       );
 
       return this.parseUSPSResponse(response.data, trackingNumber);
@@ -251,10 +265,13 @@ export class PackageTrackingService {
   /**
    * Parse UPS API response
    */
-  private parseUPSResponse(data: any, trackingNumber: string): PackageTrackingInfo {
+  private parseUPSResponse(
+    data: any,
+    trackingNumber: string,
+  ): PackageTrackingInfo {
     // Simplified parsing - actual implementation would be more complex
     const shipment = data.trackResponse?.shipment?.[0];
-    
+
     return {
       trackingNumber,
       carrier: ShippingCarrier.UPS,
@@ -267,10 +284,13 @@ export class PackageTrackingService {
   /**
    * Parse FedEx API response
    */
-  private parseFedExResponse(data: any, trackingNumber: string): PackageTrackingInfo {
+  private parseFedExResponse(
+    data: any,
+    trackingNumber: string,
+  ): PackageTrackingInfo {
     // Simplified parsing - actual implementation would be more complex
     const result = data.output?.completeTrackResults?.[0];
-    
+
     return {
       trackingNumber,
       carrier: ShippingCarrier.FEDEX,
@@ -283,7 +303,10 @@ export class PackageTrackingService {
   /**
    * Parse USPS API response
    */
-  private parseUSPSResponse(data: any, trackingNumber: string): PackageTrackingInfo {
+  private parseUSPSResponse(
+    data: any,
+    trackingNumber: string,
+  ): PackageTrackingInfo {
     // Simplified parsing - actual implementation would be more complex
     return {
       trackingNumber,
@@ -297,7 +320,10 @@ export class PackageTrackingService {
   /**
    * Parse DHL API response
    */
-  private parseDHLResponse(data: any, trackingNumber: string): PackageTrackingInfo {
+  private parseDHLResponse(
+    data: any,
+    trackingNumber: string,
+  ): PackageTrackingInfo {
     // Simplified parsing - actual implementation would be more complex
     return {
       trackingNumber,
@@ -313,13 +339,14 @@ export class PackageTrackingService {
    */
   private mapUPSStatus(status: string): PackageStatus {
     if (!status) return PackageStatus.UNKNOWN;
-    
+
     const normalized = status.toLowerCase();
     if (normalized.includes('delivered')) return PackageStatus.DELIVERED;
     if (normalized.includes('transit')) return PackageStatus.IN_TRANSIT;
-    if (normalized.includes('out for delivery')) return PackageStatus.OUT_FOR_DELIVERY;
+    if (normalized.includes('out for delivery'))
+      return PackageStatus.OUT_FOR_DELIVERY;
     if (normalized.includes('exception')) return PackageStatus.EXCEPTION;
-    
+
     return PackageStatus.IN_TRANSIT;
   }
 
@@ -328,13 +355,18 @@ export class PackageTrackingService {
    */
   private mapFedExStatus(statusCode: string): PackageStatus {
     if (!statusCode) return PackageStatus.UNKNOWN;
-    
+
     switch (statusCode.toUpperCase()) {
-      case 'DL': return PackageStatus.DELIVERED;
-      case 'IT': return PackageStatus.IN_TRANSIT;
-      case 'OD': return PackageStatus.OUT_FOR_DELIVERY;
-      case 'DE': return PackageStatus.EXCEPTION;
-      default: return PackageStatus.IN_TRANSIT;
+      case 'DL':
+        return PackageStatus.DELIVERED;
+      case 'IT':
+        return PackageStatus.IN_TRANSIT;
+      case 'OD':
+        return PackageStatus.OUT_FOR_DELIVERY;
+      case 'DE':
+        return PackageStatus.EXCEPTION;
+      default:
+        return PackageStatus.IN_TRANSIT;
     }
   }
 
@@ -389,8 +421,9 @@ export class PackageTrackingService {
     trackingNumber: string;
     carrier: ShippingCarrier;
   }> {
-    const results: Array<{ trackingNumber: string; carrier: ShippingCarrier }> = [];
-    
+    const results: Array<{ trackingNumber: string; carrier: ShippingCarrier }> =
+      [];
+
     // UPS pattern
     const upsMatches = text.match(/\b1Z[A-Z0-9]{16}\b/gi);
     if (upsMatches) {
@@ -419,7 +452,10 @@ export class PackageTrackingService {
     const amazonMatches = text.match(/\bTBA\d{12}\b/gi);
     if (amazonMatches) {
       for (const match of amazonMatches) {
-        results.push({ trackingNumber: match, carrier: ShippingCarrier.AMAZON });
+        results.push({
+          trackingNumber: match,
+          carrier: ShippingCarrier.AMAZON,
+        });
       }
     }
 
@@ -441,7 +477,9 @@ export class PackageTrackingService {
     }
 
     if (info.estimatedDelivery) {
-      lines.push(`Est. Delivery: ${info.estimatedDelivery.toLocaleDateString()}`);
+      lines.push(
+        `Est. Delivery: ${info.estimatedDelivery.toLocaleDateString()}`,
+      );
     }
 
     if (info.actualDelivery) {
@@ -452,7 +490,9 @@ export class PackageTrackingService {
       lines.push('\nRecent Activity:');
       const recentEvents = info.events.slice(-3).reverse();
       for (const event of recentEvents) {
-        lines.push(`• ${event.timestamp.toLocaleString()} - ${event.description}`);
+        lines.push(
+          `• ${event.timestamp.toLocaleString()} - ${event.description}`,
+        );
         if (event.location) {
           lines.push(`  ${event.location}`);
         }

@@ -95,7 +95,11 @@ export class HandwritingService {
       // Preprocess image if requested
       let processedBuffer = imageBuffer;
       if (options?.preprocessing) {
-        processedBuffer = await this.preprocessImage(imageBuffer, mimeType, options.preprocessing);
+        processedBuffer = await this.preprocessImage(
+          imageBuffer,
+          mimeType,
+          options.preprocessing,
+        );
       }
 
       // Perform OCR with handwriting-specific settings
@@ -113,10 +117,13 @@ export class HandwritingService {
       );
 
       // Extract text blocks with detailed information
-      const textBlocks = this.extractHandwritingTextBlocks(ocrResult, handwritingAnalysis);
+      const textBlocks = this.extractHandwritingTextBlocks(
+        ocrResult,
+        handwritingAnalysis,
+      );
 
       // Combine all recognized text
-      const extractedText = textBlocks.map(block => block.text).join('\n');
+      const extractedText = textBlocks.map((block) => block.text).join('\n');
 
       // Calculate overall confidence
       const overallConfidence = this.calculateOverallConfidence(textBlocks);
@@ -138,9 +145,11 @@ export class HandwritingService {
       );
 
       return result;
-
     } catch (error) {
-      this.logger.error(`Handwriting recognition failed: ${error.message}`, error.stack);
+      this.logger.error(
+        `Handwriting recognition failed: ${error.message}`,
+        error.stack,
+      );
       throw new Error(`Handwriting recognition failed: ${error.message}`);
     }
   }
@@ -168,7 +177,9 @@ export class HandwritingService {
       });
 
       // Analyze text characteristics to determine handwriting vs printed text
-      const handwritingScore = this.analyzeTextForHandwriting(analysisResult.extractedText);
+      const handwritingScore = this.analyzeTextForHandwriting(
+        analysisResult.extractedText,
+      );
 
       const hasHandwriting = handwritingScore.handwritingPercentage > 0.3; // 30% threshold
 
@@ -178,9 +189,11 @@ export class HandwritingService {
         handwritingPercentage: handwritingScore.handwritingPercentage,
         printedTextPercentage: handwritingScore.printedTextPercentage,
       };
-
     } catch (error) {
-      this.logger.error(`Handwriting detection failed: ${error.message}`, error.stack);
+      this.logger.error(
+        `Handwriting detection failed: ${error.message}`,
+        error.stack,
+      );
       return {
         hasHandwriting: false,
         confidence: 0,
@@ -200,7 +213,9 @@ export class HandwritingService {
   ): Promise<Buffer> {
     // In a real implementation, this would use image processing libraries
     // For now, return the original buffer
-    this.logger.log('Image preprocessing requested but not implemented - returning original');
+    this.logger.log(
+      'Image preprocessing requested but not implemented - returning original',
+    );
     return imageBuffer;
   }
 
@@ -275,7 +290,10 @@ export class HandwritingService {
       return HandwritingStyle.CURSIVE;
     }
 
-    if (characteristics.hasInconsistentSpacing || characteristics.hasIrregularBaseline) {
+    if (
+      characteristics.hasInconsistentSpacing ||
+      characteristics.hasIrregularBaseline
+    ) {
       return HandwritingStyle.MESSY;
     }
 
@@ -295,7 +313,9 @@ export class HandwritingService {
     analysis: { dominantStyle: HandwritingStyle },
   ): HandwritingTextBlock[] {
     // Split text into logical blocks (lines, paragraphs)
-    const lines = ocrResult.text.split('\n').filter((line: string) => line.trim());
+    const lines = ocrResult.text
+      .split('\n')
+      .filter((line: string) => line.trim());
 
     return lines.map((line: string, index: number) => {
       const blockCharacteristics = this.analyzeTextBlockCharacteristics(line);
@@ -320,7 +340,9 @@ export class HandwritingService {
   /**
    * Analyze text block characteristics
    */
-  private analyzeTextBlockCharacteristics(text: string): HandwritingTextBlock['characteristics'] {
+  private analyzeTextBlockCharacteristics(
+    text: string,
+  ): HandwritingTextBlock['characteristics'] {
     return {
       isTitle: this.isLikelyTitle(text),
       isNote: this.isLikelyNote(text),
@@ -337,8 +359,8 @@ export class HandwritingService {
   private isLikelyTitle(text: string): boolean {
     return (
       text.length < 50 &&
-      (text === text.toUpperCase() || 
-       /^[A-Z][a-z]+(\s+[A-Z][a-z]+)*$/.test(text))
+      (text === text.toUpperCase() ||
+        /^[A-Z][a-z]+(\s+[A-Z][a-z]+)*$/.test(text))
     );
   }
 
@@ -346,10 +368,14 @@ export class HandwritingService {
    * Check if text is likely a note
    */
   private isLikelyNote(text: string): boolean {
-    const noteKeywords = ['note:', 'remember:', 'todo:', 'important:', 'reminder:'];
-    return noteKeywords.some(keyword => 
-      text.toLowerCase().includes(keyword)
-    );
+    const noteKeywords = [
+      'note:',
+      'remember:',
+      'todo:',
+      'important:',
+      'reminder:',
+    ];
+    return noteKeywords.some((keyword) => text.toLowerCase().includes(keyword));
   }
 
   /**
@@ -377,7 +403,7 @@ export class HandwritingService {
     // This would analyze the actual image in a real implementation
     // For now, use text-based heuristics
     const cursiveIndicators = ['th', 'll', 'ff', 'tt'];
-    return cursiveIndicators.some(indicator => text.includes(indicator));
+    return cursiveIndicators.some((indicator) => text.includes(indicator));
   }
 
   /**
@@ -388,9 +414,12 @@ export class HandwritingService {
     if (words.length < 2) return false;
 
     // Check for very short or very long words mixed together
-    const wordLengths = words.map(word => word.length);
-    const avgLength = wordLengths.reduce((a, b) => a + b, 0) / wordLengths.length;
-    const variance = wordLengths.reduce((acc, len) => acc + Math.pow(len - avgLength, 2), 0) / wordLengths.length;
+    const wordLengths = words.map((word) => word.length);
+    const avgLength =
+      wordLengths.reduce((a, b) => a + b, 0) / wordLengths.length;
+    const variance =
+      wordLengths.reduce((acc, len) => acc + Math.pow(len - avgLength, 2), 0) /
+      wordLengths.length;
 
     return variance > 10; // High variance indicates inconsistent spacing
   }
@@ -418,11 +447,11 @@ export class HandwritingService {
   private detectMultipleWriters(text: string): boolean {
     // This would analyze writing consistency in a real implementation
     // For now, use simple heuristics
-    const lines = text.split('\n').filter(line => line.trim());
+    const lines = text.split('\n').filter((line) => line.trim());
     if (lines.length < 3) return false;
 
     // Check for significant style differences between lines
-    const styles = lines.map(line => this.determineHandwritingStyle(line));
+    const styles = lines.map((line) => this.determineHandwritingStyle(line));
     const uniqueStyles = new Set(styles);
 
     return uniqueStyles.size > 1;
@@ -446,12 +475,17 @@ export class HandwritingService {
     if (this.detectVariableLetterSize(text)) handwritingIndicators++;
 
     // Check for printed text indicators
-    if (text === text.toUpperCase() || text === text.toLowerCase()) printedIndicators++;
+    if (text === text.toUpperCase() || text === text.toLowerCase())
+      printedIndicators++;
     if (/^\s*[A-Z][a-z]+(\s+[A-Z][a-z]+)*\s*$/.test(text)) printedIndicators++;
 
     const totalIndicators = handwritingIndicators + printedIndicators;
     if (totalIndicators === 0) {
-      return { handwritingPercentage: 0.5, printedTextPercentage: 0.5, confidence: 0.1 };
+      return {
+        handwritingPercentage: 0.5,
+        printedTextPercentage: 0.5,
+        confidence: 0.1,
+      };
     }
 
     const handwritingPercentage = handwritingIndicators / totalIndicators;
@@ -464,7 +498,9 @@ export class HandwritingService {
   /**
    * Analyze image quality
    */
-  private analyzeImageQuality(imageBuffer: Buffer): 'poor' | 'fair' | 'good' | 'excellent' {
+  private analyzeImageQuality(
+    imageBuffer: Buffer,
+  ): 'poor' | 'fair' | 'good' | 'excellent' {
     // In a real implementation, this would analyze image sharpness, resolution, etc.
     // For now, use file size as a rough indicator
     const sizeKB = imageBuffer.length / 1024;
@@ -478,10 +514,15 @@ export class HandwritingService {
   /**
    * Calculate overall confidence from text blocks
    */
-  private calculateOverallConfidence(textBlocks: HandwritingTextBlock[]): number {
+  private calculateOverallConfidence(
+    textBlocks: HandwritingTextBlock[],
+  ): number {
     if (textBlocks.length === 0) return 0;
 
-    const totalConfidence = textBlocks.reduce((sum, block) => sum + block.confidence, 0);
+    const totalConfidence = textBlocks.reduce(
+      (sum, block) => sum + block.confidence,
+      0,
+    );
     return totalConfidence / textBlocks.length;
   }
 
@@ -522,7 +563,12 @@ export class HandwritingService {
     }
 
     // Check mime type
-    const supportedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const supportedTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+    ];
     if (!supportedTypes.includes(mimeType)) {
       errors.push(`Unsupported image format: ${mimeType}`);
     }

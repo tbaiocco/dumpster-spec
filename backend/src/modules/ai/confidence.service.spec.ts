@@ -34,7 +34,8 @@ describe('ConfidenceService', () => {
       const mockDump = {
         id: dumpId,
         ai_summary: 'Meeting with client about project requirements',
-        raw_content: 'This is a detailed meeting about project requirements and business objectives for the upcoming quarter.',
+        raw_content:
+          'This is a detailed meeting about project requirements and business objectives for the upcoming quarter.',
         category_id: 'business',
         ai_confidence: 0.92,
         content_type: 'text',
@@ -61,7 +62,8 @@ describe('ConfidenceService', () => {
       const mockDump = {
         id: dumpId,
         ai_summary: 'unclear',
-        raw_content: 'Some unclear content that is difficult to understand or categorize properly.',
+        raw_content:
+          'Some unclear content that is difficult to understand or categorize properly.',
         category_id: 'unknown',
         ai_confidence: 0.35,
         content_type: 'text',
@@ -79,7 +81,9 @@ describe('ConfidenceService', () => {
       expect(result.confidence).toBe('low');
       expect(result.needsReview).toBe(true);
       expect(result.recommendation).toBe('reject');
-      expect(result.reasons).toContain('Low confidence - manual review required');
+      expect(result.reasons).toContain(
+        'Low confidence - manual review required',
+      );
     });
 
     it('should throw error for non-existent dump', async () => {
@@ -88,7 +92,9 @@ describe('ConfidenceService', () => {
       mockDumpRepository.findOne.mockResolvedValue(null);
 
       // Act & Assert
-      await expect(service.analyzeConfidence(dumpId)).rejects.toThrow('Dump not found');
+      await expect(service.analyzeConfidence(dumpId)).rejects.toThrow(
+        'Dump not found',
+      );
     });
   });
 

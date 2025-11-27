@@ -36,39 +36,60 @@ describe('FuzzyMatchService', () => {
 
   describe('calculateLevenshteinDistance', () => {
     it('should calculate correct distance for identical strings', () => {
-      const distance = (service as any).calculateLevenshteinDistance('hello', 'hello');
+      const distance = (service as any).calculateLevenshteinDistance(
+        'hello',
+        'hello',
+      );
       expect(distance).toBe(0);
     });
 
     it('should calculate correct distance for completely different strings', () => {
-      const distance = (service as any).calculateLevenshteinDistance('cat', 'dog');
+      const distance = (service as any).calculateLevenshteinDistance(
+        'cat',
+        'dog',
+      );
       expect(distance).toBe(3);
     });
 
     it('should calculate correct distance for single character changes', () => {
-      const distance = (service as any).calculateLevenshteinDistance('hello', 'hallo');
+      const distance = (service as any).calculateLevenshteinDistance(
+        'hello',
+        'hallo',
+      );
       expect(distance).toBe(1);
     });
 
     it('should handle empty strings', () => {
-      const distance = (service as any).calculateLevenshteinDistance('', 'hello');
+      const distance = (service as any).calculateLevenshteinDistance(
+        '',
+        'hello',
+      );
       expect(distance).toBe(5);
     });
   });
 
   describe('calculateLevenshteinSimilarity', () => {
     it('should return 1 for identical strings', () => {
-      const similarity = (service as any).calculateLevenshteinSimilarity('hello', 'hello');
+      const similarity = (service as any).calculateLevenshteinSimilarity(
+        'hello',
+        'hello',
+      );
       expect(similarity).toBe(1);
     });
 
     it('should return 0 for completely different strings', () => {
-      const similarity = (service as any).calculateLevenshteinSimilarity('abc', 'xyz');
+      const similarity = (service as any).calculateLevenshteinSimilarity(
+        'abc',
+        'xyz',
+      );
       expect(similarity).toBeLessThan(1);
     });
 
     it('should return high similarity for typos', () => {
-      const similarity = (service as any).calculateLevenshteinSimilarity('electricity', 'electrisity');
+      const similarity = (service as any).calculateLevenshteinSimilarity(
+        'electricity',
+        'electrisity',
+      );
       expect(similarity).toBeGreaterThan(0.8);
     });
   });
@@ -119,7 +140,7 @@ describe('FuzzyMatchService', () => {
         take: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue(mockDumps),
       };
-      
+
       mockRepository.createQueryBuilder.mockReturnValueOnce(mockQueryBuilder);
 
       const result = await service.search({
@@ -138,7 +159,7 @@ describe('FuzzyMatchService', () => {
     it('should generate consistent phonetic codes for similar sounds', () => {
       const code1 = (service as any).generatePhoneticCode('hello');
       const code2 = (service as any).generatePhoneticCode('helo');
-      
+
       expect(code1).toEqual(code2);
     });
 

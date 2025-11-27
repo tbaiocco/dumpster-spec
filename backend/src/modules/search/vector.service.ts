@@ -6,7 +6,9 @@ import { pipeline, env } from '@xenova/transformers';
 
 export interface EmbeddingGenerationRequest {
   text: string;
-  model?: 'sentence-transformers/all-MiniLM-L6-v2' | 'sentence-transformers/all-mpnet-base-v2';
+  model?:
+    | 'sentence-transformers/all-MiniLM-L6-v2'
+    | 'sentence-transformers/all-mpnet-base-v2';
 }
 
 export interface EmbeddingGenerationResponse {
@@ -30,8 +32,10 @@ export class VectorService implements OnModuleInit {
     // Configure transformers.js to use local models
     env.allowLocalModels = false;
     env.allowRemoteModels = true;
-    
-    this.logger.log('VectorService initialized - will load sentence transformers locally');
+
+    this.logger.log(
+      'VectorService initialized - will load sentence transformers locally',
+    );
   }
 
   async onModuleInit() {
@@ -74,9 +78,8 @@ export class VectorService implements OnModuleInit {
       }
 
       // Verify vector operations work
-      await this.dataSource.query('SELECT \'[1,2,3]\'::vector;');
+      await this.dataSource.query("SELECT '[1,2,3]'::vector;");
       this.logger.log('pgvector extension verification successful');
-
     } catch (error) {
       this.logger.error('Failed to setup pgvector extension:', error);
       throw new Error(`pgvector setup failed: ${error.message}`);
@@ -87,32 +90,45 @@ export class VectorService implements OnModuleInit {
    * Generate embedding for text using local sentence transformers
    * Uses sentence-transformers model loaded locally - no API calls needed
    */
-  async generateEmbedding(request: EmbeddingGenerationRequest): Promise<EmbeddingGenerationResponse> {
+  async generateEmbedding(
+    request: EmbeddingGenerationRequest,
+  ): Promise<EmbeddingGenerationResponse> {
     if (!request.text?.trim()) {
       throw new Error('Text content is required for embedding generation');
     }
 
     if (!this.extractor) {
-      throw new Error('Embedding model not loaded. Ensure onModuleInit has completed.');
+      throw new Error(
+        'Embedding model not loaded. Ensure onModuleInit has completed.',
+      );
     }
 
     const model = request.model || this.defaultModel;
-    
-    this.logger.debug(`Generating embedding for text: ${request.text.substring(0, 100)}...`);
+
+    this.logger.debug(
+      `Generating embedding for text: ${request.text.substring(0, 100)}...`,
+    );
 
     try {
       // Generate embedding using local model
-      const output = await this.extractor(request.text, { pooling: 'mean', normalize: true });
-      
+      const output = await this.extractor(request.text, {
+        pooling: 'mean',
+        normalize: true,
+      });
+
       // Convert tensor to array
-      const embeddingVector = Array.from(output.data) as number[];
+      const embeddingVector = Array.from(output.data);
       const tokens = Math.ceil(request.text.length / 4); // Rough estimate
 
       if (embeddingVector.length !== this.embeddingDimension) {
-        throw new Error(`Expected ${this.embeddingDimension} dimensions, got ${embeddingVector.length}`);
+        throw new Error(
+          `Expected ${this.embeddingDimension} dimensions, got ${embeddingVector.length}`,
+        );
       }
 
-      this.logger.debug(`Generated embedding with ${embeddingVector.length} dimensions`);
+      this.logger.debug(
+        `Generated embedding with ${embeddingVector.length} dimensions`,
+      );
 
       return {
         embedding: embeddingVector,
@@ -129,20 +145,25 @@ export class VectorService implements OnModuleInit {
    * Generate embeddings for multiple texts using local sentence transformers
    * Processes texts efficiently with local model
    */
-  async generateEmbeddings(texts: string[], model?: string): Promise<EmbeddingGenerationResponse[]> {
+  async generateEmbeddings(
+    texts: string[],
+    model?: string,
+  ): Promise<EmbeddingGenerationResponse[]> {
     const embeddings: EmbeddingGenerationResponse[] = [];
-    
+
     // Process texts individually with local model (fast, no rate limits)
     for (const [index, text] of texts.entries()) {
       try {
-        const embedding = await this.generateEmbedding({ 
-          text, 
-          model: model as EmbeddingGenerationRequest['model'] 
+        const embedding = await this.generateEmbedding({
+          text,
+          model: model as EmbeddingGenerationRequest['model'],
         });
         embeddings.push(embedding);
-        
       } catch (error) {
-        this.logger.error(`Error processing embedding for text ${index}:`, error);
+        this.logger.error(
+          `Error processing embedding for text ${index}:`,
+          error,
+        );
         // Add zero vector as fallback for failed embeddings
         embeddings.push({
           embedding: new Array(this.embeddingDimension).fill(0),
@@ -152,7 +173,9 @@ export class VectorService implements OnModuleInit {
       }
     }
 
-    this.logger.log(`Generated ${embeddings.length} embeddings for batch processing`);
+    this.logger.log(
+      `Generated ${embeddings.length} embeddings for batch processing`,
+    );
     return embeddings;
   }
 
@@ -162,10 +185,10 @@ export class VectorService implements OnModuleInit {
   async updateDumpVector(dumpId: string, text: string): Promise<void> {
     try {
       const embeddingResponse = await this.generateEmbedding({ text });
-      
+
       await this.dataSource.query(
         'UPDATE dumps SET content_vector = $1 WHERE id = $2',
-        [`[${embeddingResponse.embedding.join(',')}]`, dumpId]
+        [`[${embeddingResponse.embedding.join(',')}]`, dumpId],
       );
 
       this.logger.debug(`Updated vector for dump ${dumpId}`);
@@ -178,13 +201,15 @@ export class VectorService implements OnModuleInit {
   /**
    * Batch update vectors for multiple dumps
    */
-  async batchUpdateDumpVectors(dumps: Array<{ id: string; text: string }>): Promise<void> {
+  async batchUpdateDumpVectors(
+    dumps: Array<{ id: string; text: string }>,
+  ): Promise<void> {
     if (dumps.length === 0) return;
 
     this.logger.log(`Batch updating vectors for ${dumps.length} dumps`);
 
     try {
-      const texts = dumps.map(d => d.text);
+      const texts = dumps.map((d) => d.text);
       const embeddings = await this.generateEmbeddings(texts);
 
       // Update in database transaction
@@ -192,11 +217,11 @@ export class VectorService implements OnModuleInit {
         for (let i = 0; i < dumps.length; i++) {
           const dump = dumps[i];
           const embedding = embeddings[i];
-          
+
           if (embedding.embedding.length > 0) {
             await manager.query(
               'UPDATE dumps SET content_vector = $1 WHERE id = $2',
-              [`[${embedding.embedding.join(',')}]`, dump.id]
+              [`[${embedding.embedding.join(',')}]`, dump.id],
             );
           }
         }
@@ -250,8 +275,12 @@ export class VectorService implements OnModuleInit {
     `);
 
     const totalDumps = Number.parseInt(stats[0]?.total_dumps || '0', 10);
-    const dumpsWithVectors = Number.parseInt(stats[0]?.dumps_with_vectors || '0', 10);
-    const vectorCoverage = totalDumps > 0 ? (dumpsWithVectors / totalDumps) * 100 : 0;
+    const dumpsWithVectors = Number.parseInt(
+      stats[0]?.dumps_with_vectors || '0',
+      10,
+    );
+    const vectorCoverage =
+      totalDumps > 0 ? (dumpsWithVectors / totalDumps) * 100 : 0;
 
     return {
       totalDumps,
@@ -268,21 +297,24 @@ export class VectorService implements OnModuleInit {
 
     try {
       // Get dumps without vectors
-      const dumpsWithoutVectors = await this.dataSource.query(`
+      const dumpsWithoutVectors = await this.dataSource.query(
+        `
         SELECT id, raw_content, ai_summary 
         FROM dumps 
         WHERE content_vector IS NULL 
         AND processing_status = 'completed'
         ORDER BY created_at DESC
         LIMIT $1
-      `, [batchSize]);
+      `,
+        [batchSize],
+      );
 
       if (dumpsWithoutVectors.length === 0) {
         this.logger.log('No dumps need vector migration');
         return;
       }
 
-      const dumpsToProcess = dumpsWithoutVectors.map(dump => ({
+      const dumpsToProcess = dumpsWithoutVectors.map((dump) => ({
         id: dump.id,
         text: dump.ai_summary || dump.raw_content, // Prefer AI summary if available
       }));
@@ -290,7 +322,7 @@ export class VectorService implements OnModuleInit {
       await this.batchUpdateDumpVectors(dumpsToProcess);
 
       this.logger.log(`Migrated ${dumpsToProcess.length} dumps with vectors`);
-      
+
       // Recursive call to process remaining dumps
       if (dumpsWithoutVectors.length === batchSize) {
         await this.migrateExistingDumps(batchSize);
@@ -311,7 +343,7 @@ export class VectorService implements OnModuleInit {
   }> {
     try {
       // Test pgvector
-      await this.dataSource.query('SELECT \'[1,2,3]\'::vector;');
+      await this.dataSource.query("SELECT '[1,2,3]'::vector;");
       const pgvectorEnabled = true;
 
       // Check embedding service (Hugging Face is always available, key just removes rate limits)

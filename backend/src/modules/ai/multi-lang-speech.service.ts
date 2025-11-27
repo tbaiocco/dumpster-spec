@@ -99,10 +99,15 @@ export class MultiLanguageSpeechService {
     const startTime = Date.now();
 
     try {
-      this.logger.log(`Starting multi-language transcription for ${audioFormat} audio`);
+      this.logger.log(
+        `Starting multi-language transcription for ${audioFormat} audio`,
+      );
 
       // Get audio metadata
-      const audioMetadata = await this.extractAudioMetadata(audioBuffer, audioFormat);
+      const audioMetadata = await this.extractAudioMetadata(
+        audioBuffer,
+        audioFormat,
+      );
 
       // Detect language first
       const languageDetection = await this.detectLanguage(
@@ -119,7 +124,8 @@ export class MultiLanguageSpeechService {
       });
 
       // Get alternatives if requested
-      const alternatives: MultiLanguageTranscriptionResult['alternativeLanguages'] = [];
+      const alternatives: MultiLanguageTranscriptionResult['alternativeLanguages'] =
+        [];
       if (options?.enableAlternatives && options?.maxAlternatives) {
         const altCount = Math.min(
           options.maxAlternatives,
@@ -140,7 +146,9 @@ export class MultiLanguageSpeechService {
               text: altTranscription.transcript,
             });
           } catch (error) {
-            this.logger.warn(`Failed to transcribe alternative language ${altLang.language}: ${error.message}`);
+            this.logger.warn(
+              `Failed to transcribe alternative language ${altLang.language}: ${error.message}`,
+            );
             alternatives.push({
               language: altLang.language,
               confidence: altLang.confidence,
@@ -166,9 +174,11 @@ export class MultiLanguageSpeechService {
       );
 
       return result;
-
     } catch (error) {
-      this.logger.error(`Multi-language transcription failed: ${error.message}`, error.stack);
+      this.logger.error(
+        `Multi-language transcription failed: ${error.message}`,
+        error.stack,
+      );
       throw new Error(`Multi-language transcription failed: ${error.message}`);
     }
   }
@@ -186,7 +196,10 @@ export class MultiLanguageSpeechService {
     try {
       this.logger.log(`Transcribing with specific language: ${language}`);
 
-      const audioMetadata = await this.extractAudioMetadata(audioBuffer, audioFormat);
+      const audioMetadata = await this.extractAudioMetadata(
+        audioBuffer,
+        audioFormat,
+      );
 
       const transcription = await this.speechService.transcribeAudio({
         audioBuffer,
@@ -205,10 +218,14 @@ export class MultiLanguageSpeechService {
         processingTime,
         audioMetadata,
       };
-
     } catch (error) {
-      this.logger.error(`Language-specific transcription failed: ${error.message}`, error.stack);
-      throw new Error(`Language-specific transcription failed: ${error.message}`);
+      this.logger.error(
+        `Language-specific transcription failed: ${error.message}`,
+        error.stack,
+      );
+      throw new Error(
+        `Language-specific transcription failed: ${error.message}`,
+      );
     }
   }
 
@@ -234,7 +251,11 @@ export class MultiLanguageSpeechService {
       }> = [];
 
       // Use a shorter sample for language detection to speed up the process
-      const sampleBuffer = this.extractAudioSample(audioBuffer, audioFormat, 10000); // 10 second sample
+      const sampleBuffer = this.extractAudioSample(
+        audioBuffer,
+        audioFormat,
+        10000,
+      ); // 10 second sample
 
       for (const language of languages) {
         try {
@@ -256,9 +277,10 @@ export class MultiLanguageSpeechService {
             confidence,
             textLength: transcription.transcript.length,
           });
-
         } catch (error) {
-          this.logger.warn(`Language detection failed for ${language}: ${error.message}`);
+          this.logger.warn(
+            `Language detection failed for ${language}: ${error.message}`,
+          );
           results.push({
             language,
             confidence: 0,
@@ -272,7 +294,7 @@ export class MultiLanguageSpeechService {
 
       // Return the best match and alternatives
       const primaryResult = results[0];
-      const alternatives = results.slice(1, 4).map(r => ({
+      const alternatives = results.slice(1, 4).map((r) => ({
         language: r.language,
         confidence: r.confidence,
       }));
@@ -282,9 +304,11 @@ export class MultiLanguageSpeechService {
         confidence: primaryResult.confidence,
         alternativeLanguages: alternatives,
       };
-
     } catch (error) {
-      this.logger.error(`Language detection failed: ${error.message}`, error.stack);
+      this.logger.error(
+        `Language detection failed: ${error.message}`,
+        error.stack,
+      );
       // Return default to English
       return {
         primaryLanguage: SupportedLanguage.ENGLISH,
@@ -304,7 +328,10 @@ export class MultiLanguageSpeechService {
   ): Buffer {
     // For simplicity, just return the beginning of the buffer
     // In a real implementation, this would properly extract based on audio format
-    const maxBytes = Math.min(audioBuffer.length, Math.floor(audioBuffer.length * 0.3));
+    const maxBytes = Math.min(
+      audioBuffer.length,
+      Math.floor(audioBuffer.length * 0.3),
+    );
     return audioBuffer.subarray(0, maxBytes);
   }
 
@@ -333,7 +360,10 @@ export class MultiLanguageSpeechService {
   /**
    * Analyze text characteristics for specific languages
    */
-  private analyzeLanguageCharacteristics(text: string, language: SupportedLanguage): number {
+  private analyzeLanguageCharacteristics(
+    text: string,
+    language: SupportedLanguage,
+  ): number {
     let boost = 0;
 
     switch (language) {
@@ -373,15 +403,26 @@ export class MultiLanguageSpeechService {
         }
         break;
 
-      case SupportedLanguage.ENGLISH:
+      case SupportedLanguage.ENGLISH: {
         // English specific patterns (common words)
-        const englishWords = ['the', 'and', 'is', 'in', 'to', 'of', 'a', 'that'];
-        const foundWords = englishWords.filter(word => 
-          text.toLowerCase().includes(` ${word} `) || 
-          text.toLowerCase().startsWith(`${word} `)
+        const englishWords = [
+          'the',
+          'and',
+          'is',
+          'in',
+          'to',
+          'of',
+          'a',
+          'that',
+        ];
+        const foundWords = englishWords.filter(
+          (word) =>
+            text.toLowerCase().includes(` ${word} `) ||
+            text.toLowerCase().startsWith(`${word} `),
         );
         boost += foundWords.length * 0.05;
         break;
+      }
 
       default:
         // For other languages, check for Latin script with language-specific patterns
@@ -422,13 +463,20 @@ export class MultiLanguageSpeechService {
   /**
    * Estimate audio duration based on buffer size and format
    */
-  private estimateAudioDuration(audioBuffer: Buffer, audioFormat: string): number {
+  private estimateAudioDuration(
+    audioBuffer: Buffer,
+    audioFormat: string,
+  ): number {
     // Very rough estimation based on common formats
     // In a real implementation, this would parse audio headers
-    const bytesPerSecond = audioFormat.includes('mp3') ? 16000 : 
-                          audioFormat.includes('wav') ? 176400 : 
-                          audioFormat.includes('ogg') ? 20000 : 16000;
-    
+    const bytesPerSecond = audioFormat.includes('mp3')
+      ? 16000
+      : audioFormat.includes('wav')
+        ? 176400
+        : audioFormat.includes('ogg')
+          ? 20000
+          : 16000;
+
     return Math.round((audioBuffer.length / bytesPerSecond) * 1000); // Duration in ms
   }
 
@@ -443,7 +491,9 @@ export class MultiLanguageSpeechService {
    * Check if a language is supported
    */
   isLanguageSupported(language: string): boolean {
-    return Object.values(SupportedLanguage).includes(language as SupportedLanguage);
+    return Object.values(SupportedLanguage).includes(
+      language as SupportedLanguage,
+    );
   }
 
   /**

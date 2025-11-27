@@ -45,49 +45,49 @@ export class ResponseFormatterService {
   // Emoji mappings for different content types
   private readonly emojis = {
     categories: {
-      'personal': '👤',
-      'work': '💼',
-      'financial': '💰',
-      'health': '🏥',
-      'travel': '✈️',
-      'shopping': '🛒',
-      'education': '📚',
-      'entertainment': '🎬',
-      'food': '🍽️',
-      'home': '🏠',
-      'other': '📝',
+      personal: '👤',
+      work: '💼',
+      financial: '💰',
+      health: '🏥',
+      travel: '✈️',
+      shopping: '🛒',
+      education: '📚',
+      entertainment: '🎬',
+      food: '🍽️',
+      home: '🏠',
+      other: '📝',
     },
     entities: {
-      'person': '👤',
-      'organization': '🏢',
-      'location': '📍',
-      'date': '📅',
-      'time': '⏰',
-      'amount': '💰',
-      'phone': '📞',
-      'email': '📧',
-      'url': '🔗',
+      person: '👤',
+      organization: '🏢',
+      location: '📍',
+      date: '📅',
+      time: '⏰',
+      amount: '💰',
+      phone: '📞',
+      email: '📧',
+      url: '🔗',
     },
     sentiment: {
-      'positive': '😊',
-      'negative': '😟',
-      'neutral': '😐',
-      'urgent': '🚨',
-      'important': '⭐',
+      positive: '😊',
+      negative: '😟',
+      neutral: '😐',
+      urgent: '🚨',
+      important: '⭐',
     },
     actions: {
-      'reminder': '⏰',
-      'task': '✅',
-      'question': '❓',
-      'info': 'ℹ️',
-      'warning': '⚠️',
+      reminder: '⏰',
+      task: '✅',
+      question: '❓',
+      info: 'ℹ️',
+      warning: '⚠️',
     },
   };
 
   formatAnalysisResponse(
     analysis: ContentAnalysisResponse,
     entities: EntityExtractionResult,
-    options: FormattingOptions
+    options: FormattingOptions,
   ): FormattedResponse {
     this.logger.log(`Formatting response for ${options.platform} platform`);
 
@@ -112,7 +112,8 @@ export class ResponseFormatterService {
       formattedText = this.applyPlatformFormatting(formattedText, options);
 
       // Truncate if necessary
-      const truncated = formattedText.length > (options.maxLength || constraints.maxLength);
+      const truncated =
+        formattedText.length > (options.maxLength || constraints.maxLength);
       if (truncated) {
         const maxLen = (options.maxLength || constraints.maxLength) - 3;
         formattedText = formattedText.substring(0, maxLen) + '...';
@@ -130,7 +131,12 @@ export class ResponseFormatterService {
 
       // Add additional formats if supported
       if (constraints.supportsMarkdown) {
-        result.markdown = this.toMarkdown(formattedText, analysis, entities, options);
+        result.markdown = this.toMarkdown(
+          formattedText,
+          analysis,
+          entities,
+          options,
+        );
       }
 
       if (constraints.supportsHtml) {
@@ -139,10 +145,9 @@ export class ResponseFormatterService {
 
       this.logger.log(`Formatted response: ${formattedText.length} characters`);
       return result;
-
     } catch (error) {
       this.logger.error('Error formatting response:', error);
-      
+
       // Fallback to simple text
       const fallbackText = this.createFallbackResponse(analysis, entities);
       return {
@@ -160,13 +165,16 @@ export class ResponseFormatterService {
   private formatBrief(
     analysis: ContentAnalysisResponse,
     entities: EntityExtractionResult,
-    options: FormattingOptions
+    options: FormattingOptions,
   ): string {
     const parts: string[] = [];
 
     // Category with emoji
     if (analysis.category && options.includeEmojis) {
-      const emoji = this.emojis.categories[analysis.category as keyof typeof this.emojis.categories] || '📝';
+      const emoji =
+        this.emojis.categories[
+          analysis.category as keyof typeof this.emojis.categories
+        ] || '📝';
       parts.push(`${emoji} ${analysis.category.toUpperCase()}`);
     } else if (analysis.category) {
       parts.push(`Category: ${analysis.category}`);
@@ -174,22 +182,29 @@ export class ResponseFormatterService {
 
     // Brief summary
     if (analysis.summary) {
-      const summary = analysis.summary.length > 100 
-        ? analysis.summary.substring(0, 97) + '...' 
-        : analysis.summary;
+      const summary =
+        analysis.summary.length > 100
+          ? analysis.summary.substring(0, 97) + '...'
+          : analysis.summary;
       parts.push(summary);
     }
 
     // Key entities (up to 3)
     const keyEntities = entities.entities
-      .filter(e => ['person', 'organization', 'amount', 'date'].includes(e.type))
+      .filter((e) =>
+        ['person', 'organization', 'amount', 'date'].includes(e.type),
+      )
       .slice(0, 3);
 
     if (keyEntities.length > 0) {
-      const entityList = keyEntities.map(e => {
-        const emoji = options.includeEmojis ? this.emojis.entities[e.type] : '';
-        return `${emoji}${e.value}`.trim();
-      }).join(', ');
+      const entityList = keyEntities
+        .map((e) => {
+          const emoji = options.includeEmojis
+            ? this.emojis.entities[e.type]
+            : '';
+          return `${emoji}${e.value}`.trim();
+        })
+        .join(', ');
       parts.push(`Key info: ${entityList}`);
     }
 
@@ -199,7 +214,7 @@ export class ResponseFormatterService {
   private formatDetailed(
     analysis: ContentAnalysisResponse,
     entities: EntityExtractionResult,
-    options: FormattingOptions
+    options: FormattingOptions,
   ): string {
     const parts: string[] = [];
 
@@ -222,20 +237,36 @@ export class ResponseFormatterService {
     return parts.join('\n\n');
   }
 
-  private addCategoryHeader(parts: string[], analysis: ContentAnalysisResponse, options: FormattingOptions): void {
+  private addCategoryHeader(
+    parts: string[],
+    analysis: ContentAnalysisResponse,
+    options: FormattingOptions,
+  ): void {
     if (analysis.category) {
-      const emoji = options.includeEmojis 
-        ? this.emojis.categories[analysis.category as keyof typeof this.emojis.categories] || '�'
+      const emoji = options.includeEmojis
+        ? this.emojis.categories[
+            analysis.category as keyof typeof this.emojis.categories
+          ] || '�'
         : '';
-      const confidence = analysis.confidence ? ` (${Math.round(analysis.confidence * 100)}%)` : '';
-      parts.push(`${emoji} ${analysis.category.toUpperCase()}${confidence}`.trim());
+      const confidence = analysis.confidence
+        ? ` (${Math.round(analysis.confidence * 100)}%)`
+        : '';
+      parts.push(
+        `${emoji} ${analysis.category.toUpperCase()}${confidence}`.trim(),
+      );
     }
   }
 
-  private addSentiment(parts: string[], analysis: ContentAnalysisResponse, options: FormattingOptions): void {
+  private addSentiment(
+    parts: string[],
+    analysis: ContentAnalysisResponse,
+    options: FormattingOptions,
+  ): void {
     if (analysis.sentiment) {
-      const emoji = options.includeEmojis 
-        ? this.emojis.sentiment[analysis.sentiment as keyof typeof this.emojis.sentiment] || '😐'
+      const emoji = options.includeEmojis
+        ? this.emojis.sentiment[
+            analysis.sentiment as keyof typeof this.emojis.sentiment
+          ] || '😐'
         : '';
       parts.push(`Sentiment: ${emoji} ${analysis.sentiment}`.trim());
     }
@@ -244,30 +275,38 @@ export class ResponseFormatterService {
   private formatSummary(
     analysis: ContentAnalysisResponse,
     entities: EntityExtractionResult,
-    options: FormattingOptions
+    options: FormattingOptions,
   ): string {
     const parts: string[] = [];
 
     // Category and summary
     if (analysis.category && analysis.summary) {
-      const emoji = options.includeEmojis 
-        ? this.emojis.categories[analysis.category as keyof typeof this.emojis.categories] || '📝'
+      const emoji = options.includeEmojis
+        ? this.emojis.categories[
+            analysis.category as keyof typeof this.emojis.categories
+          ] || '📝'
         : '';
-      parts.push(`${emoji} ${analysis.category.toUpperCase()}: ${analysis.summary}`.trim());
+      parts.push(
+        `${emoji} ${analysis.category.toUpperCase()}: ${analysis.summary}`.trim(),
+      );
     } else if (analysis.summary) {
       parts.push(analysis.summary);
     }
 
     // Important entities
     const importantEntities = entities.entities
-      .filter(e => e.confidence > 0.7)
+      .filter((e) => e.confidence > 0.7)
       .slice(0, 5);
 
     if (importantEntities.length > 0) {
-      const entityText = importantEntities.map(e => {
-        const emoji = options.includeEmojis ? this.emojis.entities[e.type] : '';
-        return `${emoji}${e.value}`.trim();
-      }).join(', ');
+      const entityText = importantEntities
+        .map((e) => {
+          const emoji = options.includeEmojis
+            ? this.emojis.entities[e.type]
+            : '';
+          return `${emoji}${e.value}`.trim();
+        })
+        .join(', ');
       parts.push(`Contains: ${entityText}`);
     }
 
@@ -280,41 +319,72 @@ export class ResponseFormatterService {
     return parts.join('\n\n');
   }
 
-  private formatEntitiesDetailed(entities: EntityExtractionResult, options: FormattingOptions): string {
+  private formatEntitiesDetailed(
+    entities: EntityExtractionResult,
+    options: FormattingOptions,
+  ): string {
     const parts: string[] = [];
     const { structuredData } = entities;
 
     this.addEntityGroup(parts, 'People', structuredData.people, '👤', options);
-    this.addEntityGroup(parts, 'Organizations', structuredData.organizations, '🏢', options);
-    this.addEntityGroup(parts, 'Locations', structuredData.locations, '📍', options);
+    this.addEntityGroup(
+      parts,
+      'Organizations',
+      structuredData.organizations,
+      '🏢',
+      options,
+    );
+    this.addEntityGroup(
+      parts,
+      'Locations',
+      structuredData.locations,
+      '📍',
+      options,
+    );
     this.addEntityGroup(parts, 'Dates', structuredData.dates, '📅', options);
     this.addEntityGroup(parts, 'Amounts', structuredData.amounts, '�', options);
     this.addContactInfo(parts, structuredData.contacts, options);
 
-    return parts.length > 0 ? `Extracted Information:\n${parts.join('\n')}` : '';
+    return parts.length > 0
+      ? `Extracted Information:\n${parts.join('\n')}`
+      : '';
   }
 
-  private addEntityGroup(parts: string[], label: string, items: string[], emoji: string, options: FormattingOptions): void {
+  private addEntityGroup(
+    parts: string[],
+    label: string,
+    items: string[],
+    emoji: string,
+    options: FormattingOptions,
+  ): void {
     if (items.length > 0) {
       const prefix = options.includeEmojis ? `${emoji} ` : '';
       parts.push(`${prefix}${label}: ${items.join(', ')}`);
     }
   }
 
-  private addContactInfo(parts: string[], contacts: any, options: FormattingOptions): void {
-    if (contacts.phones.length > 0 || contacts.emails.length > 0 || contacts.urls.length > 0) {
+  private addContactInfo(
+    parts: string[],
+    contacts: any,
+    options: FormattingOptions,
+  ): void {
+    if (
+      contacts.phones.length > 0 ||
+      contacts.emails.length > 0 ||
+      contacts.urls.length > 0
+    ) {
       const contactParts: string[] = [];
-      
+
       if (contacts.phones.length > 0) {
         const emoji = options.includeEmojis ? '📞 ' : '';
         contactParts.push(`${emoji}${contacts.phones.join(', ')}`);
       }
-      
+
       if (contacts.emails.length > 0) {
         const emoji = options.includeEmojis ? '📧 ' : '';
         contactParts.push(`${emoji}${contacts.emails.join(', ')}`);
       }
-      
+
       if (contacts.urls.length > 0) {
         const emoji = options.includeEmojis ? '🔗 ' : '';
         contactParts.push(`${emoji}${contacts.urls.join(', ')}`);
@@ -324,7 +394,10 @@ export class ResponseFormatterService {
     }
   }
 
-  private applyPlatformFormatting(text: string, options: FormattingOptions): string {
+  private applyPlatformFormatting(
+    text: string,
+    options: FormattingOptions,
+  ): string {
     if (options.platform === 'telegram' && options.includeMarkdown) {
       // Apply Telegram markdown
       return this.applyTelegramMarkdown(text);
@@ -353,10 +426,10 @@ export class ResponseFormatterService {
   }
 
   private toMarkdown(
-    text: string, 
-    analysis: ContentAnalysisResponse, 
-    entities: EntityExtractionResult, 
-    options: FormattingOptions
+    text: string,
+    analysis: ContentAnalysisResponse,
+    entities: EntityExtractionResult,
+    options: FormattingOptions,
   ): string {
     const parts: string[] = [];
 
@@ -368,7 +441,7 @@ export class ResponseFormatterService {
 
     if (entities.entities.length > 0) {
       parts.push('\n### Extracted Information\n');
-      entities.entities.forEach(entity => {
+      entities.entities.forEach((entity) => {
         parts.push(`- **${entity.type}**: ${entity.value}`);
       });
     }
@@ -377,10 +450,10 @@ export class ResponseFormatterService {
   }
 
   private toHtml(
-    text: string, 
-    analysis: ContentAnalysisResponse, 
-    entities: EntityExtractionResult, 
-    options: FormattingOptions
+    text: string,
+    analysis: ContentAnalysisResponse,
+    entities: EntityExtractionResult,
+    options: FormattingOptions,
   ): string {
     const parts: string[] = ['<div>'];
 
@@ -390,7 +463,7 @@ export class ResponseFormatterService {
 
     // Convert text to HTML paragraphs
     const paragraphs = text.split('\n\n');
-    paragraphs.forEach(para => {
+    paragraphs.forEach((para) => {
       if (para.trim()) {
         parts.push(`<p>${para.replace(/\n/g, '<br>')}</p>`);
       }
@@ -399,7 +472,7 @@ export class ResponseFormatterService {
     if (entities.entities.length > 0) {
       parts.push('<h4>Extracted Information</h4>');
       parts.push('<ul>');
-      entities.entities.forEach(entity => {
+      entities.entities.forEach((entity) => {
         parts.push(`<li><strong>${entity.type}</strong>: ${entity.value}</li>`);
       });
       parts.push('</ul>');
@@ -409,7 +482,10 @@ export class ResponseFormatterService {
     return parts.join('\n');
   }
 
-  private createFallbackResponse(analysis: ContentAnalysisResponse, entities: EntityExtractionResult): string {
+  private createFallbackResponse(
+    analysis: ContentAnalysisResponse,
+    entities: EntityExtractionResult,
+  ): string {
     const parts: string[] = [];
 
     if (analysis.summary) {
@@ -429,7 +505,8 @@ export class ResponseFormatterService {
 
   formatError(error: string, options: FormattingOptions): FormattedResponse {
     const emoji = options.includeEmojis ? '⚠️ ' : '';
-    const text = `${emoji}Sorry, I couldn't process that content right now. Please try again.`.trim();
+    const text =
+      `${emoji}Sorry, I couldn't process that content right now. Please try again.`.trim();
 
     return {
       text,

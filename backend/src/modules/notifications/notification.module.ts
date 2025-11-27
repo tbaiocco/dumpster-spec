@@ -18,7 +18,7 @@ import { TranslationService } from '../ai/translation.service';
 
 /**
  * Module for notification functionality
- * 
+ *
  * Provides:
  * - DigestService: Daily digest generation
  * - DeliveryService: Multi-channel notification delivery
@@ -35,9 +35,7 @@ import { TranslationService } from '../ai/translation.service';
     forwardRef(() => BotsModule), // Circular dependency with bots
     UserModule,
   ],
-  controllers: [
-    NotificationTestController,
-  ],
+  controllers: [NotificationTestController],
   providers: [
     DigestService,
     DeliveryService,
@@ -47,11 +45,6 @@ import { TranslationService } from '../ai/translation.service';
     ClaudeService, // AI service for proactive reminders
     TranslationService, // AI translation service
   ],
-  exports: [
-    DigestService,
-    DeliveryService,
-    EmailService,
-    ProactiveService,
-  ],
+  exports: [DigestService, DeliveryService, EmailService, ProactiveService],
 })
 export class NotificationModule {}

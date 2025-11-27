@@ -74,6 +74,11 @@ import { BotsModule } from '../bots/bots.module';
     // Confidence service for AI result validation
     ConfidenceService,
   ],
-  exports: [DumpService, ReviewService, ConfidenceService, DocumentProcessorService],
+  exports: [
+    DumpService,
+    ReviewService,
+    ConfidenceService,
+    DocumentProcessorService,
+  ],
 })
 export class DumpModule {}

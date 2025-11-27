@@ -67,7 +67,9 @@ export class CalendarService {
       lines.push('BEGIN:VEVENT');
       lines.push(`UID:${event.id}@dumpster.app`);
       lines.push(`DTSTAMP:${this.formatICSDate(new Date())}`);
-      lines.push(`DTSTART:${this.formatICSDate(event.startDate, event.allDay)}`);
+      lines.push(
+        `DTSTART:${this.formatICSDate(event.startDate, event.allDay)}`,
+      );
 
       if (event.endDate) {
         lines.push(`DTEND:${this.formatICSDate(event.endDate, event.allDay)}`);
@@ -217,7 +219,10 @@ export class CalendarService {
     }
 
     // Check if dump contains .ics content
-    if (dump.content_type === 'text' && dump.raw_content?.includes('BEGIN:VCALENDAR')) {
+    if (
+      dump.content_type === 'text' &&
+      dump.raw_content?.includes('BEGIN:VCALENDAR')
+    ) {
       return this.parseICS(dump.raw_content);
     }
 

@@ -23,13 +23,8 @@ import { SearchController } from './search.controller';
 import { ClaudeService } from '../ai/claude.service';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Dump, Category, User]),
-    ConfigModule,
-  ],
-  controllers: [
-    SearchController,
-  ],
+  imports: [TypeOrmModule.forFeature([Dump, Category, User]), ConfigModule],
+  controllers: [SearchController],
   providers: [
     // Core search services
     SearchService,
@@ -39,7 +34,7 @@ import { ClaudeService } from '../ai/claude.service';
     RankingService,
     FuzzyMatchService,
     FiltersService,
-    
+
     // AI dependencies
     ClaudeService,
   ],

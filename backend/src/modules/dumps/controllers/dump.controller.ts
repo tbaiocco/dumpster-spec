@@ -14,7 +14,11 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { IsString, IsOptional, IsIn, IsObject } from 'class-validator';
-import { DumpService, CreateDumpRequest, DumpProcessingResult } from '../services/dump.service';
+import {
+  DumpService,
+  CreateDumpRequest,
+  DumpProcessingResult,
+} from '../services/dump.service';
 import { Dump } from '../../../entities/dump.entity';
 import type { ApiResponse } from '../../../common/interfaces/api-response.interface';
 
@@ -69,7 +73,9 @@ export class DumpController {
       contentType: createDumpDto.contentType,
       originalText: createDumpDto.originalText,
       metadata: {
-        source: (createDumpDto.metadata?.source as 'telegram' | 'whatsapp') || 'telegram',
+        source:
+          (createDumpDto.metadata?.source as 'telegram' | 'whatsapp') ||
+          'telegram',
         messageId: createDumpDto.metadata?.messageId,
         fileName: createDumpDto.metadata?.fileName,
         mimeType: createDumpDto.metadata?.mimeType,
@@ -79,7 +85,7 @@ export class DumpController {
     };
 
     const result = await this.dumpService.createDump(request);
-    
+
     return {
       success: true,
       data: result,
@@ -98,7 +104,9 @@ export class DumpController {
       contentType: createDumpDto.contentType,
       originalText: createDumpDto.originalText,
       metadata: {
-        source: (createDumpDto.metadata?.source as 'telegram' | 'whatsapp') || 'telegram',
+        source:
+          (createDumpDto.metadata?.source as 'telegram' | 'whatsapp') ||
+          'telegram',
         messageId: createDumpDto.metadata?.messageId,
         fileName: createDumpDto.metadata?.fileName,
         mimeType: createDumpDto.metadata?.mimeType,
@@ -108,7 +116,7 @@ export class DumpController {
     };
 
     const result = await this.dumpService.createDumpEnhanced(request);
-    
+
     return {
       success: true,
       data: result,
@@ -126,7 +134,7 @@ export class DumpController {
     @Body('metadata') metadataJson?: string,
   ): Promise<ApiResponse<DumpProcessingResult>> {
     const metadata = metadataJson ? JSON.parse(metadataJson) : {};
-    
+
     const request: CreateDumpRequest = {
       userId,
       content: file.originalname || 'Uploaded file',
@@ -143,7 +151,7 @@ export class DumpController {
 
     // Use enhanced processing that leverages ContentRouterService
     const result = await this.dumpService.createDumpEnhanced(request);
-    
+
     return {
       success: true,
       data: result,
@@ -160,8 +168,13 @@ export class DumpController {
     const pageNum = Number.parseInt(page, 10);
     const limitNum = Number.parseInt(limit, 10);
 
-    const result = await this.dumpService.findByUserId(userId, undefined, pageNum, limitNum);
-    
+    const result = await this.dumpService.findByUserId(
+      userId,
+      undefined,
+      pageNum,
+      limitNum,
+    );
+
     return {
       success: true,
       data: result,
@@ -174,7 +187,7 @@ export class DumpController {
     @Param('userId') userId: string,
   ): Promise<ApiResponse<any>> {
     const stats = await this.dumpService.getDumpStatistics(userId);
-    
+
     return {
       success: true,
       data: stats,
@@ -185,7 +198,7 @@ export class DumpController {
   @Get(':id')
   async findOne(@Param('id') id: string): Promise<ApiResponse<Dump | null>> {
     const dump = await this.dumpService.findById(id);
-    
+
     return {
       success: true,
       data: dump,
@@ -200,9 +213,11 @@ export class DumpController {
   }
 
   @Post('generate-vectors')
-  async generateMissingVectors(): Promise<ApiResponse<{ processed: number; errors: number }>> {
+  async generateMissingVectors(): Promise<
+    ApiResponse<{ processed: number; errors: number }>
+  > {
     const result = await this.dumpService.generateMissingVectors();
-    
+
     return {
       success: true,
       data: result,
@@ -219,7 +234,7 @@ export class DumpController {
     @Body('metadata') metadataJson?: string,
   ): Promise<ApiResponse<DumpProcessingResult>> {
     const metadata = metadataJson ? JSON.parse(metadataJson) : {};
-    
+
     const request: CreateDumpRequest = {
       userId,
       content: file.originalname || 'Screenshot',
@@ -236,7 +251,7 @@ export class DumpController {
     };
 
     const result = await this.dumpService.createDumpEnhanced(request);
-    
+
     return {
       success: true,
       data: result,
@@ -254,7 +269,7 @@ export class DumpController {
     @Body('metadata') metadataJson?: string,
   ): Promise<ApiResponse<DumpProcessingResult>> {
     const metadata = metadataJson ? JSON.parse(metadataJson) : {};
-    
+
     const request: CreateDumpRequest = {
       userId,
       content: file.originalname || 'Voice message',
@@ -271,7 +286,7 @@ export class DumpController {
     };
 
     const result = await this.dumpService.createDumpEnhanced(request);
-    
+
     return {
       success: true,
       data: result,
@@ -288,7 +303,7 @@ export class DumpController {
     @Body('metadata') metadataJson?: string,
   ): Promise<ApiResponse<DumpProcessingResult>> {
     const metadata = metadataJson ? JSON.parse(metadataJson) : {};
-    
+
     const request: CreateDumpRequest = {
       userId,
       content: file.originalname || 'Document',
@@ -304,7 +319,7 @@ export class DumpController {
     };
 
     const result = await this.dumpService.createDumpEnhanced(request);
-    
+
     return {
       success: true,
       data: result,

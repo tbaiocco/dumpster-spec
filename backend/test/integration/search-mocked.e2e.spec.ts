@@ -1,8 +1,10 @@
 // Mock @xenova/transformers before any imports
 jest.mock('@xenova/transformers', () => ({
-  pipeline: jest.fn(() => Promise.resolve({
-    predict: jest.fn(() => Promise.resolve([1, 2, 3, 4, 5])),
-  })),
+  pipeline: jest.fn(() =>
+    Promise.resolve({
+      predict: jest.fn(() => Promise.resolve([1, 2, 3, 4, 5])),
+    }),
+  ),
   env: {
     backends: {
       onnx: {
@@ -61,20 +63,20 @@ describe('Search Integration (e2e) - With Mocked VectorService', () => {
         },
       ],
     })
-    .overrideGuard(JwtAuthGuard)
-    .useValue({
-      canActivate: jest.fn(() => true),
-    })
-    .compile();
+      .overrideGuard(JwtAuthGuard)
+      .useValue({
+        canActivate: jest.fn(() => true),
+      })
+      .compile();
 
     app = moduleFixture.createNestApplication();
-    
+
     // Mock user context in requests
     app.use((req, res, next) => {
       req.user = mockUser;
       next();
     });
-    
+
     await app.init();
   });
 
@@ -96,7 +98,7 @@ describe('Search Integration (e2e) - With Mocked VectorService', () => {
               created_at: expect.any(String),
             },
             relevanceScore: 0.95,
-          }
+          },
         ],
         totalCount: 1,
         searchMetadata: {
@@ -152,7 +154,7 @@ describe('Search Integration (e2e) - With Mocked VectorService', () => {
     });
 
     it('should return 500 for invalid query (service error)', async () => {
-      // Empty query passes validation but fails in service layer 
+      // Empty query passes validation but fails in service layer
       await request(app.getHttpServer())
         .post('/api/search')
         .send({
@@ -168,7 +170,9 @@ describe('Search Integration (e2e) - With Mocked VectorService', () => {
         results: ['electricity', 'bill', 'payment'],
       };
 
-      mockSearchService.quickSearch.mockResolvedValueOnce(mockQuickSearchResponse);
+      mockSearchService.quickSearch.mockResolvedValueOnce(
+        mockQuickSearchResponse,
+      );
 
       const response = await request(app.getHttpServer())
         .get('/api/search/quick')
@@ -177,7 +181,11 @@ describe('Search Integration (e2e) - With Mocked VectorService', () => {
 
       expect(response.body.success).toBe(true);
       expect(response.body.data).toEqual(mockQuickSearchResponse);
-      expect(mockSearchService.quickSearch).toHaveBeenCalledWith('elect', mockUser.id, 5);
+      expect(mockSearchService.quickSearch).toHaveBeenCalledWith(
+        'elect',
+        mockUser.id,
+        5,
+      );
     });
   });
 
@@ -192,7 +200,10 @@ describe('Search Integration (e2e) - With Mocked VectorService', () => {
         .get('/api/search/suggestions')
         .expect(200);
 
-      expect(mockSearchService.getSearchSuggestions).toHaveBeenCalledWith(mockUser.id, 10);
+      expect(mockSearchService.getSearchSuggestions).toHaveBeenCalledWith(
+        mockUser.id,
+        10,
+      );
     });
   });
 });

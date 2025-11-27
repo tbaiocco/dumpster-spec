@@ -52,7 +52,7 @@ export class ReviewController {
   @Get('flagged/:dumpId')
   async getFlaggedItem(@Param('dumpId') dumpId: string) {
     const flagged = await this.adminService.getFlaggedContent();
-    const item = flagged.find(f => f.id === dumpId);
+    const item = flagged.find((f) => f.id === dumpId);
 
     if (!item) {
       return {

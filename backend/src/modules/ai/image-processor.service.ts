@@ -111,11 +111,17 @@ export interface ImageProcessingResult {
 @Injectable()
 export class ImageProcessorService {
   private readonly logger = new Logger(ImageProcessorService.name);
-  
+
   // Image processing constraints
   private readonly constraints = {
     maxFileSize: 20 * 1024 * 1024, // 20MB
-    supportedFormats: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'],
+    supportedFormats: [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'image/bmp',
+    ],
     maxDimensions: {
       width: 4096,
       height: 4096,
@@ -128,10 +134,12 @@ export class ImageProcessorService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly mediaProcessor: MediaProcessorService
+    private readonly mediaProcessor: MediaProcessorService,
   ) {}
 
-  async processImage(request: ImageProcessingRequest): Promise<ImageProcessingResult> {
+  async processImage(
+    request: ImageProcessingRequest,
+  ): Promise<ImageProcessingResult> {
     const startTime = Date.now();
     this.logger.log(`Processing image: ${request.imageUrl}`);
 
@@ -185,13 +193,17 @@ export class ImageProcessorService {
 
       // Step 4: Perform visual analysis (if requested)
       if (request.analysisType !== 'ocr_only') {
-        imageAnalysis.visualAnalysis = await this.performVisualAnalysis(mediaResult.file);
+        imageAnalysis.visualAnalysis = await this.performVisualAnalysis(
+          mediaResult.file,
+        );
         processingSteps.visualAnalysis = true;
       }
 
       // Step 5: Perform OCR analysis (if requested)
       if (request.analysisType !== 'vision_only') {
-        imageAnalysis.ocrResult = await this.performOCRAnalysis(mediaResult.file);
+        imageAnalysis.ocrResult = await this.performOCRAnalysis(
+          mediaResult.file,
+        );
         processingSteps.ocrAnalysis = true;
       }
 
@@ -200,7 +212,7 @@ export class ImageProcessorService {
         imageAnalysis.contentAnalysis = await this.performContentAnalysis(
           mediaResult.file,
           imageAnalysis.visualAnalysis,
-          imageAnalysis.ocrResult
+          imageAnalysis.ocrResult,
         );
         processingSteps.contentAnalysis = true;
       }
@@ -215,9 +227,11 @@ export class ImageProcessorService {
         success: true,
         processingSteps,
       };
-
     } catch (error) {
-      this.logger.error(`Image processing failed: ${error.message}`, error.stack);
+      this.logger.error(
+        `Image processing failed: ${error.message}`,
+        error.stack,
+      );
 
       return {
         image: null,
@@ -254,7 +268,6 @@ export class ImageProcessorService {
           processingTime: 0,
         },
       };
-
     } catch (error) {
       this.logger.error(`Error retrieving image analysis ${imageId}:`, error);
       return null;
@@ -269,13 +282,17 @@ export class ImageProcessorService {
 
     // Check file size
     if (mediaFile.size > this.constraints.maxFileSize) {
-      throw new Error(`Image file too large: ${mediaFile.size} bytes (max: ${this.constraints.maxFileSize})`);
+      throw new Error(
+        `Image file too large: ${mediaFile.size} bytes (max: ${this.constraints.maxFileSize})`,
+      );
     }
 
     this.logger.log(`Image file validation passed: ${mediaFile.id}`);
   }
 
-  private async extractImageDimensions(mediaFile: MediaFile): Promise<{ width: number; height: number }> {
+  private async extractImageDimensions(
+    mediaFile: MediaFile,
+  ): Promise<{ width: number; height: number }> {
     // In a real implementation, this would read the image file to get actual dimensions
     // For now, we'll use metadata if available or return defaults
     return {
@@ -284,7 +301,9 @@ export class ImageProcessorService {
     };
   }
 
-  private async performVisualAnalysis(mediaFile: MediaFile): Promise<ImageAnalysis['visualAnalysis']> {
+  private async performVisualAnalysis(
+    mediaFile: MediaFile,
+  ): Promise<ImageAnalysis['visualAnalysis']> {
     try {
       this.logger.log(`Performing visual analysis: ${mediaFile.id}`);
 
@@ -348,23 +367,27 @@ export class ImageProcessorService {
         ],
       };
 
-      this.logger.log(`Visual analysis completed: ${visualAnalysis.objects.length} objects detected`);
+      this.logger.log(
+        `Visual analysis completed: ${visualAnalysis.objects.length} objects detected`,
+      );
       return visualAnalysis;
-
     } catch (error) {
       this.logger.error(`Visual analysis error for ${mediaFile.id}:`, error);
       return undefined;
     }
   }
 
-  private async performOCRAnalysis(mediaFile: MediaFile): Promise<ImageAnalysis['ocrResult']> {
+  private async performOCRAnalysis(
+    mediaFile: MediaFile,
+  ): Promise<ImageAnalysis['ocrResult']> {
     try {
       this.logger.log(`Performing OCR analysis: ${mediaFile.id}`);
 
       // Mock OCR implementation
       // In a real implementation, this would use Google Cloud Vision OCR or similar
       const ocrResult: ImageAnalysis['ocrResult'] = {
-        extractedText: 'This is sample text extracted from the image. It would contain the actual OCR results.',
+        extractedText:
+          'This is sample text extracted from the image. It would contain the actual OCR results.',
         confidence: 0.87,
         language: 'en',
         blocks: [
@@ -381,9 +404,10 @@ export class ImageProcessorService {
         ],
       };
 
-      this.logger.log(`OCR analysis completed: "${ocrResult.extractedText.substring(0, 50)}..."`);
+      this.logger.log(
+        `OCR analysis completed: "${ocrResult.extractedText.substring(0, 50)}..."`,
+      );
       return ocrResult;
-
     } catch (error) {
       this.logger.error(`OCR analysis error for ${mediaFile.id}:`, error);
       return undefined;
@@ -393,7 +417,7 @@ export class ImageProcessorService {
   private async performContentAnalysis(
     mediaFile: MediaFile,
     visualAnalysis?: ImageAnalysis['visualAnalysis'],
-    ocrResult?: ImageAnalysis['ocrResult']
+    ocrResult?: ImageAnalysis['ocrResult'],
   ): Promise<ImageAnalysis['contentAnalysis']> {
     try {
       this.logger.log(`Performing content analysis: ${mediaFile.id}`);
@@ -413,9 +437,10 @@ export class ImageProcessorService {
         context: this.analyzeContext(visualAnalysis, ocrResult),
       };
 
-      this.logger.log(`Content analysis completed: ${category} - ${description.substring(0, 50)}...`);
+      this.logger.log(
+        `Content analysis completed: ${category} - ${description.substring(0, 50)}...`,
+      );
       return contentAnalysis;
-
     } catch (error) {
       this.logger.error(`Content analysis error for ${mediaFile.id}:`, error);
       return undefined;
@@ -424,12 +449,14 @@ export class ImageProcessorService {
 
   private generateDescription(
     visualAnalysis?: ImageAnalysis['visualAnalysis'],
-    ocrResult?: ImageAnalysis['ocrResult']
+    ocrResult?: ImageAnalysis['ocrResult'],
   ): string {
     const parts: string[] = [];
 
     if (visualAnalysis?.objects && visualAnalysis.objects.length > 0) {
-      const objectNames = visualAnalysis.objects.map(obj => obj.name).slice(0, 3);
+      const objectNames = visualAnalysis.objects
+        .map((obj) => obj.name)
+        .slice(0, 3);
       parts.push(`Image contains ${objectNames.join(', ')}`);
     }
 
@@ -438,32 +465,54 @@ export class ImageProcessorService {
     }
 
     if (ocrResult?.extractedText?.trim()) {
-      parts.push(`Contains text: "${ocrResult.extractedText.substring(0, 50)}..."`);
+      parts.push(
+        `Contains text: "${ocrResult.extractedText.substring(0, 50)}..."`,
+      );
     }
 
-    return parts.length > 0 
-      ? parts.join('. ') 
-      : 'Image processed successfully';
+    return parts.length > 0 ? parts.join('. ') : 'Image processed successfully';
   }
 
   private categorizeContent(
     visualAnalysis?: ImageAnalysis['visualAnalysis'],
-    ocrResult?: ImageAnalysis['ocrResult']
+    ocrResult?: ImageAnalysis['ocrResult'],
   ): string {
     // Simple categorization based on detected objects and text
     if (visualAnalysis?.objects) {
-      const objectNames = visualAnalysis.objects.map(obj => obj.name.toLowerCase());
-      
-      if (objectNames.some(name => ['person', 'face'].includes(name))) return 'people';
-      if (objectNames.some(name => ['car', 'vehicle', 'truck'].includes(name))) return 'transportation';
-      if (objectNames.some(name => ['food', 'drink', 'meal'].includes(name))) return 'food';
-      if (objectNames.some(name => ['building', 'house', 'architecture'].includes(name))) return 'architecture';
-      if (objectNames.some(name => ['animal', 'dog', 'cat', 'bird'].includes(name))) return 'animals';
+      const objectNames = visualAnalysis.objects.map((obj) =>
+        obj.name.toLowerCase(),
+      );
+
+      if (objectNames.some((name) => ['person', 'face'].includes(name)))
+        return 'people';
+      if (
+        objectNames.some((name) => ['car', 'vehicle', 'truck'].includes(name))
+      )
+        return 'transportation';
+      if (objectNames.some((name) => ['food', 'drink', 'meal'].includes(name)))
+        return 'food';
+      if (
+        objectNames.some((name) =>
+          ['building', 'house', 'architecture'].includes(name),
+        )
+      )
+        return 'architecture';
+      if (
+        objectNames.some((name) =>
+          ['animal', 'dog', 'cat', 'bird'].includes(name),
+        )
+      )
+        return 'animals';
     }
 
     if (ocrResult?.extractedText) {
       const text = ocrResult.extractedText.toLowerCase();
-      if (text.includes('receipt') || text.includes('invoice') || text.includes('$')) return 'document';
+      if (
+        text.includes('receipt') ||
+        text.includes('invoice') ||
+        text.includes('$')
+      )
+        return 'document';
       if (text.includes('menu') || text.includes('restaurant')) return 'food';
       if (text.includes('ticket') || text.includes('flight')) return 'travel';
     }
@@ -473,13 +522,13 @@ export class ImageProcessorService {
 
   private generateTags(
     visualAnalysis?: ImageAnalysis['visualAnalysis'],
-    ocrResult?: ImageAnalysis['ocrResult']
+    ocrResult?: ImageAnalysis['ocrResult'],
   ): string[] {
     const tags: string[] = [];
 
     // Add object-based tags
     if (visualAnalysis?.objects) {
-      visualAnalysis.objects.forEach(obj => {
+      visualAnalysis.objects.forEach((obj) => {
         if (obj.confidence > 0.7) {
           tags.push(obj.name.toLowerCase());
         }
@@ -488,7 +537,7 @@ export class ImageProcessorService {
 
     // Add color-based tags
     if (visualAnalysis?.colors) {
-      visualAnalysis.colors.slice(0, 2).forEach(color => {
+      visualAnalysis.colors.slice(0, 2).forEach((color) => {
         if (color.percentage > 20) {
           tags.push(color.color);
         }
@@ -497,9 +546,12 @@ export class ImageProcessorService {
 
     // Add landmark-based tags
     if (visualAnalysis?.landmarks) {
-      visualAnalysis.landmarks.forEach(landmark => {
+      visualAnalysis.landmarks.forEach((landmark) => {
         if (landmark.confidence > 0.8) {
-          tags.push('landmark', landmark.name.toLowerCase().replace(/\s+/g, '_'));
+          tags.push(
+            'landmark',
+            landmark.name.toLowerCase().replace(/\s+/g, '_'),
+          );
         }
       });
     }
@@ -520,11 +572,16 @@ export class ImageProcessorService {
     return false; // Default to safe
   }
 
-  private assessImageQuality(mediaFile: MediaFile): 'poor' | 'fair' | 'good' | 'excellent' {
+  private assessImageQuality(
+    mediaFile: MediaFile,
+  ): 'poor' | 'fair' | 'good' | 'excellent' {
     // Quality assessment based on file size and dimensions
-    const sizePerPixel = mediaFile.size / ((mediaFile.metadata.width || 800) * (mediaFile.metadata.height || 600));
+    const sizePerPixel =
+      mediaFile.size /
+      ((mediaFile.metadata.width || 800) * (mediaFile.metadata.height || 600));
 
-    if (mediaFile.mimeType === 'image/png' && sizePerPixel > 3) return 'excellent';
+    if (mediaFile.mimeType === 'image/png' && sizePerPixel > 3)
+      return 'excellent';
     if (mediaFile.mimeType === 'image/jpeg' && sizePerPixel > 1) return 'good';
     if (sizePerPixel > 0.5) return 'fair';
     return 'poor';
@@ -532,12 +589,14 @@ export class ImageProcessorService {
 
   private analyzeContext(
     visualAnalysis?: ImageAnalysis['visualAnalysis'],
-    ocrResult?: ImageAnalysis['ocrResult']
+    ocrResult?: ImageAnalysis['ocrResult'],
   ): string {
     const contextClues: string[] = [];
 
     if (visualAnalysis?.landmarks && visualAnalysis.landmarks.length > 0) {
-      contextClues.push(`Location: ${visualAnalysis.landmarks[0].location || 'Unknown'}`);
+      contextClues.push(
+        `Location: ${visualAnalysis.landmarks[0].location || 'Unknown'}`,
+      );
     }
 
     if (ocrResult?.extractedText?.includes('©')) {
@@ -555,14 +614,13 @@ export class ImageProcessorService {
     try {
       // Delete the underlying media file
       const result = await this.mediaProcessor.deleteMediaFile(imageId);
-      
+
       if (result) {
         this.logger.log(`Image analysis deleted: ${imageId}`);
         // In a real implementation, also delete analysis data
       }
 
       return result;
-
     } catch (error) {
       this.logger.error(`Error deleting image analysis ${imageId}:`, error);
       return false;

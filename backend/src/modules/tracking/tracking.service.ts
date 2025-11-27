@@ -2,7 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Dump } from '../../entities/dump.entity';
-import { Reminder, ReminderType, ReminderStatus } from '../../entities/reminder.entity';
+import {
+  Reminder,
+  ReminderType,
+  ReminderStatus,
+} from '../../entities/reminder.entity';
 import { ReminderService } from '../reminders/reminder.service';
 
 /**
@@ -63,13 +67,13 @@ export interface TrackingCheckpoint {
 
 /**
  * Service for tracking time-sensitive items
- * 
+ *
  * Handles package deliveries, applications, subscriptions, warranties, etc.
  */
 @Injectable()
 export class TrackingService {
   private readonly logger = new Logger(TrackingService.name);
-  
+
   // In-memory storage for trackable items (would be in database in production)
   private trackableItems: Map<string, TrackableItem> = new Map();
 
@@ -171,9 +175,7 @@ export class TrackingService {
       );
     }
 
-    return items.sort(
-      (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
-    );
+    return items.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   }
 
   /**
@@ -212,7 +214,9 @@ export class TrackingService {
     }
 
     this.trackableItems.set(itemId, item);
-    this.logger.log(`Updated tracking for item ${itemId}: ${checkpoint.status}`);
+    this.logger.log(
+      `Updated tracking for item ${itemId}: ${checkpoint.status}`,
+    );
 
     return item;
   }
@@ -264,7 +268,10 @@ export class TrackingService {
   /**
    * Auto-detect trackable items from dumps
    */
-  async detectTrackableItems(userId: string, dumpId: string): Promise<{
+  async detectTrackableItems(
+    userId: string,
+    dumpId: string,
+  ): Promise<{
     detected: boolean;
     suggestions: Array<{
       type: TrackingType;
@@ -356,9 +363,7 @@ export class TrackingService {
   /**
    * Create automatic reminders for a trackable item
    */
-  private async createAutoReminders(
-    item: TrackableItem,
-  ): Promise<void> {
+  private async createAutoReminders(item: TrackableItem): Promise<void> {
     if (!item.expectedEndDate) {
       return;
     }
@@ -441,7 +446,9 @@ export class TrackingService {
         if (reminder && reminder.status === ReminderStatus.PENDING) {
           reminder.status = ReminderStatus.DISMISSED;
           await this.reminderRepository.save(reminder);
-          this.logger.log(`Cancelled reminder ${reminderId} for item ${item.id}`);
+          this.logger.log(
+            `Cancelled reminder ${reminderId} for item ${item.id}`,
+          );
         }
       } catch (error) {
         this.logger.warn(

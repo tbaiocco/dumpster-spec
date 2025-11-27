@@ -1,7 +1,11 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, MoreThan, Between } from 'typeorm';
-import { Reminder, ReminderType, ReminderStatus } from '../../entities/reminder.entity';
+import {
+  Reminder,
+  ReminderType,
+  ReminderStatus,
+} from '../../entities/reminder.entity';
 import { User } from '../../entities/user.entity';
 
 export interface CreateReminderRequest {
@@ -60,7 +64,9 @@ export class ReminderService {
     });
 
     const saved = await this.reminderRepository.save(reminder);
-    this.logger.log(`Created reminder ${saved.id} scheduled for ${saved.scheduled_for}`);
+    this.logger.log(
+      `Created reminder ${saved.id} scheduled for ${saved.scheduled_for.toISOString()}`,
+    );
 
     return saved;
   }
@@ -309,7 +315,7 @@ export class ReminderService {
     });
 
     this.logger.log(
-      `Created next recurrence ${nextReminder.id} for ${nextScheduledTime}`,
+      `Created next recurrence ${nextReminder.id} for ${nextScheduledTime.toISOString()}`,
     );
 
     return nextReminder;

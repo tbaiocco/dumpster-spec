@@ -79,7 +79,11 @@ export class AdminController {
     const pageNum = Number.parseInt(page, 10);
     const limitNum = Number.parseInt(limit, 10);
 
-    const result = await this.adminService.getAllDumps(pageNum, limitNum, search);
+    const result = await this.adminService.getAllDumps(
+      pageNum,
+      limitNum,
+      search,
+    );
 
     return {
       success: true,

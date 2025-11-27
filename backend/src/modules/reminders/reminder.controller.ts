@@ -13,11 +13,18 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ReminderService } from './reminder.service';
-import type { CreateReminderRequest, UpdateReminderRequest } from './reminder.service';
+import type {
+  CreateReminderRequest,
+  UpdateReminderRequest,
+} from './reminder.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { User } from '../../entities/user.entity';
-import { Reminder, ReminderStatus, ReminderType } from '../../entities/reminder.entity';
+import {
+  Reminder,
+  ReminderStatus,
+  ReminderType,
+} from '../../entities/reminder.entity';
 
 @Controller('api/reminders')
 @UseGuards(JwtAuthGuard)
@@ -130,9 +137,7 @@ export class ReminderController {
    * GET /api/reminders/stats
    */
   @Get('stats')
-  async getReminderStats(
-    @GetUser() user: User,
-  ): Promise<{
+  async getReminderStats(@GetUser() user: User): Promise<{
     success: boolean;
     stats: any;
   }> {

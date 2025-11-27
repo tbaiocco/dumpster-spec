@@ -22,7 +22,10 @@ export const testDatabaseConfig = {
 };
 
 // Helper function to create test module
-export async function createTestingModule(imports: any[] = [], providers: any[] = []) {
+export async function createTestingModule(
+  imports: any[] = [],
+  providers: any[] = [],
+) {
   return Test.createTestingModule({
     imports: [
       ConfigModule.forRoot({ isGlobal: true }),

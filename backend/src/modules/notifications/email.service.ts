@@ -17,28 +17,28 @@ export interface EmailResult {
 
 /**
  * Email service for sending notifications via email
- * 
+ *
  * Supports multiple providers:
  * - SendGrid (recommended for production)
  * - Resend (modern alternative)
  * - Gmail SMTP (for development/testing)
  * - Custom SMTP
- * 
+ *
  * Configuration via environment variables:
  * - EMAIL_PROVIDER: 'sendgrid' | 'resend' | 'gmail' | 'smtp'
  * - EMAIL_FROM: Sender email address (e.g., noreply@dumpster.app)
  * - EMAIL_FROM_NAME: Sender name (e.g., "Dumpster Notifications")
- * 
+ *
  * For SendGrid:
  * - SENDGRID_API_KEY
- * 
+ *
  * For Resend:
  * - RESEND_API_KEY
- * 
+ *
  * For Gmail:
  * - GMAIL_USER: Your Gmail address
  * - GMAIL_APP_PASSWORD: App-specific password (not your regular password)
- * 
+ *
  * For Custom SMTP:
  * - SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS
  */
@@ -89,7 +89,9 @@ export class EmailService {
           this.transporter = this.createGmailTransporter();
       }
 
-      this.logger.log(`Email service initialized with provider: ${this.provider}`);
+      this.logger.log(
+        `Email service initialized with provider: ${this.provider}`,
+      );
     } catch (error) {
       this.logger.error('Failed to initialize email transporter', error);
       this.transporter = null;

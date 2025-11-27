@@ -13,7 +13,12 @@ import { SearchModule } from '../search/search.module';
 import { FeedbackModule } from '../feedback/feedback.module';
 
 @Module({
-  imports: [UserModule, forwardRef(() => DumpModule), SearchModule, FeedbackModule],
+  imports: [
+    UserModule,
+    forwardRef(() => DumpModule),
+    SearchModule,
+    FeedbackModule,
+  ],
   providers: [
     TelegramService,
     WhatsAppService,

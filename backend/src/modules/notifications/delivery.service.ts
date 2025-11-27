@@ -20,7 +20,10 @@ export enum NotificationType {
 
 export interface DeliveryService {
   sendDigest(userId: string, digestContent: string): Promise<DeliveryResult>;
-  sendReminder(userId: string, reminderMessage: string): Promise<DeliveryResult>;
+  sendReminder(
+    userId: string,
+    reminderMessage: string,
+  ): Promise<DeliveryResult>;
   sendAlert(userId: string, alertMessage: string): Promise<DeliveryResult>;
   sendUpdate(userId: string, updateMessage: string): Promise<DeliveryResult>;
 }
@@ -57,7 +60,10 @@ export class DeliveryService implements DeliveryService {
    * Send a digest to a user
    * Automatically selects the best channel
    */
-  async sendDigest(userId: string, digestContent: string): Promise<DeliveryResult> {
+  async sendDigest(
+    userId: string,
+    digestContent: string,
+  ): Promise<DeliveryResult> {
     return this.deliver({
       userId,
       type: NotificationType.DIGEST,
@@ -70,7 +76,10 @@ export class DeliveryService implements DeliveryService {
    * Send a reminder to a user
    * Automatically selects the best channel
    */
-  async sendReminder(userId: string, reminderMessage: string): Promise<DeliveryResult> {
+  async sendReminder(
+    userId: string,
+    reminderMessage: string,
+  ): Promise<DeliveryResult> {
     return this.deliver({
       userId,
       type: NotificationType.REMINDER,
@@ -82,7 +91,10 @@ export class DeliveryService implements DeliveryService {
   /**
    * Send an alert notification to a user
    */
-  async sendAlert(userId: string, alertMessage: string): Promise<DeliveryResult> {
+  async sendAlert(
+    userId: string,
+    alertMessage: string,
+  ): Promise<DeliveryResult> {
     return this.deliver({
       userId,
       type: NotificationType.ALERT,
@@ -94,7 +106,10 @@ export class DeliveryService implements DeliveryService {
   /**
    * Send an update notification to a user
    */
-  async sendUpdate(userId: string, updateMessage: string): Promise<DeliveryResult> {
+  async sendUpdate(
+    userId: string,
+    updateMessage: string,
+  ): Promise<DeliveryResult> {
     return this.deliver({
       userId,
       type: NotificationType.UPDATE,
@@ -130,8 +145,9 @@ export class DeliveryService implements DeliveryService {
       }
 
       // Select and send to one additional channel (Telegram > WhatsApp > SMS)
-      const additionalChannel = request.channel || await this.selectAdditionalChannel(user);
-      
+      const additionalChannel =
+        request.channel || (await this.selectAdditionalChannel(user));
+
       if (additionalChannel) {
         const additionalResult = await this.attemptAdditionalChannelDelivery(
           request,
@@ -220,7 +236,7 @@ export class DeliveryService implements DeliveryService {
   ): Promise<DeliveryResult> {
     try {
       const emailResult = await this.deliverViaEmail(request);
-      
+
       if (emailResult.success) {
         this.logger.log(
           `Email delivered to user ${request.userId} at ${user.email}`,
@@ -230,7 +246,7 @@ export class DeliveryService implements DeliveryService {
           `Email delivery failed for user ${request.userId}: ${emailResult.error}`,
         );
       }
-      
+
       return emailResult;
     } catch (error) {
       this.logger.error(
@@ -435,7 +451,9 @@ export class DeliveryService implements DeliveryService {
    * Priority order: Telegram > WhatsApp > SMS
    * Returns null if no additional channel is available
    */
-  private async selectAdditionalChannel(user: any): Promise<NotificationChannel | null> {
+  private async selectAdditionalChannel(
+    user: any,
+  ): Promise<NotificationChannel | null> {
     // Priority order: Telegram > WhatsApp > SMS
     if (user.chat_id_telegram) {
       return NotificationChannel.TELEGRAM;

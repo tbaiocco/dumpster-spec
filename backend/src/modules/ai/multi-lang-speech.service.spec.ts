@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { MultiLanguageSpeechService, SupportedLanguage } from './multi-lang-speech.service';
+import {
+  MultiLanguageSpeechService,
+  SupportedLanguage,
+} from './multi-lang-speech.service';
 import { SpeechService } from './speech.service';
 
 describe('MultiLanguageSpeechService', () => {
@@ -23,7 +26,9 @@ describe('MultiLanguageSpeechService', () => {
       ],
     }).compile();
 
-    service = module.get<MultiLanguageSpeechService>(MultiLanguageSpeechService);
+    service = module.get<MultiLanguageSpeechService>(
+      MultiLanguageSpeechService,
+    );
     mockSpeechService = module.get(SpeechService);
   });
 
@@ -41,7 +46,11 @@ describe('MultiLanguageSpeechService', () => {
       mockSpeechService.transcribeAudio.mockResolvedValue(mockTranscription);
 
       // Act
-      const result = await service.transcribeWithLanguage(audioData, audioFormat, SupportedLanguage.ENGLISH);
+      const result = await service.transcribeWithLanguage(
+        audioData,
+        audioFormat,
+        SupportedLanguage.ENGLISH,
+      );
 
       // Assert
       expect(result.text).toBe('Hello, this is a test message in English.');
@@ -62,18 +71,27 @@ describe('MultiLanguageSpeechService', () => {
         confidence: 0.92,
         language: 'es-ES',
         segments: [
-          { text: 'Hola, este es un mensaje de prueba en español.', start: 0, end: 4.2 },
+          {
+            text: 'Hola, este es un mensaje de prueba en español.',
+            start: 0,
+            end: 4.2,
+          },
         ],
       };
 
       mockSpeechService.transcribeAudio.mockResolvedValue(mockTranscription);
 
       // Act
-      const result = await service.transcribeMultiLanguage(audioData, SupportedLanguage.SPANISH);
+      const result = await service.transcribeMultiLanguage(
+        audioData,
+        SupportedLanguage.SPANISH,
+      );
 
       // Assert
       expect(result.success).toBe(true);
-      expect(result.transcription).toBe('Hola, este es un mensaje de prueba en español.');
+      expect(result.transcription).toBe(
+        'Hola, este es un mensaje de prueba en español.',
+      );
       expect(result.detectedLanguage).toBe(SupportedLanguage.SPANISH);
       expect(result.confidence).toBe(0.92);
     });
@@ -100,18 +118,27 @@ describe('MultiLanguageSpeechService', () => {
 
       // Assert
       expect(result.success).toBe(true);
-      expect(result.transcription).toBe('Bonjour, ceci est un message de test en français.');
+      expect(result.transcription).toBe(
+        'Bonjour, ceci est un message de test en français.',
+      );
       expect(result.detectedLanguage).toBe(SupportedLanguage.FRENCH);
-      expect(mockSpeechService.detectSpeechLanguage).toHaveBeenCalledWith(audioData);
+      expect(mockSpeechService.detectSpeechLanguage).toHaveBeenCalledWith(
+        audioData,
+      );
     });
 
     it('should handle transcription errors gracefully', async () => {
       // Arrange
       const audioData = Buffer.from('invalid-audio-data');
-      mockSpeechService.transcribeAudio.mockRejectedValue(new Error('Audio format not supported'));
+      mockSpeechService.transcribeAudio.mockRejectedValue(
+        new Error('Audio format not supported'),
+      );
 
       // Act
-      const result = await service.transcribeMultiLanguage(audioData, SupportedLanguage.ENGLISH);
+      const result = await service.transcribeMultiLanguage(
+        audioData,
+        SupportedLanguage.ENGLISH,
+      );
 
       // Assert
       expect(result.success).toBe(false);
@@ -148,7 +175,7 @@ describe('MultiLanguageSpeechService', () => {
         confidence: 0.75,
         alternatives: [
           { language: 'pt-BR', confidence: 0.65 },
-          { language: 'it-IT', confidence: 0.60 },
+          { language: 'it-IT', confidence: 0.6 },
         ],
       };
 
@@ -160,7 +187,9 @@ describe('MultiLanguageSpeechService', () => {
       // Assert
       expect(result.detectedLanguage).toBe(SupportedLanguage.SPANISH);
       expect(result.confidence).toBe(0.75);
-      expect(result.alternativeLanguages).toContain(SupportedLanguage.PORTUGUESE);
+      expect(result.alternativeLanguages).toContain(
+        SupportedLanguage.PORTUGUESE,
+      );
       expect(result.alternativeLanguages).toContain(SupportedLanguage.ITALIAN);
     });
 
@@ -187,9 +216,18 @@ describe('MultiLanguageSpeechService', () => {
     it('should transcribe multiple audio files in different languages', async () => {
       // Arrange
       const audioFiles = [
-        { data: Buffer.from('english-audio'), language: SupportedLanguage.ENGLISH },
-        { data: Buffer.from('spanish-audio'), language: SupportedLanguage.SPANISH },
-        { data: Buffer.from('french-audio'), language: SupportedLanguage.FRENCH },
+        {
+          data: Buffer.from('english-audio'),
+          language: SupportedLanguage.ENGLISH,
+        },
+        {
+          data: Buffer.from('spanish-audio'),
+          language: SupportedLanguage.SPANISH,
+        },
+        {
+          data: Buffer.from('french-audio'),
+          language: SupportedLanguage.FRENCH,
+        },
       ];
 
       mockSpeechService.transcribeAudio
@@ -207,7 +245,7 @@ describe('MultiLanguageSpeechService', () => {
         })
         .mockResolvedValueOnce({
           text: 'Transcription en français',
-          confidence: 0.90,
+          confidence: 0.9,
           language: 'fr-FR',
           segments: [],
         });
@@ -226,8 +264,14 @@ describe('MultiLanguageSpeechService', () => {
     it('should handle partial failures in batch processing', async () => {
       // Arrange
       const audioFiles = [
-        { data: Buffer.from('valid-audio'), language: SupportedLanguage.ENGLISH },
-        { data: Buffer.from('invalid-audio'), language: SupportedLanguage.SPANISH },
+        {
+          data: Buffer.from('valid-audio'),
+          language: SupportedLanguage.ENGLISH,
+        },
+        {
+          data: Buffer.from('invalid-audio'),
+          language: SupportedLanguage.SPANISH,
+        },
       ];
 
       mockSpeechService.transcribeAudio
@@ -272,7 +316,7 @@ describe('MultiLanguageSpeechService', () => {
     it('should return language usage statistics', async () => {
       // Arrange - Process some audio to build statistics
       const audioData = Buffer.from('test-audio');
-      
+
       mockSpeechService.transcribeAudio.mockResolvedValue({
         text: 'Test transcription',
         confidence: 0.95,
@@ -281,9 +325,18 @@ describe('MultiLanguageSpeechService', () => {
       });
 
       // Process multiple times to build stats
-      await service.transcribeMultiLanguage(audioData, SupportedLanguage.ENGLISH);
-      await service.transcribeMultiLanguage(audioData, SupportedLanguage.ENGLISH);
-      await service.transcribeMultiLanguage(audioData, SupportedLanguage.SPANISH);
+      await service.transcribeMultiLanguage(
+        audioData,
+        SupportedLanguage.ENGLISH,
+      );
+      await service.transcribeMultiLanguage(
+        audioData,
+        SupportedLanguage.ENGLISH,
+      );
+      await service.transcribeMultiLanguage(
+        audioData,
+        SupportedLanguage.SPANISH,
+      );
 
       // Act
       const stats = await service.getLanguageStatistics();
@@ -315,7 +368,10 @@ describe('MultiLanguageSpeechService', () => {
       });
 
       // Act
-      const result = await service.optimizeForLanguage(audioData, SupportedLanguage.CHINESE);
+      const result = await service.optimizeForLanguage(
+        audioData,
+        SupportedLanguage.CHINESE,
+      );
 
       // Assert
       expect(result.success).toBe(true);
@@ -331,7 +387,10 @@ describe('MultiLanguageSpeechService', () => {
       const emptyAudio = Buffer.alloc(0);
 
       // Act
-      const result = await service.transcribeMultiLanguage(emptyAudio, SupportedLanguage.ENGLISH);
+      const result = await service.transcribeMultiLanguage(
+        emptyAudio,
+        SupportedLanguage.ENGLISH,
+      );
 
       // Assert
       expect(result.success).toBe(false);
@@ -349,7 +408,10 @@ describe('MultiLanguageSpeechService', () => {
       });
 
       // Act
-      const result = await service.transcribeMultiLanguage(shortAudio, SupportedLanguage.ENGLISH);
+      const result = await service.transcribeMultiLanguage(
+        shortAudio,
+        SupportedLanguage.ENGLISH,
+      );
 
       // Assert
       expect(result.success).toBe(true);
@@ -360,10 +422,15 @@ describe('MultiLanguageSpeechService', () => {
     it('should handle network timeouts gracefully', async () => {
       // Arrange
       const audioData = Buffer.from('timeout-test-audio');
-      mockSpeechService.transcribeAudio.mockRejectedValue(new Error('Request timeout'));
+      mockSpeechService.transcribeAudio.mockRejectedValue(
+        new Error('Request timeout'),
+      );
 
       // Act
-      const result = await service.transcribeMultiLanguage(audioData, SupportedLanguage.ENGLISH);
+      const result = await service.transcribeMultiLanguage(
+        audioData,
+        SupportedLanguage.ENGLISH,
+      );
 
       // Assert
       expect(result.success).toBe(false);
@@ -395,7 +462,7 @@ describe('MultiLanguageSpeechService', () => {
 
       // Assert
       expect(results).toHaveLength(3);
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result.success).toBe(true);
       });
     });

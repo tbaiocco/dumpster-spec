@@ -39,7 +39,7 @@ export interface FallbackResult<T> {
 export class FallbackHandlerService {
   private readonly logger = new Logger(FallbackHandlerService.name);
   private readonly circuitBreakers = new Map<string, CircuitBreakerState>();
-  
+
   private readonly defaultConfig: FallbackConfig = {
     maxRetries: 3,
     retryDelayMs: 1000,
@@ -58,21 +58,26 @@ export class FallbackHandlerService {
     primaryFn: () => Promise<T>,
     fallbackFn: () => Promise<T>,
     serviceName: string,
-    options: RetryOptions = {}
+    options: RetryOptions = {},
   ): Promise<FallbackResult<T>> {
     const startTime = Date.now();
     const config = this.getConfigForService(serviceName);
-    
+
     let attempts = 0;
     let lastError: Error | undefined;
-    let circuitBreakerTriggered = false;
+    const circuitBreakerTriggered = false;
 
     // Check circuit breaker state
     if (config.enableCircuitBreaker && this.isCircuitBreakerOpen(serviceName)) {
-      this.logger.warn(`Circuit breaker OPEN for ${serviceName}, using fallback immediately`);
-      
+      this.logger.warn(
+        `Circuit breaker OPEN for ${serviceName}, using fallback immediately`,
+      );
+
       try {
-        const fallbackData = await this.executeWithTimeout(fallbackFn, config.timeoutMs);
+        const fallbackData = await this.executeWithTimeout(
+          fallbackFn,
+          config.timeoutMs,
+        );
         return {
           success: true,
           data: fallbackData,
@@ -101,13 +106,18 @@ export class FallbackHandlerService {
 
     for (attempts = 1; attempts <= maxRetries + 1; attempts++) {
       try {
-        this.logger.debug(`Attempting ${serviceName} (attempt ${attempts}/${maxRetries + 1})`);
-        
-        const result = await this.executeWithTimeout(primaryFn, config.timeoutMs);
-        
+        this.logger.debug(
+          `Attempting ${serviceName} (attempt ${attempts}/${maxRetries + 1})`,
+        );
+
+        const result = await this.executeWithTimeout(
+          primaryFn,
+          config.timeoutMs,
+        );
+
         // Success - record it and reset circuit breaker
         this.recordSuccess(serviceName);
-        
+
         return {
           success: true,
           data: result,
@@ -116,24 +126,33 @@ export class FallbackHandlerService {
           totalTime: Date.now() - startTime,
           circuitBreakerTriggered,
         };
-
       } catch (error) {
         lastError = error as Error;
-        this.logger.warn(`${serviceName} attempt ${attempts} failed: ${lastError.message}`);
-        
+        this.logger.warn(
+          `${serviceName} attempt ${attempts} failed: ${lastError.message}`,
+        );
+
         // Record failure for circuit breaker
         this.recordFailure(serviceName);
-        
+
         // Check if we should retry
-        const shouldRetry = this.shouldRetry(lastError, attempts, maxRetries, options.retryCondition);
-        
+        const shouldRetry = this.shouldRetry(
+          lastError,
+          attempts,
+          maxRetries,
+          options.retryCondition,
+        );
+
         if (!shouldRetry) {
           break;
         }
 
         // Calculate delay with exponential backoff
         if (attempts <= maxRetries) {
-          const delay = Math.min(baseDelay * Math.pow(backoffMultiplier, attempts - 1), maxDelay);
+          const delay = Math.min(
+            baseDelay * Math.pow(backoffMultiplier, attempts - 1),
+            maxDelay,
+          );
           this.logger.debug(`Waiting ${delay}ms before retry ${attempts + 1}`);
           await this.delay(delay);
         }
@@ -141,11 +160,16 @@ export class FallbackHandlerService {
     }
 
     // Primary function failed, try fallback
-    this.logger.warn(`${serviceName} failed after ${attempts} attempts, using fallback`);
-    
+    this.logger.warn(
+      `${serviceName} failed after ${attempts} attempts, using fallback`,
+    );
+
     try {
-      const fallbackData = await this.executeWithTimeout(fallbackFn, config.timeoutMs);
-      
+      const fallbackData = await this.executeWithTimeout(
+        fallbackFn,
+        config.timeoutMs,
+      );
+
       return {
         success: true,
         data: fallbackData,
@@ -154,10 +178,11 @@ export class FallbackHandlerService {
         totalTime: Date.now() - startTime,
         circuitBreakerTriggered,
       };
-
     } catch (fallbackError) {
-      this.logger.error(`Fallback also failed for ${serviceName}: ${(fallbackError as Error).message}`);
-      
+      this.logger.error(
+        `Fallback also failed for ${serviceName}: ${(fallbackError as Error).message}`,
+      );
+
       return {
         success: false,
         error: lastError || (fallbackError as Error),
@@ -175,7 +200,7 @@ export class FallbackHandlerService {
   async executeWithRetry<T>(
     fn: () => Promise<T>,
     serviceName: string,
-    options: RetryOptions = {}
+    options: RetryOptions = {},
   ): Promise<FallbackResult<T>> {
     const fallbackFn = async (): Promise<T> => {
       throw new Error('No fallback available');
@@ -188,10 +213,12 @@ export class FallbackHandlerService {
    * Get circuit breaker state for a service
    */
   getCircuitBreakerState(serviceName: string): CircuitBreakerState {
-    return this.circuitBreakers.get(serviceName) || {
-      state: 'CLOSED',
-      failureCount: 0,
-    };
+    return (
+      this.circuitBreakers.get(serviceName) || {
+        state: 'CLOSED',
+        failureCount: 0,
+      }
+    );
   }
 
   /**
@@ -209,35 +236,44 @@ export class FallbackHandlerService {
   /**
    * Get fallback statistics for monitoring
    */
-  getStats(): Record<string, {
-    circuitBreakerState: CircuitBreakerState;
-    isHealthy: boolean;
-  }> {
+  getStats(): Record<
+    string,
+    {
+      circuitBreakerState: CircuitBreakerState;
+      isHealthy: boolean;
+    }
+  > {
     const stats: Record<string, any> = {};
-    
+
     for (const [serviceName, state] of this.circuitBreakers.entries()) {
       stats[serviceName] = {
         circuitBreakerState: state,
         isHealthy: state.state === 'CLOSED' && state.failureCount < 3,
       };
     }
-    
+
     return stats;
   }
 
-  private async executeWithTimeout<T>(fn: () => Promise<T>, timeoutMs: number): Promise<T> {
+  private async executeWithTimeout<T>(
+    fn: () => Promise<T>,
+    timeoutMs: number,
+  ): Promise<T> {
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms`)), timeoutMs);
+      setTimeout(
+        () => reject(new Error(`Operation timed out after ${timeoutMs}ms`)),
+        timeoutMs,
+      );
     });
 
     return Promise.race([fn(), timeoutPromise]);
   }
 
   private shouldRetry(
-    error: Error, 
-    attempts: number, 
-    maxRetries: number, 
-    retryCondition?: (error: Error) => boolean
+    error: Error,
+    attempts: number,
+    maxRetries: number,
+    retryCondition?: (error: Error) => boolean,
   ): boolean {
     if (attempts > maxRetries) {
       return false;
@@ -262,8 +298,8 @@ export class FallbackHandlerService {
     ];
 
     const errorMessage = error.message.toLowerCase();
-    const isRetryable = retryableErrors.some(retryableError => 
-      errorMessage.includes(retryableError)
+    const isRetryable = retryableErrors.some((retryableError) =>
+      errorMessage.includes(retryableError),
     );
 
     // Also retry on 5xx HTTP errors
@@ -286,7 +322,8 @@ export class FallbackHandlerService {
     if (state.state === 'OPEN') {
       // Check if we should transition to HALF_OPEN
       if (state.lastFailureTime) {
-        const timeSinceLastFailure = Date.now() - state.lastFailureTime.getTime();
+        const timeSinceLastFailure =
+          Date.now() - state.lastFailureTime.getTime();
         if (timeSinceLastFailure >= config.circuitBreakerResetTimeMs) {
           this.setCircuitBreakerState(serviceName, 'HALF_OPEN');
           return false; // Allow one request through
@@ -300,11 +337,13 @@ export class FallbackHandlerService {
 
   private recordSuccess(serviceName: string): void {
     const state = this.getCircuitBreakerState(serviceName);
-    
+
     if (state.state === 'HALF_OPEN') {
       // Transition back to CLOSED
       this.setCircuitBreakerState(serviceName, 'CLOSED');
-      this.logger.log(`Circuit breaker CLOSED for ${serviceName} after successful request`);
+      this.logger.log(
+        `Circuit breaker CLOSED for ${serviceName} after successful request`,
+      );
     }
 
     this.circuitBreakers.set(serviceName, {
@@ -317,24 +356,38 @@ export class FallbackHandlerService {
   private recordFailure(serviceName: string): void {
     const state = this.getCircuitBreakerState(serviceName);
     const config = this.getConfigForService(serviceName);
-    
+
     const newFailureCount = state.failureCount + 1;
-    const newState = { ...state, failureCount: newFailureCount, lastFailureTime: new Date() };
+    const newState = {
+      ...state,
+      failureCount: newFailureCount,
+      lastFailureTime: new Date(),
+    };
 
     if (state.state === 'HALF_OPEN') {
       // Transition back to OPEN
       this.setCircuitBreakerState(serviceName, 'OPEN');
-      this.logger.warn(`Circuit breaker OPEN for ${serviceName} after failed half-open attempt`);
-    } else if (state.state === 'CLOSED' && newFailureCount >= config.circuitBreakerThreshold) {
+      this.logger.warn(
+        `Circuit breaker OPEN for ${serviceName} after failed half-open attempt`,
+      );
+    } else if (
+      state.state === 'CLOSED' &&
+      newFailureCount >= config.circuitBreakerThreshold
+    ) {
       // Transition to OPEN
       newState.state = 'OPEN';
-      this.logger.warn(`Circuit breaker OPEN for ${serviceName} after ${newFailureCount} failures`);
+      this.logger.warn(
+        `Circuit breaker OPEN for ${serviceName} after ${newFailureCount} failures`,
+      );
     }
 
     this.circuitBreakers.set(serviceName, newState);
   }
 
-  private setCircuitBreakerState(serviceName: string, newState: CircuitBreakerState['state']): void {
+  private setCircuitBreakerState(
+    serviceName: string,
+    newState: CircuitBreakerState['state'],
+  ): void {
     const state = this.getCircuitBreakerState(serviceName);
     this.circuitBreakers.set(serviceName, {
       ...state,
@@ -348,13 +401,16 @@ export class FallbackHandlerService {
   }
 
   private async delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
    * Create common fallback functions for different AI services
    */
-  createAIServiceFallback<T>(defaultResponse: T, serviceName: string): () => Promise<T> {
+  createAIServiceFallback<T>(
+    defaultResponse: T,
+    serviceName: string,
+  ): () => Promise<T> {
     return async (): Promise<T> => {
       this.logger.warn(`Using fallback response for ${serviceName}`);
       return defaultResponse;
@@ -362,63 +418,75 @@ export class FallbackHandlerService {
   }
 
   createTextAnalysisFallback() {
-    return this.createAIServiceFallback({
-      summary: 'Content received but analysis temporarily unavailable.',
-      category: 'other',
-      sentiment: 'neutral' as const,
-      confidence: 0.1,
-      extractedEntities: {
-        people: [],
-        organizations: [],
-        locations: [],
-        dates: [],
-        times: [],
-        amounts: [],
+    return this.createAIServiceFallback(
+      {
+        summary: 'Content received but analysis temporarily unavailable.',
+        category: 'other',
+        sentiment: 'neutral' as const,
+        confidence: 0.1,
+        extractedEntities: {
+          people: [],
+          organizations: [],
+          locations: [],
+          dates: [],
+          times: [],
+          amounts: [],
+        },
+        urgency: 'normal' as const,
       },
-      urgency: 'normal' as const,
-    }, 'text-analysis');
+      'text-analysis',
+    );
   }
 
   createImageAnalysisFallback() {
-    return this.createAIServiceFallback({
-      description: 'Image received but analysis temporarily unavailable.',
-      objects: [],
-      text: [],
-      faces: [],
-      landmarks: [],
-      colors: [],
-    }, 'image-analysis');
+    return this.createAIServiceFallback(
+      {
+        description: 'Image received but analysis temporarily unavailable.',
+        objects: [],
+        text: [],
+        faces: [],
+        landmarks: [],
+        colors: [],
+      },
+      'image-analysis',
+    );
   }
 
   createVoiceTranscriptionFallback() {
-    return this.createAIServiceFallback({
-      text: 'Voice message received but transcription temporarily unavailable.',
-      confidence: 0.1,
-      language: 'en-US',
-    }, 'voice-transcription');
+    return this.createAIServiceFallback(
+      {
+        text: 'Voice message received but transcription temporarily unavailable.',
+        confidence: 0.1,
+        language: 'en-US',
+      },
+      'voice-transcription',
+    );
   }
 
   createEntityExtractionFallback() {
-    return this.createAIServiceFallback({
-      entities: [],
-      summary: {
-        totalEntities: 0,
-        entitiesByType: {},
-        averageConfidence: 0,
-      },
-      structuredData: {
-        dates: [],
-        times: [],
-        locations: [],
-        people: [],
-        organizations: [],
-        amounts: [],
-        contacts: {
-          phones: [],
-          emails: [],
-          urls: [],
+    return this.createAIServiceFallback(
+      {
+        entities: [],
+        summary: {
+          totalEntities: 0,
+          entitiesByType: {},
+          averageConfidence: 0,
+        },
+        structuredData: {
+          dates: [],
+          times: [],
+          locations: [],
+          people: [],
+          organizations: [],
+          amounts: [],
+          contacts: {
+            phones: [],
+            emails: [],
+            urls: [],
+          },
         },
       },
-    }, 'entity-extraction');
+      'entity-extraction',
+    );
   }
 }

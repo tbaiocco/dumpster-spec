@@ -7,7 +7,6 @@ import {
   HttpStatus,
   Logger,
   BadRequestException,
-
 } from '@nestjs/common';
 import { EmailProcessorService } from './email-processor.service';
 import { DumpService } from '../dumps/services/dump.service';
@@ -67,7 +66,9 @@ export class EmailController {
     @Headers() headers: Record<string, string>,
   ): Promise<EmailWebhookResponse> {
     try {
-      this.logger.log(`Received email webhook for message: ${payload.messageId}`);
+      this.logger.log(
+        `Received email webhook for message: ${payload.messageId}`,
+      );
 
       // Validate webhook authenticity
       await this.validateWebhookSignature(headers, payload);
@@ -79,7 +80,8 @@ export class EmailController {
       const emailMessage = await this.convertWebhookToEmailMessage(payload);
 
       // Process email using EmailProcessorService
-      const processedEmail = await this.emailProcessor.processEmail(emailMessage);
+      const processedEmail =
+        await this.emailProcessor.processEmail(emailMessage);
 
       // Create dump entry from processed email
       const dump = await this.createDumpFromEmail(processedEmail);
@@ -92,11 +94,15 @@ export class EmailController {
         attachmentCount: processedEmail.processedAttachments.length,
       };
 
-      this.logger.log(`Successfully processed email ${payload.messageId} as dump ${dump.id}`);
+      this.logger.log(
+        `Successfully processed email ${payload.messageId} as dump ${dump.id}`,
+      );
       return response;
-
     } catch (error) {
-      this.logger.error(`Failed to process email webhook: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to process email webhook: ${error.message}`,
+        error.stack,
+      );
 
       const errorResponse: EmailWebhookResponse = {
         success: false,
@@ -127,9 +133,11 @@ export class EmailController {
 
       // Process using standard webhook handler
       return await this.handleInboundEmail(standardPayload, headers);
-
     } catch (error) {
-      this.logger.error(`Failed to process SendGrid webhook: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to process SendGrid webhook: ${error.message}`,
+        error.stack,
+      );
       return {
         success: false,
         messageId: payload.messageId || 'unknown',
@@ -156,9 +164,11 @@ export class EmailController {
 
       // Process using standard webhook handler
       return await this.handleInboundEmail(standardPayload, headers);
-
     } catch (error) {
-      this.logger.error(`Failed to process Mailgun webhook: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to process Mailgun webhook: ${error.message}`,
+        error.stack,
+      );
       return {
         success: false,
         messageId: payload.messageId || 'unknown',
@@ -190,7 +200,7 @@ export class EmailController {
     // In a real implementation, this would verify webhook signatures
     // For now, just check for a basic API key
     const apiKey = headers['x-api-key'] || headers['authorization'];
-    
+
     if (!apiKey) {
       this.logger.warn('Missing API key in webhook request');
       // Don't throw error for now - just log warning
@@ -228,7 +238,9 @@ export class EmailController {
     }
 
     if (errors.length > 0) {
-      throw new BadRequestException(`Invalid email payload: ${errors.join(', ')}`);
+      throw new BadRequestException(
+        `Invalid email payload: ${errors.join(', ')}`,
+      );
     }
   }
 
@@ -249,7 +261,7 @@ export class EmailController {
           contentId: att.contentId,
           disposition: att.disposition,
         };
-      })
+      }),
     );
 
     return {
@@ -340,7 +352,8 @@ export class EmailController {
       subject: payload.Subject || payload.subject || '',
       textBody: payload['body-plain'] || payload.text,
       htmlBody: payload['body-html'] || payload.html,
-      receivedDate: payload.Date || payload.timestamp || new Date().toISOString(),
+      receivedDate:
+        payload.Date || payload.timestamp || new Date().toISOString(),
       headers: this.parseMailgunHeaders(payload),
       attachments: this.convertMailgunAttachments(payload.attachments || []),
     };
@@ -351,14 +364,19 @@ export class EmailController {
    */
   private parseEmailList(emailString: string): string[] {
     if (!emailString) return [];
-    return emailString.split(',').map(email => email.trim()).filter(Boolean);
+    return emailString
+      .split(',')
+      .map((email) => email.trim())
+      .filter(Boolean);
   }
 
   /**
    * Convert SendGrid attachments format
    */
-  private convertSendGridAttachments(attachments: any[]): EmailWebhookAttachment[] {
-    return attachments.map(att => ({
+  private convertSendGridAttachments(
+    attachments: any[],
+  ): EmailWebhookAttachment[] {
+    return attachments.map((att) => ({
       filename: att.filename || att.name || 'unknown',
       contentType: att.contentType || att.type || 'application/octet-stream',
       size: att.size || 0,
@@ -371,10 +389,13 @@ export class EmailController {
   /**
    * Convert Mailgun attachments format
    */
-  private convertMailgunAttachments(attachments: any[]): EmailWebhookAttachment[] {
-    return attachments.map(att => ({
+  private convertMailgunAttachments(
+    attachments: any[],
+  ): EmailWebhookAttachment[] {
+    return attachments.map((att) => ({
       filename: att.filename || att.name || 'unknown',
-      contentType: att.contentType || att['content-type'] || 'application/octet-stream',
+      contentType:
+        att.contentType || att['content-type'] || 'application/octet-stream',
       size: att.size || 0,
       contentId: att['content-id'],
       disposition: att.disposition || 'attachment',
@@ -387,7 +408,7 @@ export class EmailController {
    */
   private parseMailgunHeaders(payload: any): Record<string, string> {
     const headers: Record<string, string> = {};
-    
+
     // Common Mailgun headers
     if (payload['Message-Id']) headers['message-id'] = payload['Message-Id'];
     if (payload['From']) headers['from'] = payload['From'];

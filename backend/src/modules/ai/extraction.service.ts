@@ -2,7 +2,16 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ClaudeService, type ContentAnalysisResponse } from './claude.service';
 
 export interface ExtractedEntity {
-  type: 'date' | 'time' | 'location' | 'person' | 'organization' | 'amount' | 'phone' | 'email' | 'url';
+  type:
+    | 'date'
+    | 'time'
+    | 'location'
+    | 'person'
+    | 'organization'
+    | 'amount'
+    | 'phone'
+    | 'email'
+    | 'url';
   value: string;
   confidence: number;
   context: string;
@@ -51,17 +60,23 @@ export class EntityExtractionService {
   // Common patterns for entity recognition
   private readonly patterns = {
     email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
-    phone: /(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b/g,
-    url: /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g,
-    currency: /[$€£¥₹]\s*[\d,]+(?:\.\d{2})?|\b\d+(?:\.\d{2})?\s*(?:dollars?|euros?|pounds?|yen|rupees?)\b/gi,
-    date: /\b(?:(?:january|february|march|april|may|june|july|august|september|october|november|december)\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?|\d{1,2}[\/\-\.]\d{1,2}[\/\-\.](?:\d{4}|\d{2})|\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})\b/gi,
+    phone:
+      /(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b/g,
+    url: /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g,
+    currency:
+      /[$€£¥₹]\s*[\d,]+(?:\.\d{2})?|\b\d+(?:\.\d{2})?\s*(?:dollars?|euros?|pounds?|yen|rupees?)\b/gi,
+    date: /\b(?:(?:january|february|march|april|may|june|july|august|september|october|november|december)\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?|\d{1,2}[-/.]\d{1,2}[-/.](?:\d{4}|\d{2})|\d{4}[-/.]\d{1,2}[-/.]\d{1,2})\b/gi,
     time: /\b(?:1[0-2]|0?[1-9]):(?:[0-5][0-9])\s*(?:am|pm|AM|PM)\b|\b(?:2[0-3]|[01]?[0-9]):(?:[0-5][0-9])\b/g,
   };
 
   constructor(private readonly claudeService: ClaudeService) {}
 
-  async extractEntities(request: EntityExtractionRequest): Promise<EntityExtractionResult> {
-    this.logger.log(`Extracting entities from content: ${request.content.substring(0, 100)}...`);
+  async extractEntities(
+    request: EntityExtractionRequest,
+  ): Promise<EntityExtractionResult> {
+    this.logger.log(
+      `Extracting entities from content: ${request.content.substring(0, 100)}...`,
+    );
 
     try {
       // Combine pattern-based and AI-based extraction
@@ -77,7 +92,9 @@ export class EntityExtractionService {
       // Calculate summary statistics
       const summary = this.calculateSummary(allEntities);
 
-      this.logger.log(`Extracted ${allEntities.length} entities with avg confidence ${summary.averageConfidence}`);
+      this.logger.log(
+        `Extracted ${allEntities.length} entities with avg confidence ${summary.averageConfidence}`,
+      );
 
       return {
         entities: allEntities,
@@ -86,7 +103,7 @@ export class EntityExtractionService {
       };
     } catch (error) {
       this.logger.error('Error extracting entities:', error);
-      
+
       // Fallback to pattern-based extraction only
       const fallbackEntities = this.extractWithPatterns(request.content);
       const structuredData = this.structureEntities(fallbackEntities);
@@ -105,90 +122,92 @@ export class EntityExtractionService {
 
     // Extract emails
     const emailMatches = Array.from(content.matchAll(this.patterns.email));
-    emailMatches.forEach(match => {
+    emailMatches.forEach((match) => {
       entities.push({
         type: 'email',
         value: match[0],
         confidence: 0.9,
-        context: this.getContext(content, match.index!, match[0].length),
+        context: this.getContext(content, match.index, match[0].length),
         position: {
-          start: match.index!,
-          end: match.index! + match[0].length,
+          start: match.index,
+          end: match.index + match[0].length,
         },
       });
     });
 
     // Extract phone numbers
     const phoneMatches = Array.from(content.matchAll(this.patterns.phone));
-    phoneMatches.forEach(match => {
+    phoneMatches.forEach((match) => {
       entities.push({
         type: 'phone',
         value: match[0],
         confidence: 0.8,
-        context: this.getContext(content, match.index!, match[0].length),
+        context: this.getContext(content, match.index, match[0].length),
         position: {
-          start: match.index!,
-          end: match.index! + match[0].length,
+          start: match.index,
+          end: match.index + match[0].length,
         },
       });
     });
 
     // Extract URLs
     const urlMatches = Array.from(content.matchAll(this.patterns.url));
-    urlMatches.forEach(match => {
+    urlMatches.forEach((match) => {
       entities.push({
         type: 'url',
         value: match[0],
         confidence: 0.95,
-        context: this.getContext(content, match.index!, match[0].length),
+        context: this.getContext(content, match.index, match[0].length),
         position: {
-          start: match.index!,
-          end: match.index! + match[0].length,
+          start: match.index,
+          end: match.index + match[0].length,
         },
       });
     });
 
     // Extract currency amounts
-    const currencyMatches = Array.from(content.matchAll(this.patterns.currency));
-    currencyMatches.forEach(match => {
+    const currencyMatches = Array.from(
+      content.matchAll(this.patterns.currency),
+    );
+    currencyMatches.forEach((match) => {
       entities.push({
         type: 'amount',
         value: match[0],
         confidence: 0.8,
-        context: this.getContext(content, match.index!, match[0].length),
+        context: this.getContext(content, match.index, match[0].length),
         position: {
-          start: match.index!,
-          end: match.index! + match[0].length,
+          start: match.index,
+          end: match.index + match[0].length,
         },
       });
     });
 
     // Extract dates
     const dateMatches = Array.from(content.matchAll(this.patterns.date));
-    dateMatches.forEach(match => {
+    dateMatches.forEach((match) => {
       entities.push({
         type: 'date',
         value: match[0],
         confidence: 0.7,
-        context: this.getContext(content, match.index!, match[0].length),
+        context: this.getContext(content, match.index, match[0].length),
         position: {
-          start: match.index!,
-          end: match.index! + match[0].length,
+          start: match.index,
+          end: match.index + match[0].length,
         },
       });
     });
 
     // Extract times
     const timeMatches = Array.from(content.matchAll(this.patterns.time));
-    timeMatches.forEach(match => {
+    timeMatches.forEach((match) => {
       entities.push({
         type: 'time',
         value: match[0],
         confidence: 0.8,
-        context: this.getContext(content, match.index!, match[0].length),
+        context: this.getContext(content, match.index, match[0].length),
         position: {
-          start: match.index!,
-          end: match.index! + match[0].length,
+          start: match.index,
+          end: match.index + match[0].length,
         },
       });
     });
@@ -196,7 +215,9 @@ export class EntityExtractionService {
     return entities;
   }
 
-  private async extractWithAI(request: EntityExtractionRequest): Promise<ExtractedEntity[]> {
+  private async extractWithAI(
+    request: EntityExtractionRequest,
+  ): Promise<ExtractedEntity[]> {
     const prompt = `
       Extract entities from this content and return them in a structured format.
       
@@ -231,19 +252,25 @@ export class EntityExtractionService {
       // Parse AI response to extract entities
       return this.parseAIEntities(analysis, request.content);
     } catch (error) {
-      this.logger.warn('AI entity extraction failed, using pattern-based only:', error);
+      this.logger.warn(
+        'AI entity extraction failed, using pattern-based only:',
+        error,
+      );
       return [];
     }
   }
 
-  private parseAIEntities(analysis: ContentAnalysisResponse, originalContent: string): ExtractedEntity[] {
+  private parseAIEntities(
+    analysis: ContentAnalysisResponse,
+    originalContent: string,
+  ): ExtractedEntity[] {
     const entities: ExtractedEntity[] = [];
 
     // Extract from the structured entities in the analysis
     if (analysis.extractedEntities) {
       // People
       if (analysis.extractedEntities.people) {
-        analysis.extractedEntities.people.forEach(person => {
+        analysis.extractedEntities.people.forEach((person) => {
           entities.push({
             type: 'person',
             value: person,
@@ -255,7 +282,7 @@ export class EntityExtractionService {
 
       // Organizations
       if (analysis.extractedEntities.organizations) {
-        analysis.extractedEntities.organizations.forEach(org => {
+        analysis.extractedEntities.organizations.forEach((org) => {
           entities.push({
             type: 'organization',
             value: org,
@@ -267,7 +294,7 @@ export class EntityExtractionService {
 
       // Locations
       if (analysis.extractedEntities.locations) {
-        analysis.extractedEntities.locations.forEach(location => {
+        analysis.extractedEntities.locations.forEach((location) => {
           entities.push({
             type: 'location',
             value: location,
@@ -279,7 +306,7 @@ export class EntityExtractionService {
 
       // Dates
       if (analysis.extractedEntities.dates) {
-        analysis.extractedEntities.dates.forEach(date => {
+        analysis.extractedEntities.dates.forEach((date) => {
           entities.push({
             type: 'date',
             value: date,
@@ -291,7 +318,7 @@ export class EntityExtractionService {
 
       // Times
       if (analysis.extractedEntities.times) {
-        analysis.extractedEntities.times.forEach(time => {
+        analysis.extractedEntities.times.forEach((time) => {
           entities.push({
             type: 'time',
             value: time,
@@ -303,7 +330,7 @@ export class EntityExtractionService {
 
       // Amounts
       if (analysis.extractedEntities.amounts) {
-        analysis.extractedEntities.amounts.forEach(amount => {
+        analysis.extractedEntities.amounts.forEach((amount) => {
           entities.push({
             type: 'amount',
             value: amount,
@@ -317,15 +344,18 @@ export class EntityExtractionService {
     return entities;
   }
 
-  private mergeEntities(patternEntities: ExtractedEntity[], aiEntities: ExtractedEntity[]): ExtractedEntity[] {
+  private mergeEntities(
+    patternEntities: ExtractedEntity[],
+    aiEntities: ExtractedEntity[],
+  ): ExtractedEntity[] {
     const allEntities = [...patternEntities];
-    
+
     // Add AI entities that don't overlap with pattern entities
-    aiEntities.forEach(aiEntity => {
-      const hasOverlap = patternEntities.some(patternEntity => 
-        this.entitiesOverlap(aiEntity, patternEntity)
+    aiEntities.forEach((aiEntity) => {
+      const hasOverlap = patternEntities.some((patternEntity) =>
+        this.entitiesOverlap(aiEntity, patternEntity),
       );
-      
+
       if (!hasOverlap) {
         allEntities.push(aiEntity);
       }
@@ -340,7 +370,10 @@ export class EntityExtractionService {
     });
   }
 
-  private entitiesOverlap(entity1: ExtractedEntity, entity2: ExtractedEntity): boolean {
+  private entitiesOverlap(
+    entity1: ExtractedEntity,
+    entity2: ExtractedEntity,
+  ): boolean {
     // Check if values are similar (case-insensitive)
     if (entity1.value.toLowerCase() === entity2.value.toLowerCase()) {
       return true;
@@ -349,11 +382,13 @@ export class EntityExtractionService {
     // Check if one value contains the other
     const val1 = entity1.value.toLowerCase();
     const val2 = entity2.value.toLowerCase();
-    
+
     return val1.includes(val2) || val2.includes(val1);
   }
 
-  private structureEntities(entities: ExtractedEntity[]): EntityExtractionResult['structuredData'] {
+  private structureEntities(
+    entities: ExtractedEntity[],
+  ): EntityExtractionResult['structuredData'] {
     const structured = {
       dates: [] as string[],
       times: [] as string[],
@@ -368,7 +403,7 @@ export class EntityExtractionService {
       },
     };
 
-    entities.forEach(entity => {
+    entities.forEach((entity) => {
       switch (entity.type) {
         case 'date':
           structured.dates.push(entity.value);
@@ -403,11 +438,13 @@ export class EntityExtractionService {
     return structured;
   }
 
-  private calculateSummary(entities: ExtractedEntity[]): EntityExtractionResult['summary'] {
+  private calculateSummary(
+    entities: ExtractedEntity[],
+  ): EntityExtractionResult['summary'] {
     const entitiesByType: Record<string, number> = {};
     let totalConfidence = 0;
 
-    entities.forEach(entity => {
+    entities.forEach((entity) => {
       entitiesByType[entity.type] = (entitiesByType[entity.type] || 0) + 1;
       totalConfidence += entity.confidence;
     });
@@ -415,15 +452,20 @@ export class EntityExtractionService {
     return {
       totalEntities: entities.length,
       entitiesByType,
-      averageConfidence: entities.length > 0 ? totalConfidence / entities.length : 0,
+      averageConfidence:
+        entities.length > 0 ? totalConfidence / entities.length : 0,
     };
   }
 
-  private getContext(content: string, position: number, length: number): string {
+  private getContext(
+    content: string,
+    position: number,
+    length: number,
+  ): string {
     const contextRadius = 30;
     const start = Math.max(0, position - contextRadius);
     const end = Math.min(content.length, position + length + contextRadius);
-    
+
     return content.slice(start, end).trim();
   }
 
@@ -432,7 +474,7 @@ export class EntityExtractionService {
     if (index === -1) {
       return `Related to: ${value}`;
     }
-    
+
     return this.getContext(content, index, value.length);
   }
 }

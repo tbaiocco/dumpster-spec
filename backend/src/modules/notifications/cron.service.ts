@@ -115,7 +115,9 @@ export class CronService {
         return;
       }
 
-      this.logger.log(`Found ${pendingReminders.length} pending reminders to send`);
+      this.logger.log(
+        `Found ${pendingReminders.length} pending reminders to send`,
+      );
 
       let successCount = 0;
       let errorCount = 0;
@@ -130,10 +132,7 @@ export class CronService {
             await this.reminderService.createNextRecurrence(reminder.id);
           }
         } catch (error) {
-          this.logger.error(
-            `Failed to deliver reminder ${reminder.id}`,
-            error,
-          );
+          this.logger.error(`Failed to deliver reminder ${reminder.id}`, error);
           errorCount++;
         }
       }
@@ -184,7 +183,7 @@ export class CronService {
 
       this.logger.log(
         `Daily proactive analysis complete: ${result.usersProcessed} users processed, ` +
-        `${result.remindersCreated} reminders created, ${result.suggestionsGenerated} suggestions generated`,
+          `${result.remindersCreated} reminders created, ${result.suggestionsGenerated} suggestions generated`,
       );
     } catch (error) {
       this.logger.error('Daily proactive analysis job failed', error);
@@ -269,15 +268,17 @@ export class CronService {
     const digestText = await this.digestService.formatDigestAsText(digest);
 
     const result = await this.deliveryService.sendDigest(userId, digestText);
-    
+
     if (result.success) {
-      const messageIdPart = result.messageId ? ` (messageId: ${result.messageId})` : '';
+      const messageIdPart = result.messageId
+        ? ` (messageId: ${result.messageId})`
+        : '';
       this.logger.log(
-        `Morning digest delivered to user ${userId} via ${result.channel} at ${result.deliveredAt.toISOString()}${messageIdPart}`
+        `Morning digest delivered to user ${userId} via ${result.channel} at ${result.deliveredAt.toISOString()}${messageIdPart}`,
       );
     } else {
       this.logger.error(
-        `Failed to deliver morning digest to user ${userId} via ${result.channel}: ${result.error}`
+        `Failed to deliver morning digest to user ${userId} via ${result.channel}: ${result.error}`,
       );
     }
   }
@@ -289,15 +290,17 @@ export class CronService {
     const digestText = await this.digestService.formatDigestAsText(digest);
 
     const result = await this.deliveryService.sendDigest(userId, digestText);
-    
+
     if (result.success) {
-      const messageIdPart = result.messageId ? ` (messageId: ${result.messageId})` : '';
+      const messageIdPart = result.messageId
+        ? ` (messageId: ${result.messageId})`
+        : '';
       this.logger.log(
-        `Evening digest delivered to user ${userId} via ${result.channel} at ${result.deliveredAt.toISOString()}${messageIdPart}`
+        `Evening digest delivered to user ${userId} via ${result.channel} at ${result.deliveredAt.toISOString()}${messageIdPart}`,
       );
     } else {
       this.logger.error(
-        `Failed to deliver evening digest to user ${userId} via ${result.channel}: ${result.error}`
+        `Failed to deliver evening digest to user ${userId} via ${result.channel}: ${result.error}`,
       );
     }
   }
@@ -307,17 +310,22 @@ export class CronService {
 
     const message = this.formatReminderMessage(reminder);
 
-    const result = await this.deliveryService.sendReminder(reminder.user_id, message);
-    
+    const result = await this.deliveryService.sendReminder(
+      reminder.user_id,
+      message,
+    );
+
     if (result.success) {
       await this.reminderService.markReminderAsSent(reminder.id);
-      const messageIdPart = result.messageId ? ` (messageId: ${result.messageId})` : '';
+      const messageIdPart = result.messageId
+        ? ` (messageId: ${result.messageId})`
+        : '';
       this.logger.log(
-        `Reminder ${reminder.id} delivered to user ${reminder.user_id} via ${result.channel} at ${result.deliveredAt.toISOString()}${messageIdPart}`
+        `Reminder ${reminder.id} delivered to user ${reminder.user_id} via ${result.channel} at ${result.deliveredAt.toISOString()}${messageIdPart}`,
       );
     } else {
       this.logger.error(
-        `Failed to deliver reminder ${reminder.id} to user ${reminder.user_id} via ${result.channel}: ${result.error}`
+        `Failed to deliver reminder ${reminder.id} to user ${reminder.user_id} via ${result.channel}: ${result.error}`,
       );
     }
   }

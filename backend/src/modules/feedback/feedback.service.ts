@@ -34,7 +34,7 @@ export interface FeedbackRequest {
   title: string;
   description: string;
   priority?: FeedbackPriority;
-  dumpId?: string;  // Optional reference to specific dump
+  dumpId?: string; // Optional reference to specific dump
   userAgent?: string;
   url?: string;
   reproductionSteps?: string[];
@@ -105,13 +105,14 @@ export class FeedbackService {
 
       this.feedbackItems.set(feedbackId, feedbackItem);
 
-      this.logger.log(`Feedback submitted: ${feedbackId} (${request.type}) by user ${request.userId}`);
+      this.logger.log(
+        `Feedback submitted: ${feedbackId} (${request.type}) by user ${request.userId}`,
+      );
 
       // In a real implementation, this could trigger notifications or integrations
       await this.processNewFeedback(feedbackItem);
 
       return feedbackId;
-
     } catch (error) {
       this.logger.error('Error submitting feedback:', error);
       throw error;
@@ -130,7 +131,7 @@ export class FeedbackService {
    */
   async getUserFeedback(userId: string): Promise<FeedbackItem[]> {
     const userFeedback = Array.from(this.feedbackItems.values())
-      .filter(item => item.userId === userId)
+      .filter((item) => item.userId === userId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
     return userFeedback;
@@ -157,23 +158,33 @@ export class FeedbackService {
     // Apply filters
     if (filters) {
       if (filters.type) {
-        filteredItems = filteredItems.filter(item => item.type === filters.type);
+        filteredItems = filteredItems.filter(
+          (item) => item.type === filters.type,
+        );
       }
       if (filters.status) {
-        filteredItems = filteredItems.filter(item => item.status === filters.status);
+        filteredItems = filteredItems.filter(
+          (item) => item.status === filters.status,
+        );
       }
       if (filters.priority) {
-        filteredItems = filteredItems.filter(item => item.priority === filters.priority);
+        filteredItems = filteredItems.filter(
+          (item) => item.priority === filters.priority,
+        );
       }
       if (filters.userId) {
-        filteredItems = filteredItems.filter(item => item.userId === filters.userId);
+        filteredItems = filteredItems.filter(
+          (item) => item.userId === filters.userId,
+        );
       }
       if (filters.dumpId) {
-        filteredItems = filteredItems.filter(item => item.dumpId === filters.dumpId);
+        filteredItems = filteredItems.filter(
+          (item) => item.dumpId === filters.dumpId,
+        );
       }
       if (filters.tags?.length) {
-        filteredItems = filteredItems.filter(item => 
-          filters.tags!.some(tag => item.tags.includes(tag))
+        filteredItems = filteredItems.filter((item) =>
+          filters.tags!.some((tag) => item.tags.includes(tag)),
         );
       }
     }
@@ -183,16 +194,16 @@ export class FeedbackService {
       const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
       const aPriority = priorityOrder[a.priority];
       const bPriority = priorityOrder[b.priority];
-      
+
       if (aPriority !== bPriority) {
         return bPriority - aPriority;
       }
-      
+
       return b.createdAt.getTime() - a.createdAt.getTime();
     });
 
     const total = filteredItems.length;
-    
+
     // Apply pagination
     if (filters?.limit || filters?.offset) {
       const offset = filters.offset || 0;
@@ -210,7 +221,7 @@ export class FeedbackService {
     feedbackId: string,
     status: FeedbackStatus,
     resolution?: string,
-    resolvedBy?: string
+    resolvedBy?: string,
   ): Promise<boolean> {
     try {
       const feedbackItem = this.feedbackItems.get(feedbackId);
@@ -228,9 +239,8 @@ export class FeedbackService {
       }
 
       this.logger.log(`Feedback ${feedbackId} status updated to ${status}`);
-      
-      return true;
 
+      return true;
     } catch (error) {
       this.logger.error('Error updating feedback status:', error);
       throw error;
@@ -253,7 +263,6 @@ export class FeedbackService {
       feedbackItem.updatedAt = new Date();
 
       return true;
-
     } catch (error) {
       this.logger.error('Error adding internal note:', error);
       throw error;
@@ -274,7 +283,6 @@ export class FeedbackService {
       feedbackItem.updatedAt = new Date();
 
       return true;
-
     } catch (error) {
       this.logger.error('Error upvoting feedback:', error);
       throw error;
@@ -293,7 +301,7 @@ export class FeedbackService {
     topTags: Array<{ tag: string; count: number }>;
   }> {
     const allFeedback = Array.from(this.feedbackItems.values());
-    
+
     const stats = {
       total: allFeedback.length,
       byType: {} as Record<FeedbackType, number>,
@@ -336,10 +344,13 @@ export class FeedbackService {
     // Calculate average resolution time
     if (resolvedFeedback.length > 0) {
       const totalResolutionTimeMs = resolvedFeedback.reduce((sum, feedback) => {
-        return sum + (feedback.resolvedAt!.getTime() - feedback.createdAt.getTime());
+        return (
+          sum + (feedback.resolvedAt!.getTime() - feedback.createdAt.getTime())
+        );
       }, 0);
-      
-      stats.avgResolutionTimeHours = totalResolutionTimeMs / (resolvedFeedback.length * 1000 * 60 * 60);
+
+      stats.avgResolutionTimeHours =
+        totalResolutionTimeMs / (resolvedFeedback.length * 1000 * 60 * 60);
     }
 
     // Get top tags
@@ -407,9 +418,11 @@ export class FeedbackService {
     // - Update dashboards or metrics
 
     if (feedbackItem.priority === FeedbackPriority.CRITICAL) {
-      this.logger.warn(`Critical feedback received: ${feedbackItem.id} - ${feedbackItem.title}`);
+      this.logger.warn(
+        `Critical feedback received: ${feedbackItem.id} - ${feedbackItem.title}`,
+      );
     }
-    
+
     // Auto-acknowledge feedback
     feedbackItem.status = FeedbackStatus.ACKNOWLEDGED;
     feedbackItem.updatedAt = new Date();

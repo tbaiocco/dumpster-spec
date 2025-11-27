@@ -77,7 +77,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     // Log error details
-    const logMessage = `${request.method} ${request.url} - ${status} - ${message}`;
+    const url = Array.isArray(request.url) ? request.url[0] : request.url;
+    const logMessage = `${request.method} ${url} - ${status} - ${message}`;
 
     if (status >= 500) {
       this.logger.error(

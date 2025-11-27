@@ -20,7 +20,7 @@ export interface SearchResult {
 
 /**
  * Formatter for search results in bot conversations
- * 
+ *
  * Provides consistent, user-friendly formatting of search results
  * for Telegram and WhatsApp bots.
  */
@@ -38,11 +38,7 @@ export class SearchResultFormatter {
       showMatchType?: boolean;
     } = {},
   ): string {
-    const {
-      maxResults = 5,
-      showScore = true,
-      showMatchType = true,
-    } = options;
+    const { maxResults = 5, showScore = true, showMatchType = true } = options;
 
     if (results.length === 0) {
       return this.formatNoResults(query, 'telegram');
@@ -84,11 +80,7 @@ export class SearchResultFormatter {
       showMatchType?: boolean;
     } = {},
   ): string {
-    const {
-      maxResults = 5,
-      showScore = true,
-      showMatchType = true,
-    } = options;
+    const { maxResults = 5, showScore = true, showMatchType = true } = options;
 
     if (results.length === 0) {
       return this.formatNoResults(query, 'whatsapp');
@@ -221,7 +213,10 @@ export class SearchResultFormatter {
   /**
    * Format "no results" message
    */
-  private formatNoResults(query: string, platform: 'telegram' | 'whatsapp'): string {
+  private formatNoResults(
+    query: string,
+    platform: 'telegram' | 'whatsapp',
+  ): string {
     if (platform === 'telegram') {
       return (
         `🔍 <b>Search Results</b>\n\n` +
@@ -250,7 +245,7 @@ export class SearchResultFormatter {
    */
   private getContentPreview(result: SearchResult, maxLength: number): string {
     const contentText = result.dump.ai_summary || result.dump.raw_content;
-    
+
     if (!contentText) {
       return 'No content available';
     }
@@ -267,22 +262,22 @@ export class SearchResultFormatter {
    */
   private getCategoryIcon(categoryName: string): string {
     const iconMap: Record<string, string> = {
-      'Work': '💼',
-      'Personal': '👤',
-      'Shopping': '🛒',
-      'Finance': '💰',
-      'Health': '🏥',
-      'Travel': '✈️',
-      'Learning': '📚',
-      'Entertainment': '🎬',
-      'Food': '🍽️',
-      'Home': '🏠',
-      'Social': '👥',
-      'Ideas': '💡',
-      'Photos': '📷',
-      'Documents': '📄',
-      'Voice': '🎤',
-      'Uncategorized': '📦',
+      Work: '💼',
+      Personal: '👤',
+      Shopping: '🛒',
+      Finance: '💰',
+      Health: '🏥',
+      Travel: '✈️',
+      Learning: '📚',
+      Entertainment: '🎬',
+      Food: '🍽️',
+      Home: '🏠',
+      Social: '👥',
+      Ideas: '💡',
+      Photos: '📷',
+      Documents: '📄',
+      Voice: '🎤',
+      Uncategorized: '📦',
     };
 
     return iconMap[categoryName] || '📁';
@@ -328,10 +323,7 @@ export class SearchResultFormatter {
   /**
    * Format search results summary
    */
-  formatSummary(
-    results: SearchResult[],
-    query: string,
-  ): string {
+  formatSummary(results: SearchResult[], query: string): string {
     if (results.length === 0) {
       return `No results found for "${query}"`;
     }
@@ -356,16 +348,19 @@ export class SearchResultFormatter {
     }
 
     const displayResults = results.slice(0, maxResults);
-    
+
     let response = `\n📚 <b>Related Content</b> (${context}):\n`;
-    
+
     for (const result of displayResults) {
       const preview = this.getContentPreview(result, 60);
-      const date = new Date(result.dump.created_at).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      });
-      
+      const date = new Date(result.dump.created_at).toLocaleDateString(
+        'en-US',
+        {
+          month: 'short',
+          day: 'numeric',
+        },
+      );
+
       response += `• ${this.escapeHTML(preview)} (${date})\n`;
     }
 
