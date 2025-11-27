@@ -77,7 +77,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     // Log error details
-    const url = Array.isArray(request.url) ? request.url[0] : request.url;
+    const url: string = Array.isArray(request.url)
+      ? request.url[0]
+      : request.url || 'unknown';
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     const logMessage = `${request.method} ${url} - ${status} - ${message}`;
 
     if (status >= 500) {
