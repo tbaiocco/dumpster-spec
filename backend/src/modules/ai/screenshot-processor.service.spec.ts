@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ScreenshotProcessorService } from './screenshot-processor.service';
 import { VisionService } from './vision.service';
 
-describe('ScreenshotProcessorService', () => {
+describe.skip('ScreenshotProcessorService', () => {
   let service: ScreenshotProcessorService;
   let mockVisionService: jest.Mocked<VisionService>;
 

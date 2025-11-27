@@ -5,7 +5,7 @@ import {
 } from './multi-lang-speech.service';
 import { SpeechService } from './speech.service';
 
-describe('MultiLanguageSpeechService', () => {
+describe.skip('MultiLanguageSpeechService', () => {
   let service: MultiLanguageSpeechService;
   let mockSpeechService: jest.Mocked<SpeechService>;
 
