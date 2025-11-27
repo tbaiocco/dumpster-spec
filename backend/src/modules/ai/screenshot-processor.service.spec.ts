@@ -12,6 +12,7 @@ describe('ScreenshotProcessorService', () => {
       extractTextFromImage: jest.fn(),
       detectObjects: jest.fn(),
       processReceiptImage: jest.fn(),
+      analyzeScreenshot: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({

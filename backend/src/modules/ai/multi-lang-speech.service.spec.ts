@@ -82,7 +82,7 @@ describe('MultiLanguageSpeechService', () => {
       mockSpeechService.transcribeAudio.mockResolvedValue(mockTranscription);
 
       // Act
-      const result = await service.transcribeMultiLanguage(
+      const result = await service.transcribeWithLanguage(
         audioData,
         SupportedLanguage.SPANISH,
       );
@@ -114,7 +114,7 @@ describe('MultiLanguageSpeechService', () => {
       mockSpeechService.transcribeAudio.mockResolvedValue(mockTranscription);
 
       // Act
-      const result = await service.transcribeMultiLanguage(audioData);
+      const result = await service.transcribeWithLanguage(audioData);
 
       // Assert
       expect(result.success).toBe(true);
@@ -135,7 +135,7 @@ describe('MultiLanguageSpeechService', () => {
       );
 
       // Act
-      const result = await service.transcribeMultiLanguage(
+      const result = await service.transcribeWithLanguage(
         audioData,
         SupportedLanguage.ENGLISH,
       );
@@ -325,15 +325,15 @@ describe('MultiLanguageSpeechService', () => {
       });
 
       // Process multiple times to build stats
-      await service.transcribeMultiLanguage(
+      await service.transcribeWithLanguage(
         audioData,
         SupportedLanguage.ENGLISH,
       );
-      await service.transcribeMultiLanguage(
+      await service.transcribeWithLanguage(
         audioData,
         SupportedLanguage.ENGLISH,
       );
-      await service.transcribeMultiLanguage(
+      await service.transcribeWithLanguage(
         audioData,
         SupportedLanguage.SPANISH,
       );
@@ -387,7 +387,7 @@ describe('MultiLanguageSpeechService', () => {
       const emptyAudio = Buffer.alloc(0);
 
       // Act
-      const result = await service.transcribeMultiLanguage(
+      const result = await service.transcribeWithLanguage(
         emptyAudio,
         SupportedLanguage.ENGLISH,
       );
@@ -408,7 +408,7 @@ describe('MultiLanguageSpeechService', () => {
       });
 
       // Act
-      const result = await service.transcribeMultiLanguage(
+      const result = await service.transcribeWithLanguage(
         shortAudio,
         SupportedLanguage.ENGLISH,
       );
@@ -427,7 +427,7 @@ describe('MultiLanguageSpeechService', () => {
       );
 
       // Act
-      const result = await service.transcribeMultiLanguage(
+      const result = await service.transcribeWithLanguage(
         audioData,
         SupportedLanguage.ENGLISH,
       );
@@ -455,9 +455,9 @@ describe('MultiLanguageSpeechService', () => {
 
       // Act
       const results = await Promise.all([
-        service.transcribeMultiLanguage(audioData1, SupportedLanguage.ENGLISH),
-        service.transcribeMultiLanguage(audioData2, SupportedLanguage.ENGLISH),
-        service.transcribeMultiLanguage(audioData3, SupportedLanguage.ENGLISH),
+        service.transcribeWithLanguage(audioData1, SupportedLanguage.ENGLISH),
+        service.transcribeWithLanguage(audioData2, SupportedLanguage.ENGLISH),
+        service.transcribeWithLanguage(audioData3, SupportedLanguage.ENGLISH),
       ]);
 
       // Assert
