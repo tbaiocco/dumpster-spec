@@ -67,30 +67,32 @@ export class DumpController {
   async create(
     @Body(ValidationPipe) createDumpDto: CreateDumpDto,
   ): Promise<ApiResponse<DumpProcessingResult>> {
-    const request: CreateDumpRequest = {
-      userId: createDumpDto.userId,
-      content: createDumpDto.content,
-      contentType: createDumpDto.contentType,
-      originalText: createDumpDto.originalText,
-      metadata: {
-        source:
-          (createDumpDto.metadata?.source as 'telegram' | 'whatsapp') ||
-          'telegram',
-        messageId: createDumpDto.metadata?.messageId,
-        fileName: createDumpDto.metadata?.fileName,
-        mimeType: createDumpDto.metadata?.mimeType,
-        fileSize: createDumpDto.metadata?.fileSize,
-        chatId: createDumpDto.metadata?.chatId,
-      },
-    };
+    // const request: CreateDumpRequest = {
+    //   userId: createDumpDto.userId,
+    //   content: createDumpDto.content,
+    //   contentType: createDumpDto.contentType,
+    //   originalText: createDumpDto.originalText,
+    //   metadata: {
+    //     source:
+    //       (createDumpDto.metadata?.source as 'telegram' | 'whatsapp') ||
+    //       'telegram',
+    //     messageId: createDumpDto.metadata?.messageId,
+    //     fileName: createDumpDto.metadata?.fileName,
+    //     mimeType: createDumpDto.metadata?.mimeType,
+    //     fileSize: createDumpDto.metadata?.fileSize,
+    //     chatId: createDumpDto.metadata?.chatId,
+    //   },
+    // };
 
-    const result = await this.dumpService.createDump(request);
+    // const result = await this.dumpService.createDump(request);
 
-    return {
-      success: true,
-      data: result,
-      message: 'Content processed successfully',
-    };
+    // return {
+    //   success: true,
+    //   data: result,
+    //   message: 'Content processed successfully',
+    // };
+
+    return this.createEnhanced(createDumpDto);
   }
 
   @Post('enhanced')

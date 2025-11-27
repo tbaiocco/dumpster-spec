@@ -16,8 +16,6 @@ import { VisionService } from '../ai/vision.service';
 import { EntityExtractionService } from '../ai/extraction.service';
 import { ResponseFormatterService } from '../ai/formatter.service';
 import { MediaProcessorService } from '../ai/media-processor.service';
-import { VoiceProcessorService } from '../ai/voice-processor.service';
-import { ImageProcessorService } from '../ai/image-processor.service';
 import { ReviewService } from './services/review.service';
 import { ReviewController } from './controllers/review.controller';
 import { ConfidenceService } from '../ai/confidence.service';
@@ -25,7 +23,6 @@ import { FallbackHandlerService } from '../ai/fallback-handler.service';
 import { DocumentProcessorService } from '../ai/document-processor.service';
 import { ScreenshotProcessorService } from '../ai/screenshot-processor.service';
 import { ContentRouterService } from './content-router.service';
-import { MultiLanguageSpeechService } from '../ai/multi-lang-speech.service';
 import { HandwritingService } from '../ai/handwriting.service';
 import { CategorizationService } from './services/categorization.service';
 
@@ -56,13 +53,10 @@ import { BotsModule } from '../bots/bots.module';
     EntityExtractionService,
     ResponseFormatterService,
     MediaProcessorService,
-    VoiceProcessorService,
-    ImageProcessorService,
     FallbackHandlerService,
     DocumentProcessorService,
     ScreenshotProcessorService,
     ContentRouterService,
-    MultiLanguageSpeechService,
     HandwritingService,
     CategorizationService,
     // Vector Service for embedding generation

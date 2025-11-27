@@ -21,8 +21,7 @@ import {
   ContentType as RouterContentType,
 } from '../content-router.service';
 import { ScreenshotProcessorService } from '../../ai/screenshot-processor.service';
-import { VoiceProcessorService } from '../../ai/voice-processor.service';
-import { ImageProcessorService } from '../../ai/image-processor.service';
+import { DocumentProcessorService } from '../../ai/document-processor.service';
 import { HandwritingService } from '../../ai/handwriting.service';
 import { EntityExtractionService } from '../../ai/extraction.service';
 import { CategorizationService } from './categorization.service';
@@ -86,13 +85,15 @@ export class DumpService {
     private readonly databaseInitService: DatabaseInitService,
     private readonly contentRouterService: ContentRouterService,
     private readonly screenshotProcessorService: ScreenshotProcessorService,
-    private readonly voiceProcessorService: VoiceProcessorService,
-    private readonly imageProcessorService: ImageProcessorService,
+    private readonly documentProcessorService: DocumentProcessorService,
     private readonly handwritingService: HandwritingService,
     private readonly entityExtractionService: EntityExtractionService,
     private readonly categorizationService: CategorizationService,
   ) {}
 
+  /**
+   * @deprecated Use createDumpEnhance instead - this method is now the primary implementation with enhanced entity extraction and categorization
+   */
   async createDump(request: CreateDumpRequest): Promise<DumpProcessingResult> {
     this.logger.log(
       `Processing new dump for user ${request.userId}, type: ${request.contentType}`,
@@ -116,12 +117,7 @@ export class DumpService {
       switch (request.contentType) {
         case 'voice': {
           if (request.mediaBuffer) {
-            // Extract language from metadata, default to Portuguese for now if not specified
-            const languageCode = request.metadata?.language || 'pt-BR';
-
-            this.logger.debug(
-              `Transcribing audio with language: ${languageCode}`,
-            );
+            this.logger.debug('Transcribing audio with language detection');
 
             const originalMimeType = request.metadata?.mimeType || 'audio/wav';
             const fixedMimeType = this.getProperMimeType(
@@ -130,18 +126,19 @@ export class DumpService {
               request.metadata?.fileName,
             );
 
+            // Use automatic language detection since we can't rely on metadata
             const transcriptionResult =
-              await this.speechService.transcribeAudio({
-                audioBuffer: request.mediaBuffer,
-                mimeType: fixedMimeType,
-                languageCode: languageCode,
-                enableAutomaticPunctuation: true,
-                enableWordTimeOffsets: true,
-                maxAlternatives: 2,
-              });
+              await this.speechService.transcribeWithLanguageDetection(
+                request.mediaBuffer,
+                fixedMimeType,
+              );
             processedContent = transcriptionResult.transcript;
             confidence = transcriptionResult.confidence;
-            processingSteps.push(`Audio transcribed (${languageCode})`);
+            const detectedLang =
+              transcriptionResult.detectedLanguage || 'unknown';
+            processingSteps.push(
+              `Audio transcribed with language detection (${detectedLang}, confidence: ${Math.round(confidence * 100)}%)`,
+            );
           } else {
             errors.push('Voice content requires media buffer');
             processedContent =
@@ -485,7 +482,7 @@ export class DumpService {
           }
 
           case 'voice_processor': {
-            // Fall back to speech service for voice processing
+            // Use speech service with automatic language detection
             const originalMimeType = request.metadata?.mimeType || 'audio/wav';
             const fixedMimeType = this.getProperMimeType(
               contentAnalysis.contentType,
@@ -494,18 +491,16 @@ export class DumpService {
             );
 
             const transcriptionResult =
-              await this.speechService.transcribeAudio({
-                audioBuffer: request.mediaBuffer,
-                mimeType: fixedMimeType,
-                languageCode: request.metadata?.language || 'pt-BR',
-                enableAutomaticPunctuation: true,
-                enableWordTimeOffsets: true,
-                maxAlternatives: 2,
-              });
+              await this.speechService.transcribeWithLanguageDetection(
+                request.mediaBuffer,
+                fixedMimeType,
+              );
             processedContent = transcriptionResult.transcript;
             confidence = transcriptionResult.confidence;
+            const detectedLang =
+              transcriptionResult.detectedLanguage || 'unknown';
             processingSteps.push(
-              'Voice message transcribed with enhanced processing',
+              `Voice message transcribed with language detection (${detectedLang}, confidence: ${Math.round(confidence * 100)}%)`,
             );
             break;
           }
@@ -532,6 +527,23 @@ export class DumpService {
               handwritingResult.extractedText || 'Handwriting processed';
             confidence = handwritingResult.confidence;
             processingSteps.push('Handwriting extracted and processed');
+            break;
+          }
+
+          case 'document_processor': {
+            const documentResult =
+              await this.documentProcessorService.processDocument(
+                request.mediaBuffer,
+                request.metadata?.mimeType || 'application/pdf',
+              );
+            processedContent =
+              documentResult.extractedText || 'Document processed';
+            confidence = documentResult.confidence;
+            processingSteps.push(
+              `Document processed (type: ${documentResult.documentType}, confidence: ${Math.round(confidence * 100)}%)`,
+            );
+            // Store structured document data for later use in extracted_entities
+            // This will be merged into the dump's extracted_entities field
             break;
           }
 
@@ -658,15 +670,16 @@ export class DumpService {
           request.metadata?.fileName,
         );
 
-        const transcriptionResult = await this.speechService.transcribeAudio({
-          audioBuffer: request.mediaBuffer,
-          mimeType: fixedMimeType,
-          languageCode: request.metadata?.language || 'pt-BR',
-          enableAutomaticPunctuation: true,
-          enableWordTimeOffsets: true,
-          maxAlternatives: 2,
-        });
-        processingSteps.push('Audio transcribed (fallback)');
+        // Use automatic language detection for fallback as well
+        const transcriptionResult =
+          await this.speechService.transcribeWithLanguageDetection(
+            request.mediaBuffer,
+            fixedMimeType,
+          );
+        const detectedLang = transcriptionResult.detectedLanguage || 'unknown';
+        processingSteps.push(
+          `Audio transcribed (fallback, detected: ${detectedLang})`,
+        );
         return transcriptionResult.transcript;
       }
 
