@@ -1,7 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { EmailProcessorService } from './email-processor.service';
-import { DocumentProcessorService } from '../ai/document-processor.service';
+import {
+  DocumentProcessorService,
+  DocumentProcessingResult,
+  DocumentType,
+} from '../ai/document-processor.service';
 
 describe('EmailProcessorService', () => {
   let service: EmailProcessorService;
@@ -231,16 +235,59 @@ describe('EmailProcessorService', () => {
         headers: {},
       };
 
-      const mockDocumentResult = {
+      const mockDocumentResult: DocumentProcessingResult = {
+        documentType: DocumentType.UNKNOWN,
         extractedText: 'Content from Word document',
         confidence: 0.88,
-        entities: [],
-        metadata: {},
+        entities: {},
+        structuredData: {},
+        processingMetadata: {
+          ocrConfidence: 0.88,
+          layoutAnalysis: {
+            structure: 'single_column',
+            hasHeader: false,
+            hasFooter: false,
+            hasTable: false,
+            hasSignature: false,
+            hasLogo: false,
+            textRegions: [],
+          },
+          detectedFields: [],
+          qualityScore: 0.88,
+        },
       };
 
-      mockDocumentProcessor.processDocument.mockResolvedValue(
-        mockDocumentResult,
-      );
+      const mockImageResult: DocumentProcessingResult = {
+        documentType: DocumentType.UNKNOWN,
+        extractedText: 'Text from image',
+        confidence: 0.75,
+        entities: {},
+        structuredData: {},
+        processingMetadata: {
+          ocrConfidence: 0.75,
+          layoutAnalysis: {
+            structure: 'single_column',
+            hasHeader: false,
+            hasFooter: false,
+            hasTable: false,
+            hasSignature: false,
+            hasLogo: false,
+            textRegions: [],
+          },
+          detectedFields: [],
+          qualityScore: 0.75,
+        },
+      };
+
+      mockDocumentProcessor.processDocument.mockImplementation((buffer, contentType) => {
+        if (contentType === 'image/jpeg') {
+          return Promise.resolve(mockImageResult);
+        }
+        if (contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+          return Promise.resolve(mockDocumentResult);
+        }
+        return Promise.resolve(mockDocumentResult);
+      });
 
       // Act
       const result = await service.processEmail(emailMessage);
@@ -254,21 +301,22 @@ describe('EmailProcessorService', () => {
       const textResult = result.processedAttachments.find(
         (a) => a.originalFilename === 'readme.txt',
       );
-      expect(textResult.processingStatus).toBe('success');
-      expect(textResult.extractedText).toContain('This is a readme file.');
+      expect(textResult?.processingStatus).toBe('success');
+      expect(textResult?.extractedText).toContain('This is a readme file.');
 
-      // Image attachment should be skipped (not supported)
+      // Image attachment should be processed using DocumentProcessor
       const imageResult = result.processedAttachments.find(
         (a) => a.originalFilename === 'image.jpg',
       );
-      expect(imageResult.processingStatus).toBe('skipped');
+      expect(imageResult?.processingStatus).toBe('success');
+      expect(imageResult?.extractedText).toBe('Text from image');
 
       // Document should be processed via DocumentProcessor
       const docResult = result.processedAttachments.find(
         (a) => a.originalFilename === 'report.docx',
       );
-      expect(docResult.processingStatus).toBe('success');
-      expect(docResult.extractedText).toBe('Content from Word document');
+      expect(docResult?.processingStatus).toBe('success');
+      expect(docResult?.extractedText).toBe('Content from Word document');
     });
 
     it('should handle processing errors gracefully', async () => {
@@ -304,7 +352,7 @@ describe('EmailProcessorService', () => {
       expect(result.processedAttachments).toHaveLength(1);
       expect(result.processedAttachments[0].processingStatus).toBe('failed');
       expect(result.processedAttachments[0].error).toBe(
-        'Document processing failed',
+        'Failed to process PDF: Document processing failed',
       );
       expect(result.metadata.hasAttachments).toBe(true);
       expect(result.metadata.attachmentCount).toBe(1);

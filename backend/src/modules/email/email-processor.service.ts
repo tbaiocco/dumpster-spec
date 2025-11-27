@@ -207,18 +207,54 @@ export class EmailProcessorService {
     // Handle PDF files
     if (attachment.contentType === 'application/pdf') {
       try {
-        // Use DocumentProcessorService for PDF processing (when supported)
-        // For now, indicate PDF processing is not yet implemented
+        // Use DocumentProcessorService for PDF processing
+        const processedDoc = await this.documentProcessor.processDocument(
+          attachment.content,
+          attachment.contentType,
+        );
+
         return {
           ...baseResult,
-          extractedText: `[PDF file: ${attachment.filename} - Text extraction not yet implemented]`,
-          processingStatus: 'skipped',
+          extractedText: processedDoc.extractedText,
+          processingStatus: 'success',
         };
       } catch (error) {
         return {
           ...baseResult,
           processingStatus: 'failed',
           error: `Failed to process PDF: ${error.message}`,
+        };
+      }
+    }
+
+    // Handle Microsoft Office documents (Word, Excel, PowerPoint)
+    const officeTypes = [
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+      'application/msword', // .doc
+      'application/vnd.ms-excel', // .xls
+      'application/vnd.ms-powerpoint', // .ppt
+    ];
+
+    if (officeTypes.includes(attachment.contentType)) {
+      try {
+        // Use DocumentProcessorService for office document processing
+        const processedDoc = await this.documentProcessor.processDocument(
+          attachment.content,
+          attachment.contentType,
+        );
+
+        return {
+          ...baseResult,
+          extractedText: processedDoc.extractedText,
+          processingStatus: 'success',
+        };
+      } catch (error) {
+        return {
+          ...baseResult,
+          processingStatus: 'failed',
+          error: `Failed to process document: ${error.message}`,
         };
       }
     }
@@ -253,9 +289,15 @@ export class EmailProcessorService {
   private determinePriority(
     emailMessage: EmailMessage,
   ): 'low' | 'normal' | 'high' {
+    // Normalize headers to lowercase for case-insensitive lookup
+    const normalizedHeaders: Record<string, string> = {};
+    for (const [key, value] of Object.entries(emailMessage.headers)) {
+      normalizedHeaders[key.toLowerCase()] = value;
+    }
+
     // Check priority headers
     const priority =
-      emailMessage.headers['x-priority'] || emailMessage.headers['priority'];
+      normalizedHeaders['x-priority'] || normalizedHeaders['priority'];
     if (priority) {
       const priorityValue = priority.toLowerCase();
       if (priorityValue.includes('high') || priorityValue === '1')
@@ -264,7 +306,7 @@ export class EmailProcessorService {
     }
 
     // Check importance headers
-    const importance = emailMessage.headers['importance'];
+    const importance = normalizedHeaders['importance'];
     if (importance?.toLowerCase() === 'high') return 'high';
     if (importance?.toLowerCase() === 'low') return 'low';
 
