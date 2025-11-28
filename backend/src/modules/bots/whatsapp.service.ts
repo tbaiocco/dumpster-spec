@@ -142,10 +142,15 @@ export class WhatsAppService {
   ): Promise<{ id: string }> {
     this.logger.log(`Sending WhatsApp message to ${request.to}`);
 
+    // Ensure phone number has whatsapp: prefix for Twilio
+    const toNumber = request.to.startsWith('whatsapp:') 
+      ? request.to 
+      : `whatsapp:${request.to}`;
+
     // Convert to Twilio format
     const twilioRequest = {
       From: this.phoneNumber,
-      To: request.to,
+      To: toNumber,
       Body: request.text?.body || '',
     };
 
