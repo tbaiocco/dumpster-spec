@@ -594,7 +594,11 @@ export class WhatsAppService {
     userId: string,
   ): Promise<void> {
     const _userId = userId;
-    const normalizedCommand = command.toLowerCase();
+    // Remove common command prefixes and normalize
+    const normalizedCommand = command
+      .toLowerCase()
+      .trim()
+      .replace(/^[/!#@]/, ''); // Remove leading /, !, #, or @
 
     if (
       normalizedCommand.includes('start') ||
@@ -616,11 +620,16 @@ export class WhatsAppService {
       await this.sendTextMessage(
         phoneNumber,
         '🔧 *Available Commands:*\n\n' +
-          '• Send "start" or "hello" - Welcome message\n' +
-          '• Send "help" - Show this help\n' +
-          '• Send "recent" - Show recent content\n' +
-          '• Send "search" - Search your content\n' +
-          '• Send "report" - Report an issue\n\n' +
+          'You can use commands with or without prefixes (/, !, #, @)\n\n' +
+          '• start, hello, hi - Welcome message\n' +
+          '• help - Show this help\n' +
+          '• recent - Show recent content\n' +
+          '• search - Search your content\n' +
+          '• report - Report an issue\n\n' +
+          '*Examples:*\n' +
+          '- Type: help\n' +
+          '- Type: /help\n' +
+          '- Type: #recent\n\n' +
           '_Just send me any content to get started!_',
       );
     } else if (normalizedCommand.includes('recent')) {

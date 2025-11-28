@@ -2,8 +2,6 @@ import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DumpService } from './services/dump.service';
 import { DumpController } from './controllers/dump.controller';
-import { TelegramWebhookController } from './controllers/telegram-webhook.controller';
-import { WhatsAppWebhookController } from './controllers/whatsapp-webhook.controller';
 import { Dump } from '../../entities/dump.entity';
 import { Category } from '../../entities/category.entity';
 import { Reminder } from '../../entities/reminder.entity';
@@ -40,8 +38,6 @@ import { BotsModule } from '../bots/bots.module';
   ],
   controllers: [
     DumpController,
-    TelegramWebhookController,
-    WhatsAppWebhookController,
     ReviewController,
   ],
   providers: [

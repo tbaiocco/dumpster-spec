@@ -8,8 +8,8 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { TelegramService } from '../../bots/telegram.service';
-import { UserService } from '../../users/user.service';
+import { TelegramService } from './telegram.service';
+import { UserService } from '../users/user.service';
 
 interface TelegramWebhookMessage {
   message_id: number;

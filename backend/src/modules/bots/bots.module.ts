@@ -1,6 +1,8 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TelegramService } from './telegram.service';
 import { WhatsAppService } from './whatsapp.service';
+import { TelegramWebhookController } from './telegram-webhook.controller';
+import { WhatsAppWebhookController } from './whatsapp-webhook.controller';
 import { HelpCommand } from './commands/help.command';
 import { RecentCommand } from './commands/recent.command';
 import { ReportCommand } from './commands/report.command';
@@ -18,6 +20,10 @@ import { FeedbackModule } from '../feedback/feedback.module';
     forwardRef(() => DumpModule),
     SearchModule,
     FeedbackModule,
+  ],
+  controllers: [
+    TelegramWebhookController,
+    WhatsAppWebhookController,
   ],
   providers: [
     TelegramService,

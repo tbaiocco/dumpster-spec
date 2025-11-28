@@ -6,9 +6,9 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { WhatsAppService } from '../../bots/whatsapp.service';
+import { WhatsAppService } from './whatsapp.service';
 
-@Controller('webhooks/whatsapp')
+@Controller('api/webhooks/whatsapp')
 export class WhatsAppWebhookController {
   private readonly logger = new Logger(WhatsAppWebhookController.name);
 
