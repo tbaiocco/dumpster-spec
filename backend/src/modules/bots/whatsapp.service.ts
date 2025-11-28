@@ -6,6 +6,10 @@ import {
   CreateDumpRequest,
   DumpProcessingResult,
 } from '../dumps/services/dump.service';
+import { HelpCommand } from './commands/help.command';
+import { RecentCommand } from './commands/recent.command';
+import { SearchCommand } from './commands/search.command';
+import { ReportCommand } from './commands/report.command';
 
 export interface WhatsAppMessage {
   MessageSid: string;
@@ -122,6 +126,10 @@ export class WhatsAppService {
     private readonly configService: ConfigService,
     private readonly userService: UserService,
     private readonly dumpService: DumpService,
+    private readonly helpCommand: HelpCommand,
+    private readonly recentCommand: RecentCommand,
+    private readonly searchCommand: SearchCommand,
+    private readonly reportCommand: ReportCommand,
   ) {
     // Twilio WhatsApp API Configuration
     this.authToken =
@@ -376,7 +384,11 @@ export class WhatsAppService {
     if (
       text.startsWith('/') ||
       text.toLowerCase().includes('help') ||
-      text.toLowerCase().includes('start')
+      text.toLowerCase().includes('start') ||
+      text.toLowerCase().includes('more')||
+      text.toLowerCase().includes('recent')||
+      text.toLowerCase().includes('report')||
+      text.toLowerCase().includes('search')
     ) {
       await this.handleCommand(text, phoneNumber, userId);
       return;
@@ -598,63 +610,102 @@ export class WhatsAppService {
     phoneNumber: string,
     userId: string,
   ): Promise<void> {
-    const _userId = userId;
     // Remove common command prefixes and normalize
     const normalizedCommand = command
       .toLowerCase()
       .trim()
       .replace(/^[/!#@]/, ''); // Remove leading /, !, #, or @
 
-    if (
-      normalizedCommand.includes('start') ||
-      normalizedCommand.includes('hello') ||
-      normalizedCommand.includes('hi')
-    ) {
+    const [cmd] = normalizedCommand.split(' ');
+
+    // Get the user entity for command handlers
+    const user = await this.userService.findOne(userId);
+    if (!user) {
       await this.sendTextMessage(
         phoneNumber,
-        '👋 Welcome to Clutter.AI!\n\n' +
-          'I help you capture and organize any content you send me.\n\n' +
-          'Send me:\n' +
-          '📝 Text messages\n' +
-          '🎤 Voice messages\n' +
-          '📷 Photos\n' +
-          '📄 Documents\n\n' +
-          'Type "help" for more information.',
+        '❌ User not found. Please restart by sending "start"',
       );
-    } else if (normalizedCommand.includes('help')) {
+      return;
+    }
+
+    try {
+      switch (cmd) {
+        case 'start':
+        case 'hello':
+        case 'hi': {
+          await this.sendTextMessage(
+            phoneNumber,
+            '👋 Welcome to Clutter.AI!\n\n' +
+              'I help you capture and organize any content you send me.\n\n' +
+              'Send me:\n' +
+              '📝 Text messages\n' +
+              '🎤 Voice messages\n' +
+              '📷 Photos\n' +
+              '📄 Documents\n\n' +
+              'Type "help" for more commands.',
+          );
+          break;
+        }
+
+        case 'help': {
+          const helpMessage = this.helpCommand.execute();
+          // Convert HTML formatting to WhatsApp markdown
+          const whatsappMessage = this.convertHtmlToWhatsApp(helpMessage);
+          await this.sendTextMessage(phoneNumber, whatsappMessage);
+          break;
+        }
+
+        case 'recent': {
+          const recentMessage = await this.recentCommand.execute(user);
+          // Convert HTML formatting to WhatsApp markdown
+          const whatsappMessage = this.convertHtmlToWhatsApp(recentMessage);
+          await this.sendTextMessage(phoneNumber, whatsappMessage);
+          break;
+        }
+
+        case 'search': {
+          const searchMessage = await this.searchCommand.execute(user, command);
+          // Convert HTML formatting to WhatsApp markdown
+          const whatsappMessage = this.convertHtmlToWhatsApp(searchMessage);
+          await this.sendTextMessage(phoneNumber, whatsappMessage);
+          break;
+        }
+
+        case 'report': {
+          const reportMessage = await this.reportCommand.execute(user, command);
+          // Convert HTML formatting to WhatsApp markdown
+          const whatsappMessage = this.convertHtmlToWhatsApp(reportMessage);
+          await this.sendTextMessage(phoneNumber, whatsappMessage);
+          break;
+        }
+
+        default: {
+          await this.sendTextMessage(
+            phoneNumber,
+            '❓ I didn\'t understand that command. Send "help" to see available commands.',
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Error executing command ${cmd}:`, error);
       await this.sendTextMessage(
         phoneNumber,
-        '🔧 *Available Commands:*\n\n' +
-          'You can use commands with or without prefixes (/, !, #, @)\n\n' +
-          '• start, hello, hi - Welcome message\n' +
-          '• help - Show this help\n' +
-          '• recent - Show recent content\n' +
-          '• search - Search your content\n' +
-          '• report - Report an issue\n\n' +
-          '*Examples:*\n' +
-          '- Type: help\n' +
-          '- Type: /help\n' +
-          '- Type: #recent\n\n' +
-          '_Just send me any content to get started!_',
-      );
-    } else if (normalizedCommand.includes('recent')) {
-      // Will be implemented with DumpService
-      await this.sendTextMessage(
-        phoneNumber,
-        '📋 Recent content feature coming soon!',
-      );
-    } else if (normalizedCommand.includes('search')) {
-      // Will be implemented in Phase 4
-      await this.sendTextMessage(phoneNumber, '🔍 Search feature coming soon!');
-    } else if (normalizedCommand.includes('report')) {
-      // Will be implemented in Phase 5
-      await this.sendTextMessage(phoneNumber, '🚨 Report feature coming soon!');
-    } else {
-      await this.sendTextMessage(
-        phoneNumber,
-        '❓ I didn\'t understand that command. Send "help" to see available commands.',
+        '❌ Sorry, something went wrong executing that command. Please try again.',
       );
     }
+  }
+
+  /**
+   * Convert HTML formatting to WhatsApp markdown
+   * Telegram uses HTML tags, WhatsApp uses markdown-like syntax
+   */
+  private convertHtmlToWhatsApp(text: string): string {
+    return text
+      .replaceAll(/<b>(.*?)<\/b>/g, '*$1*') // Bold
+      .replaceAll(/<i>(.*?)<\/i>/g, '_$1_') // Italic
+      .replaceAll(/<code>(.*?)<\/code>/g, '```$1```') // Code
+      .replaceAll(/<pre>(.*?)<\/pre>/g, '```$1```') // Preformatted
+      .replaceAll(/<[^>]*>/g, ''); // Remove any remaining HTML tags
   }
 
   /**
