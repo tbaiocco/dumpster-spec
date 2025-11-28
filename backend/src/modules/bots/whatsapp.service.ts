@@ -692,8 +692,77 @@ export class WhatsAppService {
   }
 
   /**
-   * Handle phone number registration for new WhatsApp users
-   * Same logic as Telegram for consistency
+   * Auto-register a WhatsApp user using their phone number from Twilio webhook
+   * This is simpler than Telegram since we already have the phone number!
+   */
+  async autoRegisterUser(phoneNumber: string): Promise<void> {
+    try {
+      this.logger.log(`Auto-registering WhatsApp user: ${phoneNumber}`);
+
+      // Check if user already exists with this phone number
+      const existingUser = await this.userService.findByPhone(phoneNumber);
+
+      if (existingUser) {
+        // Update existing user with WhatsApp chat ID
+        await this.userService.update(existingUser.id, {
+          chat_id_whatsapp: phoneNumber,
+        });
+
+        await this.sendTextMessage(
+          phoneNumber,
+          `✅ Welcome back! Your account has been linked to WhatsApp.\n\n` +
+            `You can now send me:\n` +
+            `📝 Text messages to save thoughts\n` +
+            `🎤 Voice messages\n` +
+            `📸 Photos\n` +
+            `📄 Documents\n\n` +
+            `Try sending: "Preciso lembrar de comprar leite hoje"`,
+        );
+
+        this.logger.log(
+          `Linked existing user ${existingUser.id} to WhatsApp: ${phoneNumber}`,
+        );
+      } else {
+        // Create new user
+        const newUser = await this.userService.create({
+          phone_number: phoneNumber,
+          timezone: 'Europe/Lisbon', // Default for Portuguese users
+          language: 'pt',
+        });
+
+        // Update with WhatsApp chat ID
+        await this.userService.update(newUser.id, {
+          chat_id_whatsapp: phoneNumber,
+        });
+
+        await this.sendTextMessage(
+          phoneNumber,
+          `🎉 Registration complete! Welcome to your personal life inbox.\n\n` +
+            `I'll help you capture and organize everything:\n` +
+            `📝 Notes and reminders\n` +
+            `🎤 Voice messages\n` +
+            `📸 Photos and documents\n` +
+            `🔍 Smart search and categorization\n\n` +
+            `Try sending: "Reunião com cliente amanhã às 15h"`,
+        );
+
+        this.logger.log(
+          `Created new user ${newUser.id} for WhatsApp: ${phoneNumber}`,
+        );
+      }
+    } catch (error) {
+      this.logger.error('Error during auto-registration:', error);
+      await this.sendTextMessage(
+        phoneNumber,
+        '❌ Sorry, there was an error during registration. Please try again or contact support.',
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Handle phone number registration for Telegram (kept for backward compatibility)
+   * Note: WhatsApp doesn't need this since we get the phone number from Twilio
    */
   async handlePhoneNumberRegistration(phoneNumber: string, text: string): Promise<boolean> {
     // Detect phone number pattern (international format)

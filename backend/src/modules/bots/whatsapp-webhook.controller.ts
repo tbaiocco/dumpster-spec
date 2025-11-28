@@ -21,6 +21,9 @@ export class WhatsAppWebhookController {
   /**
    * Handle incoming WhatsApp messages via Twilio webhook (POST request)
    * Twilio WhatsApp webhooks don't require verification like Meta/Facebook
+   * 
+   * Auto-registration: We use the phone number from Twilio's webhook payload
+   * (no need to ask user to type their phone number again!)
    */
   @Post()
   @HttpCode(HttpStatus.OK)
@@ -29,39 +32,29 @@ export class WhatsAppWebhookController {
       this.logger.log('WhatsApp webhook message received');
       this.logger.debug('Webhook payload:', JSON.stringify(body, null, 2));
 
-      // Extract phone number from Twilio format
+      // Extract phone number from Twilio format (e.g., "whatsapp:+351964938153")
       const fromNumber = body.From?.replace('whatsapp:', '') || '';
-      const messageBody = body.Body || '';
+
+      if (!fromNumber) {
+        this.logger.error('No phone number in webhook payload');
+        return 'OK';
+      }
 
       // Check if user exists
       const user = await this.userService.findByChatId(fromNumber, 'whatsapp');
 
       if (!user) {
-        this.logger.warn(`No user found for WhatsApp number: ${fromNumber}`);
+        this.logger.log(`New user detected: ${fromNumber} - auto-registering`);
 
-        // Self-registration flow
-        // Try to handle phone number registration if it's a text message
-        if (messageBody) {
-          const registrationHandled =
-            await this.whatsAppService.handlePhoneNumberRegistration(
-              fromNumber,
-              messageBody,
-            );
-
-          if (registrationHandled) {
-            return 'OK'; // Registration was processed
-          }
-        }
-
-        // Send registration prompt
-        await this.whatsAppService.sendTextMessage(
-          fromNumber,
-          '👋 Welcome! Please register first by providing your phone number to start using this service.\n\nExample: +351999888777',
-        );
+        // Auto-register using the phone number from Twilio
+        await this.whatsAppService.autoRegisterUser(fromNumber);
+        
+        // After registration, process the original message
+        await this.whatsAppService.processTwilioWebhook(body);
         return 'OK';
       }
 
-      // Process the Twilio webhook payload
+      // User exists, process the message normally
       await this.whatsAppService.processTwilioWebhook(body);
 
       return 'OK';
