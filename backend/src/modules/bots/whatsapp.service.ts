@@ -310,30 +310,13 @@ export class WhatsAppService {
         return;
       }
 
-      // Test mode for development - simulate processing without API calls
-      const isTestMode =
-        process.env.NODE_ENV === 'development' ||
-        process.env.WHATSAPP_TEST_MODE === 'true';
-
       // Find user by WhatsApp chat ID
       const user = await this.userService.findByChatId(phoneNumber, 'whatsapp');
 
       if (!user) {
-        this.logger.log(`User not found for WhatsApp number ${phoneNumber}`);
-
-        if (isTestMode) {
-          this.logger.log(
-            'TEST MODE: Would send welcome message - simulating success',
-          );
-          return;
-        }
-
-        // For now, we'll need a phone number to create a user
-        // This will be handled by the authentication flow
-        await this.sendTextMessage(
-          phoneNumber,
-          '👋 Welcome! Please complete your registration to get started.',
-        );
+        // This should not happen as webhook controller handles registration
+        // But keeping as safety fallback
+        this.logger.warn(`User not found for WhatsApp number ${phoneNumber} - skipping message processing`);
         return;
       }
 
@@ -706,6 +689,83 @@ export class WhatsAppService {
       .replaceAll(/<code>(.*?)<\/code>/g, '```$1```') // Code
       .replaceAll(/<pre>(.*?)<\/pre>/g, '```$1```') // Preformatted
       .replaceAll(/<[^>]*>/g, ''); // Remove any remaining HTML tags
+  }
+
+  /**
+   * Handle phone number registration for new WhatsApp users
+   * Same logic as Telegram for consistency
+   */
+  async handlePhoneNumberRegistration(phoneNumber: string, text: string): Promise<boolean> {
+    // Detect phone number pattern (international format)
+    const phonePattern = /^\+?[1-9]\d{1,14}$/;
+    const cleanPhone = text.replaceAll(/[\s\-()]/g, '');
+
+    if (!phonePattern.test(cleanPhone)) {
+      return false; // Not a valid phone number
+    }
+
+    try {
+      // Check if user already exists with this phone number
+      const existingUser = await this.userService.findByPhone(cleanPhone);
+
+      if (existingUser) {
+        // Update existing user with WhatsApp chat ID
+        await this.userService.update(existingUser.id, {
+          chat_id_whatsapp: phoneNumber,
+        });
+
+        await this.sendTextMessage(
+          phoneNumber,
+          `✅ Welcome back! Your account has been linked to WhatsApp.\n\n` +
+            `You can now send me:\n` +
+            `📝 Text messages to save thoughts\n` +
+            `🎤 Voice messages\n` +
+            `📸 Photos\n` +
+            `📄 Documents\n\n` +
+            `Try sending: "Preciso lembrar de comprar leite hoje"`,
+        );
+
+        this.logger.log(
+          `Linked existing user ${existingUser.id} to WhatsApp chat ${phoneNumber}`,
+        );
+        return true;
+      } else {
+        // Create new user
+        const newUser = await this.userService.create({
+          phone_number: cleanPhone,
+          timezone: 'Europe/Lisbon', // Default for Portuguese users
+          language: 'pt',
+        });
+
+        // Update with WhatsApp chat ID
+        await this.userService.update(newUser.id, {
+          chat_id_whatsapp: phoneNumber,
+        });
+
+        await this.sendTextMessage(
+          phoneNumber,
+          `🎉 Registration complete! Welcome to your personal life inbox.\n\n` +
+            `I'll help you capture and organize everything:\n` +
+            `📝 Notes and reminders\n` +
+            `🎤 Voice messages\n` +
+            `📸 Photos and documents\n` +
+            `🔍 Smart search and categorization\n\n` +
+            `Try sending: "Reunião com cliente amanhã às 15h"`,
+        );
+
+        this.logger.log(
+          `Created new user ${newUser.id} for WhatsApp chat ${phoneNumber}`,
+        );
+        return true;
+      }
+    } catch (error) {
+      this.logger.error('Error during phone registration:', error);
+      await this.sendTextMessage(
+        phoneNumber,
+        '❌ Sorry, there was an error during registration. Please try again or contact support.',
+      );
+      return true; // Handled, even if failed
+    }
   }
 
   /**
