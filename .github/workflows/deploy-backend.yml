@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - 001-universal-life-inbox-implementation-extra-phase
+      - master
     paths:
       - 'backend/**'
       - '.github/workflows/deploy-backend.yml'

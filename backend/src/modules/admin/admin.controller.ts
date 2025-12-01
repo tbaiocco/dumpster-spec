@@ -90,4 +90,18 @@ export class AdminController {
       data: result,
     };
   }
+
+  /**
+   * Get all categories
+   * Used by: ReviewPage for category selection
+   */
+  @Get('categories')
+  async getAllCategories() {
+    const categories = await this.adminService.getAllCategories();
+
+    return {
+      success: true,
+      data: categories,
+    };
+  }
 }

@@ -335,12 +335,26 @@ class ApiService {
     return this.get(`/review/flagged/${dumpId}`);
   }
 
-  public async approveReview(dumpId: string, notes?: string) {
-    return this.post(`/review/${dumpId}/approve`, { notes });
+  public async approveReview(
+    dumpId: string,
+    data?: {
+      raw_content?: string;
+      category?: string;
+      notes?: string;
+    }
+  ) {
+    return this.post(`/review/${dumpId}/approve`, data);
   }
 
   public async rejectReview(dumpId: string, reason: string, notes?: string) {
     return this.post(`/review/${dumpId}/reject`, { reason, notes });
+  }
+
+  /**
+   * Categories
+   */
+  public async getCategories() {
+    return this.get('/admin/categories');
   }
 
   /**

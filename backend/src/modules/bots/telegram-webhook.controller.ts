@@ -140,6 +140,7 @@ export class TelegramWebhookController {
           `No user found for Telegram chat ID: ${message.chat.id}`,
         );
 
+        // Self-registration flow
         // Try to handle phone number registration if it's a text message
         if (message.text) {
           const registrationHandled =

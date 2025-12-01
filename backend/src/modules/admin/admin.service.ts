@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Dump } from '../../entities/dump.entity';
 import { User } from '../../entities/user.entity';
 import { Reminder } from '../../entities/reminder.entity';
+import { Category } from '../../entities/category.entity';
 
 /**
  * Admin Service
@@ -18,6 +19,8 @@ export class AdminService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Reminder)
     private readonly reminderRepository: Repository<Reminder>,
+    @InjectRepository(Category)
+    private readonly categoryRepository: Repository<Category>,
   ) {}
 
   /**
@@ -394,40 +397,78 @@ export class AdminService {
 
   /**
    * Approve a flagged dump
+   * Sets ai_confidence to 100 and updates any provided fields
    */
-  async approveDump(dumpId: string, notes?: string) {
-    // In production, this would update a review_status table
-    // For now, we'll just verify the dump exists
-    const dump = await this.dumpRepository.findOne({ where: { id: dumpId } });
+  async approveDump(
+    dumpId: string,
+    updates?: {
+      raw_content?: string;
+      category?: string; // Category name
+      notes?: string;
+    },
+  ) {
+    const dump = await this.dumpRepository.findOne({
+      where: { id: dumpId },
+      relations: ['category'],
+    });
 
     if (!dump) {
       throw new Error('Dump not found');
     }
 
-    // Could update a flag or create an audit log entry here
+    // Set confidence to 100 to mark as reviewed and approved
+    dump.ai_confidence = 100;
+
+    // Update raw_content if provided
+    if (updates?.raw_content !== undefined) {
+      dump.raw_content = updates.raw_content;
+    }
+
+    // Update category if provided
+    if (updates?.category) {
+      const categoryRepository = this.dumpRepository.manager.getRepository('Category');
+      const category = await categoryRepository.findOne({
+        where: { name: updates.category },
+      }) as any;
+
+      if (category) {
+        dump.category_id = category.id;
+      }
+    }
+
+    // Save the updated dump
+    await this.dumpRepository.save(dump);
+
     return {
       success: true,
-      message: 'Dump approved',
+      message: 'Dump approved and updated',
       dumpId,
-      notes,
+      updates: {
+        raw_content: updates?.raw_content,
+        category: updates?.category,
+        ai_confidence: 100,
+      },
+      notes: updates?.notes,
     };
   }
 
   /**
    * Reject a flagged dump
+   * Permanently deletes the dump from the database
    */
   async rejectDump(dumpId: string, reason: string, notes?: string) {
-    // In production, this would update a review_status table
     const dump = await this.dumpRepository.findOne({ where: { id: dumpId } });
 
     if (!dump) {
       throw new Error('Dump not found');
     }
 
-    // Could mark as rejected or soft-delete here
+    // Delete the dump permanently
+    await this.dumpRepository.remove(dump);
+
     return {
       success: true,
-      message: 'Dump rejected',
+      message: 'Dump rejected and deleted',
       dumpId,
       reason,
       notes,
@@ -466,5 +507,24 @@ export class AdminService {
       limit,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  /**
+   * Get all categories
+   * Used by: ReviewPage for category selection dropdown
+   */
+  async getAllCategories() {
+    const categories = await this.categoryRepository.find({
+      where: { is_active: true },
+      order: { name: 'ASC' },
+    });
+
+    return categories.map((category) => ({
+      id: category.id,
+      name: category.name,
+      description: category.description,
+      color: category.color,
+      icon: category.icon,
+    }));
   }
 }
