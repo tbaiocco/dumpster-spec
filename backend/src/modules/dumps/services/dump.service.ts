@@ -560,7 +560,49 @@ export class DumpService {
         processingSteps.push('Text content processed');
       }
 
-      // Step 3: Analyze processed content with Claude
+      // Step 3: Extract entities from processed content
+      let entityExtractionResult;
+      try {
+        entityExtractionResult =
+          await this.entityExtractionService.extractEntities({
+            content: processedContent,
+            contentType: request.contentType,
+            context: {
+              source: request.metadata?.source || 'telegram',
+              userId: request.userId,
+              timestamp: new Date(),
+            },
+          });
+        processingSteps.push(
+          `Entity extraction completed: ${entityExtractionResult.summary.totalEntities} entities found`,
+        );
+        this.logger.debug(
+          `Extracted entities: ${JSON.stringify(entityExtractionResult.structuredData)}`,
+        );
+      } catch (error) {
+        this.logger.warn(`Entity extraction failed: ${error.message}`);
+        errors.push(`Entity extraction failed: ${error.message}`);
+        // Continue with empty entity result
+        entityExtractionResult = {
+          entities: [],
+          summary: {
+            totalEntities: 0,
+            entitiesByType: {},
+            averageConfidence: 0,
+          },
+          structuredData: {
+            dates: [],
+            times: [],
+            locations: [],
+            people: [],
+            organizations: [],
+            amounts: [],
+            contacts: { phones: [], emails: [], urls: [] },
+          },
+        };
+      }
+
+      // Step 4: Analyze content with Claude
       const analysis = await this.claudeService.analyzeContent({
         content: processedContent,
         contentType: 'text',
@@ -572,20 +614,60 @@ export class DumpService {
       });
       processingSteps.push('Content analysis completed');
 
-      // Step 4: Find or create category
-      const category = await this.findOrCreateCategory(
-        analysis.category,
+      // Step 5: Categorize content with enhanced categorization service
+      let categorizationResult;
+      try {
+        categorizationResult =
+          await this.categorizationService.categorizeContent({
+            content: processedContent,
+            userId: request.userId,
+            contentType: request.contentType,
+            context: {
+              source: request.metadata?.source || 'telegram',
+              timestamp: new Date(),
+              previousCategories: [], // Could be populated with user's recent categories
+            },
+          });
+        processingSteps.push(
+          `Categorization completed: ${categorizationResult.primaryCategory.name} (confidence: ${categorizationResult.confidence})`,
+        );
+        this.logger.debug(
+          `Categorization result: ${JSON.stringify(categorizationResult)}`,
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Categorization failed: ${error.message}, falling back to Claude category`,
+        );
+        errors.push(`Categorization failed: ${error.message}`);
+        // Fallback to Claude's category
+        categorizationResult = {
+          primaryCategory: {
+            name: analysis.category,
+            confidence: analysis.categoryConfidence || 0.5,
+            reasoning: 'Fallback to Claude categorization',
+            isExisting: false,
+          },
+          alternativeCategories: [],
+          autoApplied: false,
+          confidence: analysis.categoryConfidence || 0.5,
+          reasoning: 'Fallback to Claude categorization',
+        };
+      }
+
+      // Step 6: Find or create category using categorization service result
+      const category = await this.categorizationService.findOrCreateCategory(
+        categorizationResult.primaryCategory.name,
         request.userId,
       );
       processingSteps.push(`Category assigned: ${category.name}`);
 
-      // Step 5: Map content type to entity enum
+      // Step 7: Map content type to entity enum
       const entityContentType = this.mapContentType(
         request.contentType,
         routingResult?.analysis?.contentType,
       );
 
-      // Step 6: Create dump entity with enhanced metadata
+      // Step 8: Create dump entity with enhanced entity extraction and categorization data
       const dump = this.dumpRepository.create({
         user_id: user.id,
         raw_content: processedContent,
@@ -598,22 +680,21 @@ export class DumpService {
         urgency_level: this.mapUrgencyToNumber(analysis.urgency || 'low'),
         processing_status: ProcessingStatus.PROCESSING,
         extracted_entities: {
-          // Legacy structure for createDumpEnhanced - should be migrated to use entity extraction service
-          entities: {
-            dates: [],
-            times: [],
-            locations: [],
-            people: [],
-            organizations: [],
-            amounts: [],
-            contacts: { phones: [], emails: [], urls: [] },
-          },
+          // Enhanced entity extraction from dedicated service
+          entities: entityExtractionResult.structuredData,
+          entityDetails: entityExtractionResult.entities, // Full entity details with confidence
+          entitySummary: entityExtractionResult.summary,
+          // AI analysis data
           actionItems: analysis.actionItems || [],
           sentiment: analysis.sentiment || 'neutral',
           urgency: analysis.urgency || 'low',
-          categoryConfidence: Math.round(
-            (analysis.categoryConfidence || 0.8) * 100,
+          // Enhanced categorization data
+          categoryConfidence: Math.round(categorizationResult.confidence * 100), // Use categorization service confidence
+          categoryReasoning: categorizationResult.reasoning,
+          alternativeCategories: categorizationResult.alternativeCategories.map(
+            (c) => c.name,
           ),
+          autoApplied: categorizationResult.autoApplied,
           metadata: {
             ...request.metadata,
             routingInfo: routingResult,
@@ -625,10 +706,56 @@ export class DumpService {
       const savedDump = await this.dumpRepository.save(dump);
       processingSteps.push('Dump saved to database');
 
-      // Step 7: Generate content vector
-      await this.generateContentVector(savedDump, processingSteps, errors);
+      // Step 9: Generate content vector for semantic search
+      try {
+        const contentToEmbed = savedDump.ai_summary || savedDump.raw_content;
+        if (contentToEmbed) {
+          this.logger.debug(`Generating embedding for dump ${savedDump.id}`);
+          const embeddingResponse = await this.vectorService.generateEmbedding({
+            text: contentToEmbed,
+          });
 
-      // Step 8: Update processing status
+          // Update the dump with the generated vector
+          await this.dumpRepository.update(savedDump.id, {
+            content_vector: embeddingResponse.embedding,
+          });
+
+          processingSteps.push('Content vector generated');
+          this.logger.debug(
+            `Vector generated successfully for dump ${savedDump.id}`,
+          );
+
+          // Trigger vector index creation if it doesn't exist
+          try {
+            await this.databaseInitService.ensureVectorIndex();
+            this.logger.debug(
+              'Vector index ensured after embedding generation',
+            );
+          } catch (error) {
+            this.logger.warn('Failed to ensure vector index:', error.message);
+            // Try to recreate index as fallback
+            try {
+              this.logger.log('Attempting to recreate vector index...');
+              await this.databaseInitService.recreateVectorIndex();
+              this.logger.log('✅ Vector index recreated successfully');
+            } catch (recreateError) {
+              this.logger.error(
+                '❌ Failed to recreate vector index:',
+                recreateError.message,
+              );
+            }
+          }
+        }
+      } catch (error) {
+        this.logger.error(
+          `Failed to generate vector for dump ${savedDump.id}:`,
+          error,
+        );
+        errors.push(`Vector generation failed: ${error.message}`);
+        // Continue processing even if vector generation fails
+      }
+
+      // Step 10: Update processing status
       await this.dumpRepository.update(savedDump.id, {
         processing_status: ProcessingStatus.COMPLETED,
         processed_at: new Date(),

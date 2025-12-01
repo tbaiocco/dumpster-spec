@@ -139,6 +139,7 @@ Content items captured from users (text, voice, images, documents).
 | `GET` | `/api/dumps/user/:userId` | Get all dumps for a user | No |
 | `GET` | `/api/dumps/user/:userId/stats` | Get user dump statistics | No |
 | `GET` | `/api/dumps/:id` | Get single dump by ID | No |
+| `PATCH` | `/api/dumps/:id` | Update dump (partial update) | No |
 | `DELETE` | `/api/dumps/:id` | Delete dump | No |
 | `POST` | `/api/dumps/generate-vectors` | Generate embeddings for dumps | No |
 | `POST` | `/api/dumps/screenshot` | Process screenshot with OCR | No |
@@ -156,6 +157,20 @@ Content items captured from users (text, voice, images, documents).
   "metadata": {
     "source": "telegram",
     "chatId": "123456789"
+  }
+}
+
+// PATCH /api/dumps/:id
+{
+  "raw_content": "Updated content text",
+  "ai_summary": "Updated summary",
+  "category": "work",
+  "extracted_entities": {
+    "dates": ["2025-12-01"],
+    "people": ["John Doe"]
+  },
+  "metadata": {
+    "custom_field": "value"
   }
 }
 

@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   Delete,
@@ -58,6 +59,28 @@ export class DumpSearchDto {
   query?: string;
 }
 
+export class UpdateDumpDto {
+  @IsOptional()
+  @IsString()
+  raw_content?: string;
+
+  @IsOptional()
+  @IsString()
+  ai_summary?: string;
+
+  @IsOptional()
+  @IsString()
+  category?: string; // Category name, will be resolved to category_id
+
+  @IsOptional()
+  @IsObject()
+  extracted_entities?: any;
+
+  @IsOptional()
+  @IsObject()
+  metadata?: any;
+}
+
 @Controller('api/dumps')
 export class DumpController {
   constructor(private readonly dumpService: DumpService) {}
@@ -67,31 +90,6 @@ export class DumpController {
   async create(
     @Body(ValidationPipe) createDumpDto: CreateDumpDto,
   ): Promise<ApiResponse<DumpProcessingResult>> {
-    // const request: CreateDumpRequest = {
-    //   userId: createDumpDto.userId,
-    //   content: createDumpDto.content,
-    //   contentType: createDumpDto.contentType,
-    //   originalText: createDumpDto.originalText,
-    //   metadata: {
-    //     source:
-    //       (createDumpDto.metadata?.source as 'telegram' | 'whatsapp') ||
-    //       'telegram',
-    //     messageId: createDumpDto.metadata?.messageId,
-    //     fileName: createDumpDto.metadata?.fileName,
-    //     mimeType: createDumpDto.metadata?.mimeType,
-    //     fileSize: createDumpDto.metadata?.fileSize,
-    //     chatId: createDumpDto.metadata?.chatId,
-    //   },
-    // };
-
-    // const result = await this.dumpService.createDump(request);
-
-    // return {
-    //   success: true,
-    //   data: result,
-    //   message: 'Content processed successfully',
-    // };
-
     return this.createEnhanced(createDumpDto);
   }
 
@@ -205,6 +203,70 @@ export class DumpController {
       success: true,
       data: dump,
       message: 'Dump retrieved successfully',
+    };
+  }
+
+  @Patch(':id')
+  @HttpCode(HttpStatus.OK)
+  async update(
+    @Param('id') id: string,
+    @Body(ValidationPipe) updateDumpDto: UpdateDumpDto,
+  ): Promise<ApiResponse<Dump>> {
+    // Build the updates object
+    const updates: Partial<Dump> = {};
+
+    if (updateDumpDto.raw_content !== undefined) {
+      updates.raw_content = updateDumpDto.raw_content;
+    }
+
+    if (updateDumpDto.ai_summary !== undefined) {
+      updates.ai_summary = updateDumpDto.ai_summary;
+    }
+
+    if (updateDumpDto.extracted_entities !== undefined) {
+      updates.extracted_entities = updateDumpDto.extracted_entities;
+    }
+
+    // Handle category update - convert category name to category_id
+    if (updateDumpDto.category !== undefined) {
+      // First, get the dump to get the userId
+      const existingDump = await this.dumpService.findById(id);
+      if (!existingDump) {
+        return {
+          success: false,
+          message: 'Dump not found',
+          data: null as any,
+        };
+      }
+
+      // Find or create category
+      const category = await this.dumpService['categorizationService'].findOrCreateCategory(
+        updateDumpDto.category,
+        existingDump.user_id,
+      );
+      updates.category_id = category.id;
+    }
+
+    // Merge metadata if provided
+    if (updateDumpDto.metadata !== undefined) {
+      const existingDump = await this.dumpService.findById(id);
+      if (existingDump?.extracted_entities) {
+        updates.extracted_entities = {
+          ...existingDump.extracted_entities,
+          metadata: {
+            ...(existingDump.extracted_entities as any).metadata,
+            ...updateDumpDto.metadata,
+          },
+        };
+      }
+    }
+
+    const updatedDump = await this.dumpService.updateDump(id, updates);
+
+    return {
+      success: true,
+      data: updatedDump,
+      message: 'Dump updated successfully',
     };
   }
 

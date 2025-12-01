@@ -4,6 +4,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '.
 import { Badge } from '../../components/ui/Badge';
 import { Input } from '../../components/ui/Input';
 import { Spinner } from '../../components/ui/Spinner';
+import { Modal } from '../../components/ui/Modal';
 import apiService from '../../services/api.service';
 
 interface Dump {
@@ -11,10 +12,13 @@ interface Dump {
   raw_content: string;
   ai_summary?: string;
   content_type: string;
-  category?: { name: string };
+  category?: { name: string; id: string };
   ai_confidence: number;
   created_at: string;
-  user: { phone_number: string };
+  updated_at?: string;
+  user: { phone_number: string; id: string };
+  extracted_entities?: any;
+  metadata?: any;
 }
 
 /**
@@ -25,6 +29,9 @@ export const DumpsPage: React.FC = () => {
   const [dumps, setDumps] = useState<Dump[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDump, setSelectedDump] = useState<Dump | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   useEffect(() => {
     loadDumps();
@@ -41,6 +48,26 @@ export const DumpsPage: React.FC = () => {
       setDumps(response.data.dumps || []);
     }
     setLoading(false);
+  };
+
+  const handleRowClick = async (dumpId: string) => {
+    setLoadingDetail(true);
+    setIsModalOpen(true);
+    try {
+      const response = await apiService.getDump(dumpId);
+      if (response.success && response.data) {
+        setSelectedDump(response.data);
+      }
+    } catch (error) {
+      console.error('[DumpsPage] Error loading dump details:', error);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedDump(null);
   };
 
   if (loading) {
@@ -83,7 +110,11 @@ export const DumpsPage: React.FC = () => {
               </TableHeader>
               <TableBody>
                 {dumps.map((dump) => (
-                  <TableRow key={dump.id}>
+                  <TableRow 
+                    key={dump.id}
+                    onClick={() => handleRowClick(dump.id)}
+                    className="cursor-pointer hover:bg-slate-50"
+                  >
                     <TableCell className="max-w-md">
                       <div className="truncate text-slate-900">
                         {dump.raw_content || dump.ai_summary || `[${dump.content_type}]`}
@@ -121,6 +152,129 @@ export const DumpsPage: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Dump Details Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        title="Dump Details"
+        size="lg"
+      >
+        {loadingDetail && (
+          <div className="flex justify-center py-8">
+            <Spinner size="lg" />
+          </div>
+        )}
+        
+        {!loadingDetail && selectedDump && (
+          <div className="space-y-6">
+            {/* Content */}
+            <div>
+              <h3 className="text-sm font-semibold text-slate-700 mb-2">Content</h3>
+              <p className="text-slate-900 bg-slate-50 p-4 rounded-lg border border-slate-200 whitespace-pre-wrap">
+                {selectedDump.raw_content || '[No content]'}
+              </p>
+            </div>
+
+            {/* AI Summary */}
+            {selectedDump.ai_summary && (
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-2">AI Summary</h3>
+                <p className="text-slate-700 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  {selectedDump.ai_summary}
+                </p>
+              </div>
+            )}
+
+            {/* Metadata Grid */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-2">Category</h3>
+                <Badge variant="default">{selectedDump.category?.name || 'Uncategorized'}</Badge>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-2">AI Confidence</h3>
+                <Badge variant={selectedDump.ai_confidence > 70 ? 'success' : 'warning'}>
+                  {selectedDump.ai_confidence}%
+                </Badge>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-2">Content Type</h3>
+                <span className="text-slate-900 font-mono text-sm">{selectedDump.content_type}</span>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-2">User</h3>
+                <span className="text-slate-900 font-mono text-sm">{selectedDump.user.phone_number}</span>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-2">Created</h3>
+                <span className="text-slate-700 text-sm">
+                  {new Date(selectedDump.created_at).toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+
+              {selectedDump.updated_at && (
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-700 mb-2">Updated</h3>
+                  <span className="text-slate-700 text-sm">
+                    {new Date(selectedDump.updated_at).toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Extracted Entities */}
+            {selectedDump.extracted_entities && Object.keys(selectedDump.extracted_entities).length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-2">Extracted Entities</h3>
+                <pre className="text-xs text-slate-700 bg-slate-50 p-4 rounded-lg border border-slate-200 overflow-auto max-h-60">
+                  {JSON.stringify(selectedDump.extracted_entities, null, 2)}
+                </pre>
+              </div>
+            )}
+
+            {/* Metadata */}
+            {selectedDump.metadata && Object.keys(selectedDump.metadata).length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-2">Metadata</h3>
+                <pre className="text-xs text-slate-700 bg-slate-50 p-4 rounded-lg border border-slate-200 overflow-auto max-h-60">
+                  {JSON.stringify(selectedDump.metadata, null, 2)}
+                </pre>
+              </div>
+            )}
+
+            {/* ID (for reference) */}
+            <div>
+              <h3 className="text-sm font-semibold text-slate-700 mb-2">ID</h3>
+              <code className="text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded border border-slate-200">
+                {selectedDump.id}
+              </code>
+            </div>
+          </div>
+        )}
+        
+        {!loadingDetail && !selectedDump && (
+          <div className="text-center py-8 text-slate-500">
+            <p>No dump selected</p>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };
