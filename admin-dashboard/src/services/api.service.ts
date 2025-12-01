@@ -308,15 +308,15 @@ class ApiService {
   }
 
   public async getDump(dumpId: string) {
-    return this.get(`/dumps/${dumpId}`);
+    return this.get(`/api/dumps/${dumpId}`);
   }
 
   public async updateDump(dumpId: string, data: any) {
-    return this.patch(`/dumps/${dumpId}`, data);
+    return this.patch(`/api/dumps/${dumpId}`, data);
   }
 
   public async deleteDump(dumpId: string) {
-    return this.delete(`/dumps/${dumpId}`);
+    return this.delete(`/api/dumps/${dumpId}`);
   }
 
   /**

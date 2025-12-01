@@ -10,6 +10,7 @@ import { HelpCommand } from './commands/help.command';
 import { RecentCommand } from './commands/recent.command';
 import { SearchCommand } from './commands/search.command';
 import { ReportCommand } from './commands/report.command';
+import { MessageFormatterHelper } from './helpers/message-formatter.helper';
 
 export interface WhatsAppMessage {
   MessageSid: string;
@@ -198,22 +199,17 @@ export class WhatsAppService {
     content: string,
     category?: string,
     confidence?: number,
-  ): Promise<{ id: string }> {
-    let text = `✅ *${title}*\n\n`;
-    text += `${content}\n\n`;
+  ): Promise<string> {
+    const plainText = MessageFormatterHelper.buildFormattedResponse(
+      title,
+      content,
+      category,
+      confidence,
+    );
+    const markdownText = MessageFormatterHelper.applyMarkdownFormatting(plainText);
 
-    if (category) {
-      text += `📁 *Category:* ${category}\n`;
-    }
-
-    if (confidence !== undefined) {
-      const confidencePercent = Math.round(confidence * 100);
-      text += `🎯 *Confidence:* ${confidencePercent}%\n`;
-    }
-
-    text += `\n_Your content has been saved!_`;
-
-    return this.sendTextMessage(to, text);
+    const result = await this.sendTextMessage(to, markdownText);
+    return result.id;
   }
 
   async getMedia(mediaUrl: string): Promise<WhatsAppMediaResponse> {
@@ -410,7 +406,7 @@ export class WhatsAppService {
       // Send success response with processing details
       await this.sendFormattedResponse(
         phoneNumber,
-        '✅ Content Processed',
+        '✅ Processed Successfully',
         this.formatProcessingResult(result),
         result.dump.category?.name || 'General',
         (result.dump.ai_confidence || 95) / 100,
@@ -473,7 +469,7 @@ export class WhatsAppService {
       // Send success response with processing details
       await this.sendFormattedResponse(
         phoneNumber,
-        '🎤 Voice Processed',
+        '🎤 Processed Successfully',
         this.formatProcessingResult(result),
         result.dump.category?.name || 'Audio',
         (result.dump.ai_confidence || 90) / 100,
@@ -526,7 +522,7 @@ export class WhatsAppService {
       // Send success response with processing details
       await this.sendFormattedResponse(
         phoneNumber,
-        '📷 Image Processed',
+        '📷 Processed Successfully',
         this.formatProcessingResult(result),
         result.dump.category?.name || 'Media',
         (result.dump.ai_confidence || 85) / 100,
@@ -577,7 +573,7 @@ export class WhatsAppService {
       // Send success response with processing details
       await this.sendFormattedResponse(
         phoneNumber,
-        '📄 Document Processed',
+        '📄 Processed Successfully',
         this.formatProcessingResult(result),
         result.dump.category?.name || 'Documents',
         (result.dump.ai_confidence || 80) / 100,
@@ -923,31 +919,6 @@ export class WhatsAppService {
    * Format processing result for user-friendly display
    */
   private formatProcessingResult(result: DumpProcessingResult): string {
-    const { dump, processingSteps } = result;
-
-    let summary = `📝 Processed and saved`;
-
-    if (dump.ai_summary) {
-      summary += `\n\n*Summary:* ${dump.ai_summary}`;
-    }
-
-    // Check for enhanced processing metadata
-    const metadata = dump.extracted_entities?.metadata;
-    const enhancedProcessing = metadata?.enhancedProcessing;
-    const routingInfo = metadata?.routingInfo;
-
-    if (enhancedProcessing && routingInfo) {
-      summary += `\n\n*Analysis:* ${routingInfo.contentType} content (${Math.round(routingInfo.confidence * 100)}% confidence)`;
-
-      if (routingInfo.processingTimeEstimate) {
-        summary += `\n*Processing time:* ${routingInfo.processingTimeEstimate}ms`;
-      }
-    }
-
-    if (processingSteps && processingSteps.length > 0) {
-      summary += `\n\n*Processing:* ${processingSteps.at(-1)}`;
-    }
-
-    return summary.length > 4000 ? summary.substring(0, 4000) + '...' : summary;
+    return MessageFormatterHelper.formatProcessingResult(result);
   }
 }

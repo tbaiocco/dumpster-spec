@@ -8,8 +8,9 @@ import {
 } from '../dumps/services/dump.service';
 import { HelpCommand } from './commands/help.command';
 import { RecentCommand } from './commands/recent.command';
-import { ReportCommand } from './commands/report.command';
 import { SearchCommand } from './commands/search.command';
+import { ReportCommand } from './commands/report.command';
+import { MessageFormatterHelper } from './helpers/message-formatter.helper';
 
 export interface TelegramMessage {
   message_id: number;
@@ -148,27 +149,23 @@ export class TelegramService {
     category?: string,
     confidence?: number,
     replyToMessageId?: number,
-  ): Promise<TelegramMessage> {
-    let text = `✅ <b>${title}</b>\n\n`;
-    text += `${content}\n\n`;
+  ): Promise<string> {
+    const plainText = MessageFormatterHelper.buildFormattedResponse(
+      title,
+      content,
+      category,
+      confidence,
+    );
+    const htmlText = MessageFormatterHelper.applyHtmlFormatting(plainText);
 
-    if (category) {
-      text += `📁 <b>Category:</b> ${category}\n`;
-    }
-
-    if (confidence !== undefined) {
-      const confidencePercent = Math.round(confidence * 100);
-      text += `🎯 <b>Confidence:</b> ${confidencePercent}%\n`;
-    }
-
-    text += `\n<i>Your content has been saved!</i>`;
-
-    return this.sendMessage({
+    const message = await this.sendMessage({
       chat_id: chatId,
-      text,
+      text: htmlText,
       parse_mode: 'HTML',
       reply_to_message_id: replyToMessageId,
     });
+
+    return message.message_id.toString();
   }
 
   async getFile(fileId: string): Promise<TelegramFile> {
@@ -690,47 +687,6 @@ export class TelegramService {
    * Format processing result for user-friendly display
    */
   private formatProcessingResult(result: DumpProcessingResult): string {
-    const { dump } = result;
-    const entities = dump.extracted_entities;
-
-    let content = '';
-
-    // Summary (clean, no asterisks)
-    if (dump.ai_summary) {
-      content += `📝 <b>Summary:</b> ${dump.ai_summary}\n\n`;
-    }
-
-    // Extract structured data for beautiful display
-    let urgency = 'low';
-    let actionItems: string[] = [];
-
-    if (entities) {
-      urgency = entities.urgency || 'low';
-      actionItems = entities.actionItems || [];
-    }
-
-    // Show urgency if not low
-    if (urgency !== 'low') {
-      const urgencyEmoji = urgency === 'high' ? '🔴' : '🟡';
-      content += `${urgencyEmoji} <b>Urgency:</b> ${urgency.charAt(0).toUpperCase() + urgency.slice(1)}\n\n`;
-    }
-
-    // Show action items if any
-    if (actionItems.length > 0) {
-      content += `✅ <b>Action Items:</b>\n`;
-      const itemsToShow = actionItems.slice(0, 3);
-      for (const [index, item] of itemsToShow.entries()) {
-        content += `${index + 1}. ${item}\n`;
-      }
-      if (actionItems.length > 3) {
-        content += `... and ${actionItems.length - 3} more\n`;
-      }
-      content += '\n';
-    }
-
-    // Clean content (remove any remaining asterisks and technical details)
-    content = content.replaceAll('*', ''); // Remove markdown asterisks
-
-    return content.length > 3500 ? content.substring(0, 3500) + '...' : content;
+    return MessageFormatterHelper.formatProcessingResult(result);
   }
 }
