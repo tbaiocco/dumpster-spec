@@ -475,14 +475,23 @@ export class EntityExtractionService {
       this.logger.warn(
         `Expected string value for entity but got ${typeof value}: ${JSON.stringify(value)}`,
       );
-      return `Related to: ${String(value)}`;
+      return `Entity: ${String(value)}`;
     }
 
-    const index = content.toLowerCase().indexOf(value.toLowerCase());
+    // Trim whitespace and check for empty strings
+    const trimmedValue = value.trim();
+    if (!trimmedValue) {
+      this.logger.warn('Empty string value provided for entity extraction');
+      return 'No context available';
+    }
+
+    // Try to find exact match (case-insensitive)
+    const index = content.toLowerCase().indexOf(trimmedValue.toLowerCase());
     if (index === -1) {
-      return `Related to: ${value}`;
+      // Value not found in original content - might be AI-inferred or translated
+      return `Entity: ${trimmedValue}`;
     }
 
-    return this.getContext(content, index, value.length);
+    return this.getContext(content, index, trimmedValue.length);
   }
 }
