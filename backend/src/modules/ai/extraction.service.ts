@@ -404,33 +404,37 @@ export class EntityExtractionService {
     };
 
     entities.forEach((entity) => {
+      // Ensure we always extract just the string value
+      const stringValue =
+        typeof entity.value === 'string' ? entity.value : String(entity.value);
+
       switch (entity.type) {
         case 'date':
-          structured.dates.push(entity.value);
+          structured.dates.push(stringValue);
           break;
         case 'time':
-          structured.times.push(entity.value);
+          structured.times.push(stringValue);
           break;
         case 'location':
-          structured.locations.push(entity.value);
+          structured.locations.push(stringValue);
           break;
         case 'person':
-          structured.people.push(entity.value);
+          structured.people.push(stringValue);
           break;
         case 'organization':
-          structured.organizations.push(entity.value);
+          structured.organizations.push(stringValue);
           break;
         case 'amount':
-          structured.amounts.push(entity.value);
+          structured.amounts.push(stringValue);
           break;
         case 'phone':
-          structured.contacts.phones.push(entity.value);
+          structured.contacts.phones.push(stringValue);
           break;
         case 'email':
-          structured.contacts.emails.push(entity.value);
+          structured.contacts.emails.push(stringValue);
           break;
         case 'url':
-          structured.contacts.urls.push(entity.value);
+          structured.contacts.urls.push(stringValue);
           break;
       }
     });
@@ -470,6 +474,18 @@ export class EntityExtractionService {
   }
 
   private findContextForValue(content: string, value: unknown): string {
+    // Type guard: handle objects with 'value' property (nested entity objects)
+    if (typeof value === 'object' && value !== null && 'value' in value) {
+      this.logger.warn(
+        `Received nested entity object instead of string value: ${JSON.stringify(value)}`,
+      );
+      // Extract the actual value from the nested object
+      const nestedValue = (value as any).value;
+      if (typeof nestedValue === 'string') {
+        return this.findContextForValue(content, nestedValue);
+      }
+    }
+
     // Type guard: ensure value is a string
     if (typeof value !== 'string') {
       this.logger.warn(
