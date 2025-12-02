@@ -266,77 +266,106 @@ export class EntityExtractionService {
   ): ExtractedEntity[] {
     const entities: ExtractedEntity[] = [];
 
+    // Helper to extract string value from either string or object
+    const extractStringValue = (item: any): string | null => {
+      if (typeof item === 'string') {
+        return item;
+      }
+      if (typeof item === 'object' && item !== null && 'value' in item) {
+        return typeof item.value === 'string' ? item.value : String(item.value);
+      }
+      return null;
+    };
+
     // Extract from the structured entities in the analysis
     if (analysis.extractedEntities) {
       // People
       if (analysis.extractedEntities.people) {
         analysis.extractedEntities.people.forEach((person) => {
-          entities.push({
-            type: 'person',
-            value: person,
-            confidence: 0.7,
-            context: this.findContextForValue(originalContent, person),
-          });
+          const stringValue = extractStringValue(person);
+          if (stringValue) {
+            entities.push({
+              type: 'person',
+              value: stringValue,
+              confidence: 0.7,
+              context: this.findContextForValue(originalContent, stringValue),
+            });
+          }
         });
       }
 
       // Organizations
       if (analysis.extractedEntities.organizations) {
         analysis.extractedEntities.organizations.forEach((org) => {
-          entities.push({
-            type: 'organization',
-            value: org,
-            confidence: 0.7,
-            context: this.findContextForValue(originalContent, org),
-          });
+          const stringValue = extractStringValue(org);
+          if (stringValue) {
+            entities.push({
+              type: 'organization',
+              value: stringValue,
+              confidence: 0.7,
+              context: this.findContextForValue(originalContent, stringValue),
+            });
+          }
         });
       }
 
       // Locations
       if (analysis.extractedEntities.locations) {
         analysis.extractedEntities.locations.forEach((location) => {
-          entities.push({
-            type: 'location',
-            value: location,
-            confidence: 0.7,
-            context: this.findContextForValue(originalContent, location),
-          });
+          const stringValue = extractStringValue(location);
+          if (stringValue) {
+            entities.push({
+              type: 'location',
+              value: stringValue,
+              confidence: 0.7,
+              context: this.findContextForValue(originalContent, stringValue),
+            });
+          }
         });
       }
 
       // Dates
       if (analysis.extractedEntities.dates) {
         analysis.extractedEntities.dates.forEach((date) => {
-          entities.push({
-            type: 'date',
-            value: date,
-            confidence: 0.6,
-            context: this.findContextForValue(originalContent, date),
-          });
+          const stringValue = extractStringValue(date);
+          if (stringValue) {
+            entities.push({
+              type: 'date',
+              value: stringValue,
+              confidence: 0.6,
+              context: this.findContextForValue(originalContent, stringValue),
+            });
+          }
         });
       }
 
       // Times
       if (analysis.extractedEntities.times) {
         analysis.extractedEntities.times.forEach((time) => {
-          entities.push({
-            type: 'time',
-            value: time,
-            confidence: 0.6,
-            context: this.findContextForValue(originalContent, time),
-          });
+          const stringValue = extractStringValue(time);
+          if (stringValue) {
+            entities.push({
+              type: 'time',
+              value: stringValue,
+              confidence: 0.6,
+              context: this.findContextForValue(originalContent, stringValue),
+            });
+          }
         });
       }
 
       // Amounts
       if (analysis.extractedEntities.amounts) {
         analysis.extractedEntities.amounts.forEach((amount) => {
-          entities.push({
-            type: 'amount',
-            value: amount,
-            confidence: 0.6,
-            context: this.findContextForValue(originalContent, amount),
-          });
+          const stringValue = extractStringValue(amount);
+          if (stringValue) {
+            entities.push({
+              type: 'amount',
+              value: stringValue,
+              confidence: 0.6,
+              context: this.findContextForValue(originalContent, stringValue),
+            });
+          }
         });
       }
     }
@@ -404,7 +433,8 @@ export class EntityExtractionService {
     };
 
     entities.forEach((entity) => {
-      // Ensure we always extract just the string value
+      // At this point, entity.value should always be a string due to parseAIEntities fix
+      // But we keep this safety check just in case
       const stringValue =
         typeof entity.value === 'string' ? entity.value : String(entity.value);
 
