@@ -469,7 +469,15 @@ export class EntityExtractionService {
     return content.slice(start, end).trim();
   }
 
-  private findContextForValue(content: string, value: string): string {
+  private findContextForValue(content: string, value: unknown): string {
+    // Type guard: ensure value is a string
+    if (typeof value !== 'string') {
+      this.logger.warn(
+        `Expected string value for entity but got ${typeof value}: ${JSON.stringify(value)}`,
+      );
+      return `Related to: ${String(value)}`;
+    }
+
     const index = content.toLowerCase().indexOf(value.toLowerCase());
     if (index === -1) {
       return `Related to: ${value}`;
