@@ -11,6 +11,9 @@ import { RecentCommand } from './commands/recent.command';
 import { SearchCommand } from './commands/search.command';
 import { ReportCommand } from './commands/report.command';
 import { MessageFormatterHelper } from './helpers/message-formatter.helper';
+import { ResponseFormatterService } from '../ai/formatter.service';
+import { EntityExtractionResult } from '../ai/extraction.service';
+import { ContentAnalysisResponse } from '../ai/claude.service';
 
 export interface TelegramMessage {
   message_id: number;
@@ -89,6 +92,7 @@ export class TelegramService {
     private readonly recentCommand: RecentCommand,
     private readonly reportCommand: ReportCommand,
     private readonly searchCommand: SearchCommand,
+    private readonly responseFormatterService: ResponseFormatterService,
   ) {
     this.botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN') || '';
     this.apiUrl = `https://api.telegram.org/bot${this.botToken}`;
@@ -144,23 +148,77 @@ export class TelegramService {
 
   async sendFormattedResponse(
     chatId: number,
-    title: string,
-    content: string,
-    category?: string,
-    confidence?: number,
+    result: DumpProcessingResult,
     replyToMessageId?: number,
   ): Promise<string> {
-    const plainText = MessageFormatterHelper.buildFormattedResponse(
-      title,
-      content,
-      category,
-      confidence,
+    // Extract analysis and entities from the dump
+    const dump = result.dump;
+    const extractedEntities = dump.extracted_entities || {};
+    
+    // Build ContentAnalysisResponse from dump data
+    const analysis: ContentAnalysisResponse = {
+      summary: dump.ai_summary || '',
+      category: dump.category?.name || 'General',
+      categoryConfidence: (dump.ai_confidence || 95) / 100,
+      extractedEntities: {
+        dates: extractedEntities.entities?.dates || [],
+        times: extractedEntities.entities?.times || [],
+        locations: extractedEntities.entities?.locations || [],
+        people: extractedEntities.entities?.people || [],
+        organizations: extractedEntities.entities?.organizations || [],
+        amounts: extractedEntities.entities?.amounts || [],
+        tags: [],
+      },
+      actionItems: extractedEntities.actionItems || [],
+      sentiment: (extractedEntities.sentiment as 'positive' | 'neutral' | 'negative') || 'neutral',
+      urgency: (extractedEntities.urgency as 'low' | 'medium' | 'high') || 'low',
+      confidence: (dump.ai_confidence || 95) / 100,
+    };
+
+    // Build EntityExtractionResult from dump data
+    const entities: EntityExtractionResult = {
+      entities: (extractedEntities.entityDetails || []).map((entity: any) => ({
+        type: entity.type as 'date' | 'time' | 'location' | 'person' | 'organization' | 'amount' | 'phone' | 'email' | 'url',
+        value: entity.value,
+        confidence: entity.confidence,
+        context: entity.context,
+        position: entity.position,
+      })),
+      summary: extractedEntities.entitySummary || {
+        totalEntities: 0,
+        entitiesByType: {},
+        averageConfidence: 0,
+      },
+      structuredData: {
+        dates: extractedEntities.entities?.dates || [],
+        times: extractedEntities.entities?.times || [],
+        locations: extractedEntities.entities?.locations || [],
+        people: extractedEntities.entities?.people || [],
+        organizations: extractedEntities.entities?.organizations || [],
+        amounts: extractedEntities.entities?.amounts || [],
+        contacts: extractedEntities.entities?.contacts || {
+          phones: [],
+          emails: [],
+          urls: [],
+        },
+      },
+    };
+
+    // Use ResponseFormatterService with brief format
+    const formatted = this.responseFormatterService.formatAnalysisResponse(
+      analysis,
+      entities,
+      {
+        platform: 'telegram',
+        format: 'brief',
+        includeEmojis: true,
+        includeMarkdown: true,
+      },
     );
-    const htmlText = MessageFormatterHelper.applyHtmlFormatting(plainText);
 
     const message = await this.sendMessage({
       chat_id: chatId,
-      text: htmlText,
+      text: formatted.html || formatted.text,
       parse_mode: 'HTML',
       reply_to_message_id: replyToMessageId,
     });
@@ -409,10 +467,7 @@ export class TelegramService {
       // Send success response with processing details
       await this.sendFormattedResponse(
         chatId,
-        '✅ Processed Successfully',
-        this.formatProcessingResult(result),
-        result.dump.category?.name || 'General',
-        (result.dump.ai_confidence || 95) / 100,
+        result,
         message.message_id,
       );
     } catch (error) {
@@ -458,10 +513,7 @@ export class TelegramService {
       // Send success response with processing details
       await this.sendFormattedResponse(
         chatId,
-        '🎤 Processed Successfully',
-        this.formatProcessingResult(result),
-        result.dump.category?.name || 'Audio',
-        (result.dump.ai_confidence || 90) / 100,
+        result,
         message.message_id,
       );
     } catch (error) {
@@ -512,10 +564,7 @@ export class TelegramService {
       // Send success response with processing details
       await this.sendFormattedResponse(
         chatId,
-        '📷 Processed Successfully',
-        this.formatProcessingResult(result),
-        result.dump.category?.name || 'Media',
-        (result.dump.ai_confidence || 85) / 100,
+        result,
         message.message_id,
       );
     } catch (error) {
@@ -560,10 +609,7 @@ export class TelegramService {
       // Send success response with processing details
       await this.sendFormattedResponse(
         chatId,
-        '📄 Processed Successfully',
-        this.formatProcessingResult(result),
-        result.dump.category?.name || 'Documents',
-        (result.dump.ai_confidence || 85) / 100,
+        result,
         message.message_id,
       );
     } catch (error) {

@@ -1,12 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DumpService } from '../../dumps/services/dump.service';
 import { User } from '../../../entities/user.entity';
+import { ResponseFormatterService } from '../../ai/formatter.service';
+import { ContentAnalysisResponse } from '../../ai/claude.service';
+import { EntityExtractionResult } from '../../ai/extraction.service';
 
 @Injectable()
 export class RecentCommand {
   private readonly logger = new Logger(RecentCommand.name);
 
-  constructor(private readonly dumpService: DumpService) {}
+  constructor(
+    private readonly dumpService: DumpService,
+    private readonly responseFormatterService: ResponseFormatterService,
+  ) {}
 
   async execute(user: User, limit: number = 5): Promise<string> {
     try {
@@ -37,29 +43,83 @@ export class RecentCommand {
           minute: '2-digit',
         });
 
-        // Get category icon
-        const categoryIcon = this.getCategoryIcon(dump.category?.name);
+        response += `━━━━━━━━━━━━━━━━━━\n`;
+        response += `📅 ${date}\n\n`;
 
-        // Truncate content for display (use ai_summary if available, otherwise raw_content)
-        const contentText = dump.ai_summary || dump.raw_content;
-        const content =
-          contentText?.length > 50
-            ? contentText.substring(0, 50) + '...'
-            : contentText || 'No content available';
+        // Build analysis and entities data from dump
+        const extractedEntities = dump.extracted_entities || {};
+        
+        const analysis: ContentAnalysisResponse = {
+          summary: dump.ai_summary || '',
+          category: dump.category?.name || 'General',
+          categoryConfidence: (dump.ai_confidence || 0) / 100,
+          extractedEntities: {
+            dates: extractedEntities.entities?.dates || [],
+            times: extractedEntities.entities?.times || [],
+            locations: extractedEntities.entities?.locations || [],
+            people: extractedEntities.entities?.people || [],
+            organizations: extractedEntities.entities?.organizations || [],
+            amounts: extractedEntities.entities?.amounts || [],
+            tags: [],
+          },
+          actionItems: extractedEntities.actionItems || [],
+          sentiment: (extractedEntities.sentiment as 'positive' | 'neutral' | 'negative') || 'neutral',
+          urgency: (extractedEntities.urgency as 'low' | 'medium' | 'high') || 'low',
+          confidence: (dump.ai_confidence || 0) / 100,
+        };
 
-        response += `${categoryIcon} <b>${dump.category?.name || 'Uncategorized'}</b>\n`;
-        response += `📅 ${date}\n`;
-        response += `💬 ${content}\n`;
+        const entities: EntityExtractionResult = {
+          entities: (extractedEntities.entityDetails || []).map((entity: any) => ({
+            type: entity.type as 'date' | 'time' | 'location' | 'person' | 'organization' | 'amount' | 'phone' | 'email' | 'url',
+            value: entity.value,
+            confidence: entity.confidence,
+            context: entity.context,
+            position: entity.position,
+          })),
+          summary: extractedEntities.entitySummary || {
+            totalEntities: 0,
+            entitiesByType: {},
+            averageConfidence: 0,
+          },
+          structuredData: {
+            dates: extractedEntities.entities?.dates || [],
+            times: extractedEntities.entities?.times || [],
+            locations: extractedEntities.entities?.locations || [],
+            people: extractedEntities.entities?.people || [],
+            organizations: extractedEntities.entities?.organizations || [],
+            amounts: extractedEntities.entities?.amounts || [],
+            contacts: extractedEntities.entities?.contacts || {
+              phones: [],
+              emails: [],
+              urls: [],
+            },
+          },
+        };
 
+        // Use ResponseFormatterService with detailed format
+        const formatted = this.responseFormatterService.formatAnalysisResponse(
+          analysis,
+          entities,
+          {
+            platform: 'telegram',
+            format: 'detailed',
+            includeEmojis: true,
+            includeMarkdown: true,
+          },
+        );
+
+        response += formatted.html || formatted.text;
+        
         if (dump.processing_status === 'failed') {
-          response += `⚠️ <i>Processing failed</i>\n`;
+          response += `\n⚠️ <i>Processing failed</i>`;
         } else if (dump.processing_status === 'processing') {
-          response += `🔍 <i>Processing...</i>\n`;
+          response += `\n🔍 <i>Processing...</i>`;
         }
 
-        response += '\n';
+        response += '\n\n';
       }
 
+      response += '━━━━━━━━━━━━━━━━━━\n';
       response += '<i>Use /search to find specific content</i>';
       return response;
     } catch (error) {

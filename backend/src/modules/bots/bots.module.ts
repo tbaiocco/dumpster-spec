@@ -13,6 +13,7 @@ import { UserModule } from '../users/user.module';
 import { DumpModule } from '../dumps/dump.module';
 import { SearchModule } from '../search/search.module';
 import { FeedbackModule } from '../feedback/feedback.module';
+import { ResponseFormatterService } from '../ai/formatter.service';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { FeedbackModule } from '../feedback/feedback.module';
     SearchCommand,
     MoreCommand,
     SearchResultFormatter,
+    ResponseFormatterService,
   ],
   exports: [TelegramService, WhatsAppService],
 })
