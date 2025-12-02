@@ -92,339 +92,6 @@ export class DumpService {
   ) {}
 
   /**
-   * @deprecated Use createDumpEnhance instead - this method is now the primary implementation with enhanced entity extraction and categorization
-   */
-  async createDump(request: CreateDumpRequest): Promise<DumpProcessingResult> {
-    this.logger.log(
-      `Processing new dump for user ${request.userId}, type: ${request.contentType}`,
-    );
-
-    const processingSteps: string[] = [];
-    const errors: string[] = [];
-
-    try {
-      // Step 1: Validate user exists
-      const user = await this.userService.findOne(request.userId);
-      if (!user) {
-        throw new NotFoundException(`User with ID ${request.userId} not found`);
-      }
-      processingSteps.push('User validated');
-
-      // Step 2: Process content based on type
-      let processedContent: string;
-      let confidence = 0.8;
-
-      switch (request.contentType) {
-        case 'voice': {
-          if (request.mediaBuffer) {
-            this.logger.debug('Transcribing audio with language detection');
-
-            const originalMimeType = request.metadata?.mimeType || 'audio/wav';
-            const fixedMimeType = this.getProperMimeType(
-              RouterContentType.VOICE_MESSAGE,
-              originalMimeType,
-              request.metadata?.fileName,
-            );
-
-            // Use automatic language detection since we can't rely on metadata
-            const transcriptionResult =
-              await this.speechService.transcribeWithLanguageDetection(
-                request.mediaBuffer,
-                fixedMimeType,
-              );
-            processedContent = transcriptionResult.transcript;
-            confidence = transcriptionResult.confidence;
-            const detectedLang =
-              transcriptionResult.detectedLanguage || 'unknown';
-            processingSteps.push(
-              `Audio transcribed with language detection (${detectedLang}, confidence: ${Math.round(confidence * 100)}%)`,
-            );
-          } else {
-            errors.push('Voice content requires media buffer');
-            processedContent =
-              request.originalText || 'Voice message (transcription failed)';
-          }
-          break;
-        }
-
-        case 'image': {
-          if (request.mediaBuffer) {
-            const ocrResult = await this.visionService.extractTextFromImage(
-              request.mediaBuffer,
-              request.metadata?.mimeType || 'image/jpeg',
-            );
-            processedContent = ocrResult.text || 'Image with no readable text';
-            confidence = ocrResult.confidence;
-            processingSteps.push('Image OCR completed');
-          } else {
-            errors.push('Image content requires media buffer');
-            processedContent = request.originalText || 'Image (OCR failed)';
-          }
-          break;
-        }
-
-        case 'document': {
-          // For now, treat documents as text content
-          // In the future, we could add document parsing here
-          processedContent = request.content;
-          processingSteps.push('Document content processed');
-          break;
-        }
-
-        case 'text':
-        default: {
-          processedContent = request.content;
-          processingSteps.push('Text content processed');
-          break;
-        }
-      }
-
-      // Step 3: Extract entities from processed content
-      let entityExtractionResult;
-      try {
-        entityExtractionResult =
-          await this.entityExtractionService.extractEntities({
-            content: processedContent,
-            contentType: request.contentType,
-            context: {
-              source: request.metadata?.source || 'telegram',
-              userId: request.userId,
-              timestamp: new Date(),
-            },
-          });
-        processingSteps.push(
-          `Entity extraction completed: ${entityExtractionResult.summary.totalEntities} entities found`,
-        );
-        this.logger.debug(
-          `Extracted entities: ${JSON.stringify(entityExtractionResult.structuredData)}`,
-        );
-      } catch (error) {
-        this.logger.warn(`Entity extraction failed: ${error.message}`);
-        errors.push(`Entity extraction failed: ${error.message}`);
-        // Continue with empty entity result
-        entityExtractionResult = {
-          entities: [],
-          summary: {
-            totalEntities: 0,
-            entitiesByType: {},
-            averageConfidence: 0,
-          },
-          structuredData: {
-            dates: [],
-            times: [],
-            locations: [],
-            people: [],
-            organizations: [],
-            amounts: [],
-            contacts: { phones: [], emails: [], urls: [] },
-          },
-        };
-      }
-
-      // Step 4: Analyze content with Claude
-      const analysis = await this.claudeService.analyzeContent({
-        content: processedContent,
-        contentType: 'text',
-        context: {
-          source: request.metadata?.source || 'telegram',
-          userId: request.userId,
-          timestamp: new Date(),
-        },
-      });
-      processingSteps.push('Content analysis completed');
-
-      // Step 5: Categorize content with enhanced categorization service
-      let categorizationResult;
-      try {
-        categorizationResult =
-          await this.categorizationService.categorizeContent({
-            content: processedContent,
-            userId: request.userId,
-            contentType: request.contentType,
-            context: {
-              source: request.metadata?.source || 'telegram',
-              timestamp: new Date(),
-              previousCategories: [], // Could be populated with user's recent categories
-            },
-          });
-        processingSteps.push(
-          `Categorization completed: ${categorizationResult.primaryCategory.name} (confidence: ${categorizationResult.confidence})`,
-        );
-        this.logger.debug(
-          `Categorization result: ${JSON.stringify(categorizationResult)}`,
-        );
-      } catch (error) {
-        this.logger.warn(
-          `Categorization failed: ${error.message}, falling back to Claude category`,
-        );
-        errors.push(`Categorization failed: ${error.message}`);
-        // Fallback to Claude's category
-        categorizationResult = {
-          primaryCategory: {
-            name: analysis.category,
-            confidence: analysis.categoryConfidence || 0.5,
-            reasoning: 'Fallback to Claude categorization',
-            isExisting: false,
-          },
-          alternativeCategories: [],
-          autoApplied: false,
-          confidence: analysis.categoryConfidence || 0.5,
-          reasoning: 'Fallback to Claude categorization',
-        };
-      }
-
-      // Step 6: Find or create category using categorization service result
-      const category = await this.categorizationService.findOrCreateCategory(
-        categorizationResult.primaryCategory.name,
-        request.userId,
-      );
-      processingSteps.push(`Category assigned: ${category.name}`);
-
-      // Step 7: Map content type to enum
-      let entityContentType: ContentType;
-      switch (request.contentType) {
-        case 'text':
-          entityContentType = ContentType.TEXT;
-          break;
-        case 'voice':
-          entityContentType = ContentType.VOICE;
-          break;
-        case 'image':
-          entityContentType = ContentType.IMAGE;
-          break;
-        case 'document':
-          entityContentType = ContentType.EMAIL; // Using EMAIL as closest match for document
-          break;
-        default:
-          entityContentType = ContentType.TEXT;
-      }
-
-      // Step 8: Create dump entity with enhanced entity extraction and categorization data
-      const dump = this.dumpRepository.create({
-        user_id: user.id,
-        raw_content: processedContent,
-        content_type: entityContentType,
-        ai_summary: analysis.summary,
-        ai_confidence: Math.round(
-          Math.min(confidence, analysis.confidence) * 100,
-        ), // Convert decimal to percentage integer
-        category_id: category.id,
-        urgency_level: this.mapUrgencyToNumber(analysis.urgency || 'low'),
-        processing_status: ProcessingStatus.PROCESSING,
-        extracted_entities: {
-          // Enhanced entity extraction from dedicated service
-          entities: entityExtractionResult.structuredData,
-          entityDetails: entityExtractionResult.entities, // Full entity details with confidence
-          entitySummary: entityExtractionResult.summary,
-          // AI analysis data
-          actionItems: analysis.actionItems || [],
-          sentiment: analysis.sentiment || 'neutral',
-          urgency: analysis.urgency || 'low',
-          // Enhanced categorization data
-          categoryConfidence: Math.round(categorizationResult.confidence * 100), // Use categorization service confidence
-          categoryReasoning: categorizationResult.reasoning,
-          alternativeCategories: categorizationResult.alternativeCategories.map(
-            (c) => c.name,
-          ),
-          autoApplied: categorizationResult.autoApplied,
-          metadata: request.metadata || {},
-        },
-      });
-
-      const savedDump = await this.dumpRepository.save(dump);
-      processingSteps.push('Dump saved to database');
-
-      // Step 9: Generate content vector for semantic search
-      try {
-        const contentToEmbed = savedDump.ai_summary || savedDump.raw_content;
-        if (contentToEmbed) {
-          this.logger.debug(`Generating embedding for dump ${savedDump.id}`);
-          const embeddingResponse = await this.vectorService.generateEmbedding({
-            text: contentToEmbed,
-          });
-
-          // Update the dump with the generated vector
-          await this.dumpRepository.update(savedDump.id, {
-            content_vector: embeddingResponse.embedding,
-          });
-
-          processingSteps.push('Content vector generated');
-          this.logger.debug(
-            `Vector generated successfully for dump ${savedDump.id}`,
-          );
-
-          // Trigger vector index creation if it doesn't exist
-          try {
-            await this.databaseInitService.ensureVectorIndex();
-            this.logger.debug(
-              'Vector index ensured after embedding generation',
-            );
-          } catch (error) {
-            this.logger.warn('Failed to ensure vector index:', error.message);
-            // Try to recreate index as fallback
-            try {
-              this.logger.log('Attempting to recreate vector index...');
-              await this.databaseInitService.recreateVectorIndex();
-              this.logger.log('✅ Vector index recreated successfully');
-            } catch (recreateError) {
-              this.logger.error(
-                '❌ Failed to recreate vector index:',
-                recreateError.message,
-              );
-            }
-          }
-        }
-      } catch (error) {
-        this.logger.error(
-          `Failed to generate vector for dump ${savedDump.id}:`,
-          error,
-        );
-        errors.push(`Vector generation failed: ${error.message}`);
-        // Continue processing even if vector generation fails
-      }
-
-      // Step 10: Update processing status
-      await this.dumpRepository.update(savedDump.id, {
-        processing_status: ProcessingStatus.COMPLETED,
-        processed_at: new Date(),
-      });
-
-      this.logger.log(`Dump created successfully: ${savedDump.id}`);
-
-      return {
-        dump: savedDump,
-        analysis,
-        processingSteps,
-        errors: errors.length > 0 ? errors : undefined,
-      };
-    } catch (error) {
-      this.logger.error('Error creating dump:', error);
-
-      // Create a fallback dump with minimal processing
-      const fallbackDump = await this.createFallbackDump(
-        request,
-        error.message,
-      );
-
-      return {
-        dump: fallbackDump,
-        analysis: {
-          summary: 'Failed to process content',
-          category: 'uncategorized',
-          confidence: 0.1,
-          extractedEntities: {},
-          actionItems: [],
-          sentiment: 'neutral',
-          urgency: 'low',
-          categoryConfidence: 0.1,
-        },
-        processingSteps,
-        errors: [...errors, error.message],
-      };
-    }
-  }
-
-  /**
    * Enhanced version using ContentRouterService for intelligent content processing
    */
   async createDumpEnhanced(
@@ -560,12 +227,27 @@ export class DumpService {
         processingSteps.push('Text content processed');
       }
 
-      // Step 3: Extract entities from processed content
+      // Step 3: Analyze content with Claude
+      const analysis = await this.claudeService.analyzeContent({
+        content: processedContent,
+        contentType: 'text',
+        context: {
+          source: request.metadata?.source || 'telegram',
+          userId: request.userId,
+          timestamp: new Date(),
+        },
+      });
+      processingSteps.push('Content analysis completed');
+
+      // Use AI summary for subsequent processing steps (better quality, standardized format)
+      const contentForProcessing = analysis.summary || processedContent;
+
+      // Step 4: Extract entities from AI summary
       let entityExtractionResult;
       try {
         entityExtractionResult =
           await this.entityExtractionService.extractEntities({
-            content: processedContent,
+            content: contentForProcessing,
             contentType: request.contentType,
             context: {
               source: request.metadata?.source || 'telegram',
@@ -602,24 +284,12 @@ export class DumpService {
         };
       }
 
-      // Step 4: Analyze content with Claude
-      const analysis = await this.claudeService.analyzeContent({
-        content: processedContent,
-        contentType: 'text',
-        context: {
-          source: request.metadata?.source || 'telegram',
-          userId: request.userId,
-          timestamp: new Date(),
-        },
-      });
-      processingSteps.push('Content analysis completed');
-
-      // Step 5: Categorize content with enhanced categorization service
+      // Step 5: Categorize content using AI summary
       let categorizationResult;
       try {
         categorizationResult =
           await this.categorizationService.categorizeContent({
-            content: processedContent,
+            content: contentForProcessing,
             userId: request.userId,
             contentType: request.contentType,
             context: {
@@ -771,9 +441,27 @@ export class DumpService {
       };
     } catch (error) {
       this.logger.error('Error creating enhanced dump:', error);
+      // Create a fallback dump with minimal processing
+      const fallbackDump = await this.createFallbackDump(
+        request,
+        error.message,
+      );
 
-      // Fallback to original method
-      return this.createDump(request);
+      return {
+        dump: fallbackDump,
+        analysis: {
+          summary: 'Failed to process content',
+          category: 'uncategorized',
+          confidence: 0.1,
+          extractedEntities: {},
+          actionItems: [],
+          sentiment: 'neutral',
+          urgency: 'low',
+          categoryConfidence: 0.1,
+        },
+        processingSteps,
+        errors: [...errors, error.message],
+      };
     }
   }
 

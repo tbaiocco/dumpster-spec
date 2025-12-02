@@ -455,30 +455,27 @@ export class ResponseFormatterService {
     entities: EntityExtractionResult,
     options: FormattingOptions,
   ): string {
-    const parts: string[] = ['<div>'];
+    const parts: string[] = [];
 
+    // For Telegram, only use supported HTML tags: <b>, <i>, <u>, <s>, <code>, <pre>, <a>
+    // No <div>, <h3>, <p>, <ul>, <li> tags allowed
+    
     if (analysis.category) {
-      parts.push(`<h3>${analysis.category.toUpperCase()}</h3>`);
+      parts.push(`<b>${analysis.category.toUpperCase()}</b>`);
+      parts.push(''); // Empty line
     }
 
-    // Convert text to HTML paragraphs
-    const paragraphs = text.split('\n\n');
-    paragraphs.forEach((para) => {
-      if (para.trim()) {
-        parts.push(`<p>${para.replace(/\n/g, '<br>')}</p>`);
-      }
-    });
+    // Keep text as-is (already formatted with line breaks)
+    parts.push(text);
 
     if (entities.entities.length > 0) {
-      parts.push('<h4>Extracted Information</h4>');
-      parts.push('<ul>');
+      parts.push(''); // Empty line
+      parts.push('<b>Extracted Information</b>');
       entities.entities.forEach((entity) => {
-        parts.push(`<li><strong>${entity.type}</strong>: ${entity.value}</li>`);
+        parts.push(`• <b>${entity.type}</b>: ${entity.value}`);
       });
-      parts.push('</ul>');
     }
 
-    parts.push('</div>');
     return parts.join('\n');
   }
 

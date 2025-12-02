@@ -306,7 +306,7 @@ export class EmailController {
       },
     };
 
-    return await this.dumpService.createDump(dumpRequest);
+    return await this.dumpService.createDumpEnhanced(dumpRequest);
   }
 
   /**

@@ -10,7 +10,9 @@ import { HelpCommand } from './commands/help.command';
 import { RecentCommand } from './commands/recent.command';
 import { SearchCommand } from './commands/search.command';
 import { ReportCommand } from './commands/report.command';
-import { MessageFormatterHelper } from './helpers/message-formatter.helper';
+import { ResponseFormatterService } from '../ai/formatter.service';
+import { EntityExtractionResult } from '../ai/extraction.service';
+import { ContentAnalysisResponse } from '../ai/claude.service';
 
 export interface WhatsAppMessage {
   MessageSid: string;
@@ -131,6 +133,7 @@ export class WhatsAppService {
     private readonly recentCommand: RecentCommand,
     private readonly searchCommand: SearchCommand,
     private readonly reportCommand: ReportCommand,
+    private readonly responseFormatterService: ResponseFormatterService,
   ) {
     // Twilio WhatsApp API Configuration
     this.authToken =
@@ -195,21 +198,79 @@ export class WhatsAppService {
 
   async sendFormattedResponse(
     to: string,
-    title: string,
-    content: string,
-    category?: string,
-    confidence?: number,
+    result: DumpProcessingResult,
+    replyToMessageId?: string,
   ): Promise<string> {
-    const plainText = MessageFormatterHelper.buildFormattedResponse(
-      title,
-      content,
-      category,
-      confidence,
-    );
-    const markdownText = MessageFormatterHelper.applyMarkdownFormatting(plainText);
+    // Extract analysis and entities from the dump
+    const dump = result.dump;
+    const extractedEntities = dump.extracted_entities || {};
+    
+    // Build ContentAnalysisResponse from dump data
+    const analysis: ContentAnalysisResponse = {
+      summary: dump.ai_summary || '',
+      category: dump.category?.name || 'General',
+      categoryConfidence: (dump.ai_confidence || 95) / 100,
+      extractedEntities: {
+        dates: extractedEntities.entities?.dates || [],
+        times: extractedEntities.entities?.times || [],
+        locations: extractedEntities.entities?.locations || [],
+        people: extractedEntities.entities?.people || [],
+        organizations: extractedEntities.entities?.organizations || [],
+        amounts: extractedEntities.entities?.amounts || [],
+        tags: [],
+      },
+      actionItems: extractedEntities.actionItems || [],
+      sentiment: (extractedEntities.sentiment as 'positive' | 'neutral' | 'negative') || 'neutral',
+      urgency: (extractedEntities.urgency as 'low' | 'medium' | 'high') || 'low',
+      confidence: (dump.ai_confidence || 95) / 100,
+    };
 
-    const result = await this.sendTextMessage(to, markdownText);
-    return result.id;
+    // Build EntityExtractionResult from dump data
+    const entities: EntityExtractionResult = {
+      entities: (extractedEntities.entityDetails || []).map((entity: any) => ({
+        type: entity.type as 'date' | 'time' | 'location' | 'person' | 'organization' | 'amount' | 'phone' | 'email' | 'url',
+        value: entity.value,
+        confidence: entity.confidence,
+        context: entity.context,
+        position: entity.position,
+      })),
+      summary: extractedEntities.entitySummary || {
+        totalEntities: 0,
+        entitiesByType: {},
+        averageConfidence: 0,
+      },
+      structuredData: {
+        dates: extractedEntities.entities?.dates || [],
+        times: extractedEntities.entities?.times || [],
+        locations: extractedEntities.entities?.locations || [],
+        people: extractedEntities.entities?.people || [],
+        organizations: extractedEntities.entities?.organizations || [],
+        amounts: extractedEntities.entities?.amounts || [],
+        contacts: extractedEntities.entities?.contacts || {
+          phones: [],
+          emails: [],
+          urls: [],
+        },
+      },
+    };
+
+    // Use ResponseFormatterService with brief format
+    const formatted = this.responseFormatterService.formatAnalysisResponse(
+      analysis,
+      entities,
+      {
+        platform: 'whatsapp',
+        format: 'brief',
+        includeEmojis: true,
+        includeMarkdown: false, // WhatsApp uses basic markdown
+      },
+    );
+
+    // WhatsApp doesn't support HTML, use plain text
+    const messageText = formatted.text || formatted.html || 'Content processed successfully';
+
+    const response = await this.sendTextMessage(to, messageText);
+    return response.id;
   }
 
   async getMedia(mediaUrl: string): Promise<WhatsAppMediaResponse> {
@@ -406,10 +467,7 @@ export class WhatsAppService {
       // Send success response with processing details
       await this.sendFormattedResponse(
         phoneNumber,
-        '✅ Processed Successfully',
-        this.formatProcessingResult(result),
-        result.dump.category?.name || 'General',
-        (result.dump.ai_confidence || 95) / 100,
+        result,
       );
     } catch (error) {
       this.logger.error('Error processing text message:', error);
@@ -469,10 +527,7 @@ export class WhatsAppService {
       // Send success response with processing details
       await this.sendFormattedResponse(
         phoneNumber,
-        '🎤 Processed Successfully',
-        this.formatProcessingResult(result),
-        result.dump.category?.name || 'Audio',
-        (result.dump.ai_confidence || 90) / 100,
+        result,
       );
     } catch (error) {
       this.logger.error('Error handling audio message:', error);
@@ -522,10 +577,7 @@ export class WhatsAppService {
       // Send success response with processing details
       await this.sendFormattedResponse(
         phoneNumber,
-        '📷 Processed Successfully',
-        this.formatProcessingResult(result),
-        result.dump.category?.name || 'Media',
-        (result.dump.ai_confidence || 85) / 100,
+        result,
       );
     } catch (error) {
       this.logger.error('Error handling image message:', error);
@@ -573,10 +625,7 @@ export class WhatsAppService {
       // Send success response with processing details
       await this.sendFormattedResponse(
         phoneNumber,
-        '📄 Processed Successfully',
-        this.formatProcessingResult(result),
-        result.dump.category?.name || 'Documents',
-        (result.dump.ai_confidence || 80) / 100,
+        result,
       );
     } catch (error) {
       this.logger.error('Error handling document message:', error);
@@ -914,11 +963,4 @@ export class WhatsAppService {
 
   // Note: Twilio WhatsApp webhooks do not use verification tokens
   // This method is kept for compatibility but not used with Twilio
-
-  /**
-   * Format processing result for user-friendly display
-   */
-  private formatProcessingResult(result: DumpProcessingResult): string {
-    return MessageFormatterHelper.formatProcessingResult(result);
-  }
 }
