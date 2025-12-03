@@ -13,6 +13,7 @@ import { SpeechService } from '../ai/speech.service';
 import { VisionService } from '../ai/vision.service';
 import { EntityExtractionService } from '../ai/extraction.service';
 import { ResponseFormatterService } from '../ai/formatter.service';
+import { TranslationService } from '../ai/translation.service';
 import { MediaProcessorService } from '../ai/media-processor.service';
 import { ReviewService } from './services/review.service';
 import { ReviewController } from './controllers/review.controller';
@@ -48,6 +49,7 @@ import { BotsModule } from '../bots/bots.module';
     VisionService,
     EntityExtractionService,
     ResponseFormatterService,
+    TranslationService,
     MediaProcessorService,
     FallbackHandlerService,
     DocumentProcessorService,

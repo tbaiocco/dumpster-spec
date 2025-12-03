@@ -1,4 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { TelegramService } from './telegram.service';
 import { WhatsAppService } from './whatsapp.service';
 import { TelegramWebhookController } from './telegram-webhook.controller';
@@ -14,9 +15,13 @@ import { DumpModule } from '../dumps/dump.module';
 import { SearchModule } from '../search/search.module';
 import { FeedbackModule } from '../feedback/feedback.module';
 import { ResponseFormatterService } from '../ai/formatter.service';
+import { TranslationService } from '../ai/translation.service';
+import { ClaudeService } from '../ai/claude.service';
+import { User } from '../../entities/user.entity';
 
 @Module({
   imports: [
+    TypeOrmModule.forFeature([User]),
     UserModule,
     forwardRef(() => DumpModule),
     SearchModule,
@@ -36,6 +41,8 @@ import { ResponseFormatterService } from '../ai/formatter.service';
     MoreCommand,
     SearchResultFormatter,
     ResponseFormatterService,
+    TranslationService,
+    ClaudeService,
   ],
   exports: [TelegramService, WhatsAppService],
 })
