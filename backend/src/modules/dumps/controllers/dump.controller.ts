@@ -195,6 +195,21 @@ export class DumpController {
     };
   }
 
+  @Get('user/:userId/recent')
+  async getUserRecentDumps(
+    @Param('userId') userId: string,
+    @Query('limit') limit: string = '5',
+  ): Promise<ApiResponse<Dump[]>> {
+    const limitNum = Number.parseInt(limit, 10) || 5;
+    const dumps = await this.dumpService.getRecentByUser(userId, limitNum);
+
+    return {
+      success: true,
+      data: dumps,
+      message: 'Recent dumps retrieved successfully',
+    };
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string): Promise<ApiResponse<Dump | null>> {
     const dump = await this.dumpService.findById(id);

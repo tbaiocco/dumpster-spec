@@ -2,7 +2,7 @@
 
 **Version:** 1.0  
 **Base URL:** `https://dumpster-spec-production.up.railway.app`  
-**Last Updated:** November 28, 2025
+**Last Updated:** December 3, 2025
 
 ---
 
@@ -136,8 +136,9 @@ Content items captured from users (text, voice, images, documents).
 | `POST` | `/api/dumps` | Create new dump (basic) | No |
 | `POST` | `/api/dumps/enhanced` | Create dump with enhanced AI processing | No |
 | `POST` | `/api/dumps/upload` | Upload file and create dump | No |
-| `GET` | `/api/dumps/user/:userId` | Get all dumps for a user | No |
+| `GET` | `/api/dumps/user/:userId` | Get all dumps for a user (paginated) | No |
 | `GET` | `/api/dumps/user/:userId/stats` | Get user dump statistics | No |
+| `GET` | `/api/dumps/user/:userId/recent` | Get recent dumps for a user | No |
 | `GET` | `/api/dumps/:id` | Get single dump by ID | No |
 | `PATCH` | `/api/dumps/:id` | Update dump (partial update) | No |
 | `DELETE` | `/api/dumps/:id` | Delete dump | No |
@@ -159,6 +160,11 @@ Content items captured from users (text, voice, images, documents).
     "chatId": "123456789"
   }
 }
+
+// GET /api/dumps/user/:userId/recent?limit=10
+// Query parameters:
+// - limit: number of recent dumps to return (default: 5, max: 100)
+// Response includes related category and user data
 
 // PATCH /api/dumps/:id
 {
@@ -347,15 +353,21 @@ User feedback and feature requests.
 
 ### Base Path: `/admin`
 
-Administrative analytics and management.
+Administrative analytics and management. **All endpoints require JWT authentication.**
 
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
-| `GET` | `/admin/analytics/system` | System-wide analytics | No |
-| `GET` | `/admin/analytics/search` | Search analytics | No |
-| `GET` | `/admin/analytics/ai` | AI processing analytics | No |
-| `GET` | `/admin/analytics/users` | User analytics | No |
-| `GET` | `/admin/dumps` | List all dumps (admin view) | No |
+| `GET` | `/admin/analytics/system` | System-wide analytics | Yes (JWT) |
+| `GET` | `/admin/analytics/search` | Search analytics | Yes (JWT) |
+| `GET` | `/admin/analytics/ai` | AI processing analytics | Yes (JWT) |
+| `GET` | `/admin/analytics/users` | User analytics | Yes (JWT) |
+| `GET` | `/admin/dumps` | List all dumps (admin view) | Yes (JWT) |
+| `GET` | `/admin/categories` | Get all categories | Yes (JWT) |
+
+**Query Parameters for `/admin/dumps`:**
+- `page` (default: 1) - Page number
+- `limit` (default: 50) - Items per page
+- `search` (optional) - Search term for filtering dumps
 
 ---
 
@@ -369,13 +381,48 @@ Administrative analytics and management.
 |--------|----------|-------------|---------------|
 | `POST` | `/api/webhooks/telegram` | Receive Telegram webhook updates | No |
 
-**Purpose:** Handles incoming messages from Telegram Bot API. Supports:
-- Text messages
-- Voice messages
-- Photos
-- Documents
-- Commands (`/help`, `/recent`, `/search`, etc.)
-- Auto-registration with phone number detection
+**Purpose:** Handles incoming messages from Telegram Bot API.
+
+**Supported Message Types:**
+- **Text messages**: Direct text input from users
+- **Voice messages**: Audio files (transcribed automatically)
+- **Photos**: Images with optional captions (OCR processed)
+- **Documents**: Files with optional captions
+- **Edited messages**: Updates to previously sent messages
+
+**Supported Commands:**
+- `/start` - Welcome message and registration prompt
+- `/help` - Show available commands
+- `/recent` - Show recent dumps (default: 5)
+- `/search <query>` - Semantic search across dumps
+- `/stats` - Show user statistics
+- `/digest` - Get daily digest on-demand
+
+**Auto-Registration:**
+- Detects phone numbers in user messages
+- Automatically registers new users when phone number is detected
+- Links Telegram chat ID to user account
+
+**Request Format:**
+```json
+{
+  "update_id": 123456789,
+  "message": {
+    "message_id": 1,
+    "from": {
+      "id": 123456789,
+      "first_name": "John",
+      "username": "johndoe"
+    },
+    "chat": {
+      "id": 123456789,
+      "type": "private"
+    },
+    "date": 1701234567,
+    "text": "Example message"
+  }
+}
+```
 
 ### WhatsApp Bot
 
@@ -385,13 +432,43 @@ Administrative analytics and management.
 |--------|----------|-------------|---------------|
 | `POST` | `/api/webhooks/whatsapp` | Receive Twilio WhatsApp webhook | No |
 
-**Purpose:** Handles incoming messages from Twilio WhatsApp API. Features:
-- Auto-registration using phone number from Twilio
-- Text messages with command support
-- Voice messages
-- Photos
-- Documents
-- Commands (help, recent, search, etc.)
+**Purpose:** Handles incoming messages from Twilio WhatsApp API.
+
+**Supported Message Types:**
+- **Text messages**: Direct text input with command support
+- **Voice messages**: Audio files (transcribed)
+- **Photos**: Images with captions (OCR processed)
+- **Documents**: Files with captions
+
+**Supported Commands:**
+- `help` - Show available commands
+- `recent` - Show recent dumps (default: 5)
+- `search <query>` - Semantic search across dumps
+- `stats` - Show user statistics
+- `digest` - Get daily digest on-demand
+
+**Auto-Registration:**
+- Uses phone number from Twilio webhook payload (`From` field)
+- Format: `whatsapp:+351964938153`
+- Automatically creates user account on first message
+- No manual phone number entry required
+
+**Request Format (Twilio):**
+```json
+{
+  "From": "whatsapp:+351964938153",
+  "To": "whatsapp:+14155238886",
+  "Body": "Example message",
+  "MessageSid": "SMxxxxxxxxx",
+  "AccountSid": "ACxxxxxxxxx",
+  "NumMedia": "0"
+}
+```
+
+**Media Handling:**
+- `NumMedia` > 0 indicates media attachments
+- `MediaUrl0`, `MediaContentType0` for first media item
+- Automatically processes images, audio, and documents
 
 ---
 
@@ -409,6 +486,18 @@ Email ingestion via webhooks from SendGrid, Mailgun, etc.
 | `POST` | `/api/email/webhook/health` | Email webhook health check | No |
 
 **Purpose:** Process emails sent to the system and convert them into dumps.
+
+**Features:**
+- Automatic user identification via email address
+- HTML and plain text parsing
+- Attachment processing (images, PDFs, documents)
+- Thread detection and conversation tracking
+- Subject line and body extraction
+
+**Supported Email Providers:**
+- **SendGrid**: Inbound Parse Webhook
+- **Mailgun**: Routes and Webhooks
+- **Generic**: Standard email webhook format
 
 ---
 
@@ -572,5 +661,5 @@ For API support or questions:
 
 ---
 
-**Last Updated:** November 28, 2025  
+**Last Updated:** December 3, 2025  
 **API Version:** 1.0
