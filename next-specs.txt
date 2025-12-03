@@ -22,6 +22,7 @@
 
 - E-mail dumps
     The user can forward mails to create dumps from them, with images, docs, etc
+    Existing webhook in email.controller.ts, missing the config GMAIL_API_SETUP.md for development and SENDGRID_WEBHOOK_SETUP.md for prod.
 
 - Calendar integration?
     Checking calendar to detect possible conflicts, suggest changes

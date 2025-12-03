@@ -14,7 +14,11 @@ export class RecentCommand {
     private readonly responseFormatterService: ResponseFormatterService,
   ) {}
 
-  async execute(user: User, limit: number = 5): Promise<string> {
+  async execute(
+    user: User,
+    limit: number = 5,
+    platform: 'telegram' | 'whatsapp' = 'telegram',
+  ): Promise<string> {
     try {
       this.logger.log(
         `Getting recent dumps for user ${user.id}, limit: ${limit}`,
@@ -26,6 +30,14 @@ export class RecentCommand {
       );
 
       if (recentDumps.length === 0) {
+        if (platform === 'whatsapp') {
+          return (
+            '📋 *Recent Content*\n\n' +
+            "You haven't shared any content yet.\n\n" +
+            '_Send me a message, photo, or voice note to get started!_'
+          );
+        }
+
         return (
           '📋 <b>Recent Content</b>\n\n' +
           "You haven't shared any content yet.\n\n" +
@@ -33,7 +45,12 @@ export class RecentCommand {
         );
       }
 
-      let response = `📋 <b>Recent Content (${recentDumps.length} items)</b>\n\n`;
+      const headerText =
+        platform === 'whatsapp'
+          ? `📋 *Recent Content (${recentDumps.length} items)*\n\n`
+          : `📋 <b>Recent Content (${recentDumps.length} items)</b>\n\n`;
+
+      let response = headerText;
 
       for (const dump of recentDumps) {
         const date = new Date(dump.created_at).toLocaleDateString('en-US', {
@@ -97,11 +114,12 @@ export class RecentCommand {
         };
 
         // Use ResponseFormatterService with detailed format
-        const formatted = this.responseFormatterService.formatAnalysisResponse(
+        const formatted = await this.responseFormatterService.formatAnalysisResponse(
+          user.id,
           analysis,
           entities,
           {
-            platform: 'telegram',
+            platform: platform,
             format: 'detailed',
             includeEmojis: true,
             includeMarkdown: true,
@@ -111,22 +129,43 @@ export class RecentCommand {
         response += formatted.html || formatted.text;
         
         if (dump.processing_status === 'failed') {
-          response += `\n⚠️ <i>Processing failed</i>`;
+          const failedText =
+            platform === 'whatsapp'
+              ? '\n⚠️ _Processing failed_'
+              : '\n⚠️ <i>Processing failed</i>';
+          response += failedText;
         } else if (dump.processing_status === 'processing') {
-          response += `\n🔍 <i>Processing...</i>`;
+          const processingText =
+            platform === 'whatsapp'
+              ? '\n🔍 _Processing..._'
+              : '\n🔍 <i>Processing...</i>';
+          response += processingText;
         }
 
         response += '\n\n';
       }
 
       response += '━━━━━━━━━━━━━━━━━━\n';
-      response += '<i>Use /search to find specific content</i>';
+      const footerText =
+        platform === 'whatsapp'
+          ? '_Use /search to find specific content_'
+          : '<i>Use /search to find specific content</i>';
+      response += footerText;
       return response;
     } catch (error) {
       this.logger.error(
         `Error getting recent dumps: ${error.message}`,
         error.stack,
       );
+
+      if (platform === 'whatsapp') {
+        return (
+          '❌ *Error*\n\n' +
+          "Sorry, I couldn't retrieve your recent content right now.\n\n" +
+          '_Please try again in a moment._'
+        );
+      }
+
       return (
         '❌ <b>Error</b>\n\n' +
         "Sorry, I couldn't retrieve your recent content right now.\n\n" +

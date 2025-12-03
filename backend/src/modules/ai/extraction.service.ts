@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ClaudeService, type ContentAnalysisResponse } from './claude.service';
+import * as chrono from 'chrono-node';
 
 export interface ExtractedEntity {
   type:
@@ -78,13 +79,19 @@ export class EntityExtractionService {
       `Extracting entities from content: ${request.content.substring(0, 100)}...`,
     );
 
+    // Use provided timestamp as reference for relative date/time normalization
+    const referenceDate = request.context?.timestamp || new Date();
+
     try {
       // Combine pattern-based and AI-based extraction
       const patternEntities = this.extractWithPatterns(request.content);
       const aiEntities = await this.extractWithAI(request);
 
       // Merge and deduplicate entities
-      const allEntities = this.mergeEntities(patternEntities, aiEntities);
+      const mergedEntities = this.mergeEntities(patternEntities, aiEntities);
+
+      // Normalize dates and times to absolute values
+      const allEntities = this.normalizeEntities(mergedEntities, referenceDate);
 
       // Structure the data for easy consumption
       const structuredData = this.structureEntities(allEntities);
@@ -106,11 +113,15 @@ export class EntityExtractionService {
 
       // Fallback to pattern-based extraction only
       const fallbackEntities = this.extractWithPatterns(request.content);
-      const structuredData = this.structureEntities(fallbackEntities);
-      const summary = this.calculateSummary(fallbackEntities);
+      const normalizedEntities = this.normalizeEntities(
+        fallbackEntities,
+        referenceDate,
+      );
+      const structuredData = this.structureEntities(normalizedEntities);
+      const summary = this.calculateSummary(normalizedEntities);
 
       return {
-        entities: fallbackEntities,
+        entities: normalizedEntities,
         summary,
         structuredData,
       };
@@ -413,6 +424,130 @@ export class EntityExtractionService {
     const val2 = entity2.value.toLowerCase();
 
     return val1.includes(val2) || val2.includes(val1);
+  }
+
+  /**
+   * Normalize a date string to ISO 8601 format (YYYY-MM-DD)
+   * Handles relative dates like "tomorrow", "next week", etc.
+   */
+  private normalizeDate(dateStr: string, referenceDate: Date): string {
+    try {
+      // Try parsing with chrono-node (handles natural language dates)
+      const parsed = chrono.parseDate(dateStr, referenceDate);
+      
+      if (parsed) {
+        // Return ISO date format (YYYY-MM-DD)
+        return parsed.toISOString().split('T')[0];
+      }
+
+      // If chrono fails, try basic date parsing
+      const basicParsed = new Date(dateStr);
+      if (!isNaN(basicParsed.getTime())) {
+        return basicParsed.toISOString().split('T')[0];
+      }
+
+      // Return original if normalization fails
+      this.logger.warn(`Could not normalize date: ${dateStr}`);
+      return dateStr;
+    } catch (error) {
+      this.logger.warn(`Error normalizing date "${dateStr}": ${error.message}`);
+      return dateStr;
+    }
+  }
+
+  /**
+   * Normalize a time string to 24-hour format (HH:MM)
+   * Handles relative times like "noon", "early morning", "evening", etc.
+   */
+  private normalizeTime(timeStr: string, referenceDate: Date): string {
+    try {
+      const lowerTime = timeStr.toLowerCase().trim();
+
+      // Handle common relative time expressions
+      const relativeTimeMap: Record<string, string> = {
+        'midnight': '00:00',
+        'early morning': '08:00',
+        'morning': '09:00',
+        'late morning': '11:00',
+        'noon': '12:00',
+        'midday': '12:00',
+        'afternoon': '14:00',
+        'late afternoon': '16:00',
+        'evening': '18:00',
+        'night': '20:00',
+        'late night': '22:00',
+      };
+
+      // Check for exact matches in relative time map
+      if (relativeTimeMap[lowerTime]) {
+        return relativeTimeMap[lowerTime];
+      }
+
+      // Check for partial matches (e.g., "in the morning", "this evening")
+      for (const [key, value] of Object.entries(relativeTimeMap)) {
+        if (lowerTime.includes(key)) {
+          return value;
+        }
+      }
+
+      // Try parsing with chrono-node (handles times with dates)
+      const parsed = chrono.parseDate(timeStr, referenceDate);
+      
+      if (parsed) {
+        const hours = String(parsed.getHours()).padStart(2, '0');
+        const minutes = String(parsed.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+      }
+
+      // Try direct time parsing for formats like "14:30", "2:30pm", etc.
+      const timeRegex = /(\d{1,2}):?(\d{2})?\s*(am|pm)?/i;
+      const match = lowerTime.match(timeRegex);
+      
+      if (match) {
+        let hours = parseInt(match[1], 10);
+        const minutes = match[2] ? parseInt(match[2], 10) : 0;
+        const meridiem = match[3]?.toLowerCase();
+
+        // Convert to 24-hour format if needed
+        if (meridiem === 'pm' && hours < 12) {
+          hours += 12;
+        } else if (meridiem === 'am' && hours === 12) {
+          hours = 0;
+        }
+
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+      }
+
+      // Return original if normalization fails
+      this.logger.warn(`Could not normalize time: ${timeStr}`);
+      return timeStr;
+    } catch (error) {
+      this.logger.warn(`Error normalizing time "${timeStr}": ${error.message}`);
+      return timeStr;
+    }
+  }
+
+  /**
+   * Normalize entities by converting relative dates/times to absolute values
+   */
+  private normalizeEntities(
+    entities: ExtractedEntity[],
+    referenceDate: Date,
+  ): ExtractedEntity[] {
+    return entities.map((entity) => {
+      if (entity.type === 'date') {
+        return {
+          ...entity,
+          value: this.normalizeDate(entity.value, referenceDate),
+        };
+      } else if (entity.type === 'time') {
+        return {
+          ...entity,
+          value: this.normalizeTime(entity.value, referenceDate),
+        };
+      }
+      return entity;
+    });
   }
 
   private structureEntities(

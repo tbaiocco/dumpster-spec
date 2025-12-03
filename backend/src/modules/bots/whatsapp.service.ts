@@ -197,6 +197,7 @@ export class WhatsAppService {
   }
 
   async sendFormattedResponse(
+    userId: string,
     to: string,
     result: DumpProcessingResult,
     replyToMessageId?: string,
@@ -255,7 +256,8 @@ export class WhatsAppService {
     };
 
     // Use ResponseFormatterService with brief format
-    const formatted = this.responseFormatterService.formatAnalysisResponse(
+    const formatted = await this.responseFormatterService.formatAnalysisResponse(
+      userId,
       analysis,
       entities,
       {
@@ -466,6 +468,7 @@ export class WhatsAppService {
 
       // Send success response with processing details
       await this.sendFormattedResponse(
+        userId,
         phoneNumber,
         result,
       );
@@ -526,6 +529,7 @@ export class WhatsAppService {
 
       // Send success response with processing details
       await this.sendFormattedResponse(
+        userId,
         phoneNumber,
         result,
       );
@@ -576,6 +580,7 @@ export class WhatsAppService {
 
       // Send success response with processing details
       await this.sendFormattedResponse(
+        userId,
         phoneNumber,
         result,
       );
@@ -624,6 +629,7 @@ export class WhatsAppService {
 
       // Send success response with processing details
       await this.sendFormattedResponse(
+        userId,
         phoneNumber,
         result,
       );
@@ -676,34 +682,26 @@ export class WhatsAppService {
         }
 
         case 'help': {
-          const helpMessage = this.helpCommand.execute();
-          // Convert HTML formatting to WhatsApp markdown
-          const whatsappMessage = this.convertHtmlToWhatsApp(helpMessage);
-          await this.sendTextMessage(phoneNumber, whatsappMessage);
+          const helpMessage = this.helpCommand.execute('whatsapp');
+          await this.sendTextMessage(phoneNumber, helpMessage);
           break;
         }
 
         case 'recent': {
-          const recentMessage = await this.recentCommand.execute(user);
-          // Convert HTML formatting to WhatsApp markdown
-          const whatsappMessage = this.convertHtmlToWhatsApp(recentMessage);
-          await this.sendTextMessage(phoneNumber, whatsappMessage);
+          const recentMessage = await this.recentCommand.execute(user, 5, 'whatsapp');
+          await this.sendTextMessage(phoneNumber, recentMessage);
           break;
         }
 
         case 'search': {
-          const searchMessage = await this.searchCommand.execute(user, command);
-          // Convert HTML formatting to WhatsApp markdown
-          const whatsappMessage = this.convertHtmlToWhatsApp(searchMessage);
-          await this.sendTextMessage(phoneNumber, whatsappMessage);
+          const searchMessage = await this.searchCommand.execute(user, command, 'whatsapp');
+          await this.sendTextMessage(phoneNumber, searchMessage);
           break;
         }
 
         case 'report': {
-          const reportMessage = await this.reportCommand.execute(user, command);
-          // Convert HTML formatting to WhatsApp markdown
-          const whatsappMessage = this.convertHtmlToWhatsApp(reportMessage);
-          await this.sendTextMessage(phoneNumber, whatsappMessage);
+          const reportMessage = await this.reportCommand.execute(user, command, 'whatsapp');
+          await this.sendTextMessage(phoneNumber, reportMessage);
           break;
         }
 

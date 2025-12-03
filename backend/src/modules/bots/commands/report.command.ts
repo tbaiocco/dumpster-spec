@@ -11,7 +11,11 @@ export class ReportCommand {
 
   constructor(private readonly feedbackService: FeedbackService) {}
 
-  async execute(user: User, commandText?: string): Promise<string> {
+  async execute(
+    user: User,
+    commandText?: string,
+    platform: 'telegram' | 'whatsapp' = 'telegram',
+  ): Promise<string> {
     try {
       // Parse the command to extract report details
       const reportText = this.extractReportText(commandText);
@@ -22,7 +26,7 @@ export class ReportCommand {
 
       // Determine feedback type based on content or provide options
       if (!reportText || reportText.trim().length === 0) {
-        return this.showReportOptions();
+        return this.showReportOptions(platform);
       }
 
       // Submit feedback using the FeedbackService
@@ -38,6 +42,16 @@ export class ReportCommand {
         },
       });
 
+      if (platform === 'whatsapp') {
+        let response = '✅ *Report Submitted Successfully*\n\n';
+        response += `Report ID: ${feedbackId}\n\n`;
+        response += `Your feedback: "${reportText}"\n\n`;
+        response +=
+          '🙏 Thank you for helping us improve! Our team will review your report and take appropriate action.\n\n';
+        response += '_You can reference this report using the ID above._';
+        return response;
+      }
+
       let response = '✅ <b>Report Submitted Successfully</b>\n\n';
       response += `Report ID: <code>${feedbackId}</code>\n\n`;
       response += `Your feedback: "${reportText}"\n\n`;
@@ -51,6 +65,15 @@ export class ReportCommand {
         `Error processing report: ${error.message}`,
         error.stack,
       );
+
+      if (platform === 'whatsapp') {
+        return (
+          '❌ *Report Submission Failed*\n\n' +
+          "Sorry, we couldn't process your report right now.\n\n" +
+          '_Please try again later or contact support directly._'
+        );
+      }
+
       return (
         '❌ <b>Report Submission Failed</b>\n\n' +
         "Sorry, we couldn't process your report right now.\n\n" +
@@ -71,7 +94,19 @@ export class ReportCommand {
     return '';
   }
 
-  private showReportOptions(): string {
+  private showReportOptions(platform: 'telegram' | 'whatsapp' = 'telegram'): string {
+    if (platform === 'whatsapp') {
+      let response = '🚨 *Report an Issue*\n\n';
+      response += 'To report an issue, use:\n';
+      response += '/report [your message]\n\n';
+      response += '*Examples:*\n';
+      response += '• /report The bot is not saving my voice messages\n';
+      response += '• /report Wrong category detected for my receipt\n';
+      response += '• /report App is running slowly\n\n';
+      response += "_Please describe the issue you're experiencing._";
+      return response;
+    }
+
     let response = '🚨 <b>Report an Issue</b>\n\n';
     response += 'To report an issue, use:\n';
     response += '<code>/report [your message]</code>\n\n';

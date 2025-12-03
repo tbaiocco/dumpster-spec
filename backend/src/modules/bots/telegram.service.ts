@@ -147,6 +147,7 @@ export class TelegramService {
   }
 
   async sendFormattedResponse(
+    userId: string,
     chatId: number,
     result: DumpProcessingResult,
     replyToMessageId?: number,
@@ -205,7 +206,8 @@ export class TelegramService {
     };
 
     // Use ResponseFormatterService with brief format
-    const formatted = this.responseFormatterService.formatAnalysisResponse(
+    const formatted = await this.responseFormatterService.formatAnalysisResponse(
+      userId,
       analysis,
       entities,
       {
@@ -466,6 +468,7 @@ export class TelegramService {
 
       // Send success response with processing details
       await this.sendFormattedResponse(
+        userId,
         chatId,
         result,
         message.message_id,
@@ -512,6 +515,7 @@ export class TelegramService {
 
       // Send success response with processing details
       await this.sendFormattedResponse(
+        userId,
         chatId,
         result,
         message.message_id,
@@ -563,6 +567,7 @@ export class TelegramService {
 
       // Send success response with processing details
       await this.sendFormattedResponse(
+        userId,
         chatId,
         result,
         message.message_id,
@@ -608,6 +613,7 @@ export class TelegramService {
 
       // Send success response with processing details
       await this.sendFormattedResponse(
+        userId,
         chatId,
         result,
         message.message_id,
@@ -653,25 +659,25 @@ export class TelegramService {
         }
 
         case '/help': {
-          const helpMessage = this.helpCommand.execute();
+          const helpMessage = this.helpCommand.execute('telegram');
           await this.sendTextMessage(chatId, helpMessage);
           break;
         }
 
         case '/recent': {
-          const recentMessage = await this.recentCommand.execute(user);
+          const recentMessage = await this.recentCommand.execute(user, 5, 'telegram');
           await this.sendTextMessage(chatId, recentMessage);
           break;
         }
 
         case '/search': {
-          const searchMessage = await this.searchCommand.execute(user, command);
+          const searchMessage = await this.searchCommand.execute(user, command, 'telegram');
           await this.sendTextMessage(chatId, searchMessage);
           break;
         }
 
         case '/report': {
-          const reportMessage = await this.reportCommand.execute(user, command);
+          const reportMessage = await this.reportCommand.execute(user, command, 'telegram');
           await this.sendTextMessage(chatId, reportMessage);
           break;
         }

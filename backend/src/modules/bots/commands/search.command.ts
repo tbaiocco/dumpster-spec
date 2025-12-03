@@ -6,14 +6,18 @@ import { SearchService } from '../../search/search.service';
 export class SearchCommand {
   constructor(private readonly searchService: SearchService) {}
 
-  async execute(user: User, command: string): Promise<string> {
+  async execute(
+    user: User,
+    command: string,
+    platform: 'telegram' | 'whatsapp' = 'telegram',
+  ): Promise<string> {
     const commandParts = command.split(' ');
 
     // Extract search query from command (everything after /search)
     const query = commandParts.slice(1).join(' ').trim();
 
     if (!query) {
-      return this.getSearchHelp();
+      return this.getSearchHelp(platform);
     }
 
     try {
@@ -25,6 +29,18 @@ export class SearchCommand {
       );
 
       if (!searchResults || searchResults.length === 0) {
+        if (platform === 'whatsapp') {
+          return (
+            `🔍 *Search Results*\n\n` +
+            `No results found for "_${query}_"\n\n` +
+            `💡 *Tips:*\n` +
+            `• Try different keywords\n` +
+            `• Use broader terms\n` +
+            `• Check spelling\n` +
+            `• Try searching for content type (e.g., "photos", "messages")`
+          );
+        }
+
         return (
           `🔍 <b>Search Results</b>\n\n` +
           `No results found for "<i>${query}</i>"\n\n` +
@@ -36,8 +52,16 @@ export class SearchCommand {
         );
       }
 
-      let response = `🔍 <b>Search Results</b> (${searchResults.length} found)\n`;
-      response += `Query: "<i>${query}</i>"\n\n`;
+      const headerStart =
+        platform === 'whatsapp'
+          ? `🔍 *Search Results* (${searchResults.length} found)\n`
+          : `🔍 <b>Search Results</b> (${searchResults.length} found)\n`;
+      const queryLine =
+        platform === 'whatsapp'
+          ? `Query: "_${query}_"\n\n`
+          : `Query: "<i>${query}</i>"\n\n`;
+
+      let response = headerStart + queryLine;
 
       for (const result of searchResults.slice(0, 5)) {
         // Limit to 5 results for bot display
@@ -60,24 +84,37 @@ export class SearchCommand {
             ? contentText.substring(0, 80) + '...'
             : contentText || 'No content available';
 
-        // Show relevance score
         const relevancePercent = Math.round(
           (result.relevanceScore || 0.5) * 100,
         );
 
-        response += `${categoryIcon} <b>${categoryName}</b>\n`;
-        response += `📅 ${date} • 🎯 ${relevancePercent}% relevant\n`;
-        response += `💬 ${content}\n`;
+        if (platform === 'whatsapp') {
+          response += `${categoryIcon} *${categoryName}*\n`;
+          response += `📅 ${date} • 🎯 ${relevancePercent}% relevant\n`;
+          response += `💬 ${content}\n`;
 
-        if (result.matchType) {
-          response += `🔎 <i>${this.getMatchTypeDescription(result.matchType)}</i>\n`;
+          if (result.matchType) {
+            response += `🔎 _${this.getMatchTypeDescription(result.matchType)}_\n`;
+          }
+        } else {
+          response += `${categoryIcon} <b>${categoryName}</b>\n`;
+          response += `📅 ${date} • 🎯 ${relevancePercent}% relevant\n`;
+          response += `💬 ${content}\n`;
+
+          if (result.matchType) {
+            response += `🔎 <i>${this.getMatchTypeDescription(result.matchType)}</i>\n`;
+          }
         }
 
         response += '\n';
       }
 
       if (searchResults.length > 5) {
-        response += `<i>... and ${searchResults.length - 5} more results</i>\n\n`;
+        const moreText =
+          platform === 'whatsapp'
+            ? `_... and ${searchResults.length - 5} more results_\n\n`
+            : `<i>... and ${searchResults.length - 5} more results</i>\n\n`;
+        response += moreText;
       }
 
       response += `💡 Use more specific terms to narrow your search.`;
@@ -85,6 +122,15 @@ export class SearchCommand {
       return response;
     } catch (error) {
       console.error('Search command error:', error);
+
+      if (platform === 'whatsapp') {
+        return (
+          `❌ *Search Error*\n\n` +
+          `Sorry, there was an error searching your content. Please try again in a moment.\n\n` +
+          `If the problem persists, use /report to let us know.`
+        );
+      }
+
       return (
         `❌ <b>Search Error</b>\n\n` +
         `Sorry, there was an error searching your content. Please try again in a moment.\n\n` +
@@ -93,7 +139,28 @@ export class SearchCommand {
     }
   }
 
-  private getSearchHelp(): string {
+  private getSearchHelp(platform: 'telegram' | 'whatsapp' = 'telegram'): string {
+    if (platform === 'whatsapp') {
+      return (
+        `🔍 *Search Your Content*\n\n` +
+        `*Usage:* /search [your query]\n\n` +
+        `*Examples:*\n` +
+        `• /search meeting notes\n` +
+        `• /search photos from last week\n` +
+        `• /search shopping list\n` +
+        `• /search voice messages\n\n` +
+        `*Search Features:*\n` +
+        `🎯 Semantic matching - finds related content\n` +
+        `📝 Text matching - finds exact phrases\n` +
+        `📅 Time-based - searches by date ranges\n` +
+        `🏷️ Category filtering - by content type\n\n` +
+        `💡 *Tips:*\n` +
+        `• Use natural language queries\n` +
+        `• Try different keywords if no results\n` +
+        `• Search works across all your content`
+      );
+    }
+
     return (
       `🔍 <b>Search Your Content</b>\n\n` +
       `<b>Usage:</b> <code>/search [your query]</code>\n\n` +

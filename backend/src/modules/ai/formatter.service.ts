@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { ContentAnalysisResponse } from './claude.service';
 import { EntityExtractionResult } from './extraction.service';
+import { TranslationService } from './translation.service';
+import { User } from '../../entities/user.entity';
 
 export interface FormattingOptions {
   platform: 'telegram' | 'whatsapp';
@@ -25,6 +29,12 @@ export interface FormattedResponse {
 @Injectable()
 export class ResponseFormatterService {
   private readonly logger = new Logger(ResponseFormatterService.name);
+
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private readonly translationService: TranslationService,
+  ) {}
 
   // Platform-specific constraints
   private readonly constraints = {
@@ -84,12 +94,22 @@ export class ResponseFormatterService {
     },
   };
 
-  formatAnalysisResponse(
+  async formatAnalysisResponse(
+    userId: string,
     analysis: ContentAnalysisResponse,
     entities: EntityExtractionResult,
     options: FormattingOptions,
-  ): FormattedResponse {
+  ): Promise<FormattedResponse> {
     this.logger.log(`Formatting response for ${options.platform} platform`);
+
+    // Fetch user to get language preference
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+    const language = user?.language || 'en';
+
+    // Translate analysis content if not English
+    const translatedAnalysis = await this.translateAnalysis(analysis, language);
 
     const constraints = this.constraints[options.platform];
     let formattedText = '';
@@ -97,14 +117,14 @@ export class ResponseFormatterService {
     try {
       switch (options.format) {
         case 'brief':
-          formattedText = this.formatBrief(analysis, entities, options);
+          formattedText = await this.formatBrief(translatedAnalysis, entities, options, language);
           break;
         case 'detailed':
-          formattedText = this.formatDetailed(analysis, entities, options);
+          formattedText = await this.formatDetailed(translatedAnalysis, entities, options, language);
           break;
         case 'summary':
         default:
-          formattedText = this.formatSummary(analysis, entities, options);
+          formattedText = await this.formatSummary(translatedAnalysis, entities, options, language);
           break;
       }
 
@@ -131,16 +151,17 @@ export class ResponseFormatterService {
 
       // Add additional formats if supported
       if (constraints.supportsMarkdown) {
-        result.markdown = this.toMarkdown(
+        result.markdown = await this.toMarkdown(
           formattedText,
-          analysis,
+          translatedAnalysis,
           entities,
           options,
+          language,
         );
       }
 
       if (constraints.supportsHtml) {
-        result.html = this.toHtml(formattedText, analysis, entities, options);
+        result.html = await this.toHtml(formattedText, translatedAnalysis, entities, options, language);
       }
 
       this.logger.log(`Formatted response: ${formattedText.length} characters`);
@@ -149,7 +170,7 @@ export class ResponseFormatterService {
       this.logger.error('Error formatting response:', error);
 
       // Fallback to simple text
-      const fallbackText = this.createFallbackResponse(analysis, entities);
+      const fallbackText = await this.createFallbackResponse(translatedAnalysis, entities, language);
       return {
         text: fallbackText,
         metadata: {
@@ -162,14 +183,100 @@ export class ResponseFormatterService {
     }
   }
 
-  private formatBrief(
+  /**
+   * Translate analysis content to user's language
+   */
+  private async translateAnalysis(
+    analysis: ContentAnalysisResponse,
+    language: string,
+  ): Promise<ContentAnalysisResponse> {
+    if (language === 'en') {
+      return analysis;
+    }
+
+    const translatedAnalysis = { ...analysis };
+
+    // Translate summary if present
+    if (analysis.summary) {
+      const translated = await this.translationService.translate({
+        text: analysis.summary,
+        targetLanguage: language,
+        context: 'Content summary',
+      });
+      translatedAnalysis.summary = translated.translatedText;
+    }
+
+    return translatedAnalysis;
+  }
+
+  /**
+   * Translate static labels for formatting
+   */
+  private async translateLabels(language: string): Promise<{
+    category: string;
+    sentiment: string;
+    summary: string;
+    extractedInformation: string;
+    keyInfo: string;
+    contains: string;
+    highPriority: string;
+    title: string;
+  }> {
+    if (language === 'en') {
+      return {
+        category: 'Category',
+        sentiment: 'Sentiment',
+        summary: 'Summary',
+        extractedInformation: 'Extracted Information',
+        keyInfo: 'Key info',
+        contains: 'Contains',
+        highPriority: 'High priority item',
+        title: 'All sorted!',
+      };
+    }
+
+    const labels = [
+      'Category',
+      'Sentiment',
+      'Summary',
+      'Extracted Information',
+      'Key info',
+      'Contains',
+      'High priority item',
+      'All sorted!',
+    ];
+
+    const translated = await this.translationService.translateBatch(
+      labels,
+      language,
+    );
+
+    return {
+      category: translated[0],
+      sentiment: translated[1],
+      summary: translated[2],
+      extractedInformation: translated[3],
+      keyInfo: translated[4],
+      contains: translated[5],
+      highPriority: translated[6],
+      title: translated[7],
+    };
+  }
+
+  private async formatBrief(
     analysis: ContentAnalysisResponse,
     entities: EntityExtractionResult,
     options: FormattingOptions,
-  ): string {
+    language: string,
+  ): Promise<string> {
     const parts: string[] = [];
+    const labels = await this.translateLabels(language);
 
-    // Category with emoji
+    // Title showing content is captured and organized
+    const titleEmoji = options.includeEmojis ? '✨ ' : '';
+    parts.push(`${titleEmoji}${labels.title}`);
+
+    // Category with emoji (already translated in analysis)
     if (analysis.category && options.includeEmojis) {
       const emoji =
         this.emojis.categories[
@@ -177,10 +284,10 @@ export class ResponseFormatterService {
         ] || '📝';
       parts.push(`${emoji} ${analysis.category.toUpperCase()}`);
     } else if (analysis.category) {
-      parts.push(`Category: ${analysis.category}`);
+      parts.push(`${labels.category}: ${analysis.category}`);
     }
 
-    // Brief summary
+    // Brief summary (already translated in analysis)
     if (analysis.summary) {
       const summary =
         analysis.summary.length > 100
@@ -205,33 +312,35 @@ export class ResponseFormatterService {
           return `${emoji}${e.value}`.trim();
         })
         .join(', ');
-      parts.push(`Key info: ${entityList}`);
+      parts.push(`${labels.keyInfo}: ${entityList}`);
     }
 
     return parts.join('\n\n');
   }
 
-  private formatDetailed(
+  private async formatDetailed(
     analysis: ContentAnalysisResponse,
     entities: EntityExtractionResult,
     options: FormattingOptions,
-  ): string {
+    language: string,
+  ): Promise<string> {
     const parts: string[] = [];
+    const labels = await this.translateLabels(language);
 
     // Header with category and confidence
-    this.addCategoryHeader(parts, analysis, options);
+    this.addCategoryHeader(parts, analysis, options, labels);
 
-    // Summary
+    // Summary (already translated in analysis)
     if (analysis.summary) {
-      parts.push(`Summary: ${analysis.summary}`);
+      parts.push(`${labels.summary}: ${analysis.summary}`);
     }
 
     // Sentiment
-    this.addSentiment(parts, analysis, options);
+    this.addSentiment(parts, analysis, options, labels);
 
     // Extracted entities by type
     if (entities.entities.length > 0) {
-      parts.push(this.formatEntitiesDetailed(entities, options));
+      parts.push(this.formatEntitiesDetailed(entities, options, labels));
     }
 
     return parts.join('\n\n');
@@ -241,12 +350,13 @@ export class ResponseFormatterService {
     parts: string[],
     analysis: ContentAnalysisResponse,
     options: FormattingOptions,
+    labels: { category: string },
   ): void {
     if (analysis.category) {
       const emoji = options.includeEmojis
         ? this.emojis.categories[
             analysis.category as keyof typeof this.emojis.categories
-          ] || '�'
+          ] || '📝'
         : '';
       const confidence = analysis.confidence
         ? ` (${Math.round(analysis.confidence * 100)}%)`
@@ -261,6 +371,7 @@ export class ResponseFormatterService {
     parts: string[],
     analysis: ContentAnalysisResponse,
     options: FormattingOptions,
+    labels: { sentiment: string },
   ): void {
     if (analysis.sentiment) {
       const emoji = options.includeEmojis
@@ -268,18 +379,20 @@ export class ResponseFormatterService {
             analysis.sentiment as keyof typeof this.emojis.sentiment
           ] || '😐'
         : '';
-      parts.push(`Sentiment: ${emoji} ${analysis.sentiment}`.trim());
+      parts.push(`${labels.sentiment}: ${emoji} ${analysis.sentiment}`.trim());
     }
   }
 
-  private formatSummary(
+  private async formatSummary(
     analysis: ContentAnalysisResponse,
     entities: EntityExtractionResult,
     options: FormattingOptions,
-  ): string {
+    language: string,
+  ): Promise<string> {
     const parts: string[] = [];
+    const labels = await this.translateLabels(language);
 
-    // Category and summary
+    // Category and summary (summary already translated in analysis)
     if (analysis.category && analysis.summary) {
       const emoji = options.includeEmojis
         ? this.emojis.categories[
@@ -307,13 +420,13 @@ export class ResponseFormatterService {
           return `${emoji}${e.value}`.trim();
         })
         .join(', ');
-      parts.push(`Contains: ${entityText}`);
+      parts.push(`${labels.contains}: ${entityText}`);
     }
 
     // Urgency or importance
     if (analysis.urgency === 'high') {
       const emoji = options.includeEmojis ? '🚨 ' : '';
-      parts.push(`${emoji}High priority item`.trim());
+      parts.push(`${emoji}${labels.highPriority}`.trim());
     }
 
     return parts.join('\n\n');
@@ -322,6 +435,7 @@ export class ResponseFormatterService {
   private formatEntitiesDetailed(
     entities: EntityExtractionResult,
     options: FormattingOptions,
+    labels: { extractedInformation: string },
   ): string {
     const parts: string[] = [];
     const { structuredData } = entities;
@@ -342,11 +456,11 @@ export class ResponseFormatterService {
       options,
     );
     this.addEntityGroup(parts, 'Dates', structuredData.dates, '📅', options);
-    this.addEntityGroup(parts, 'Amounts', structuredData.amounts, '�', options);
+    this.addEntityGroup(parts, 'Amounts', structuredData.amounts, '💰', options);
     this.addContactInfo(parts, structuredData.contacts, options);
 
     return parts.length > 0
-      ? `Extracted Information:\n${parts.join('\n')}`
+      ? `${labels.extractedInformation}:\n${parts.join('\n')}`
       : '';
   }
 
@@ -425,13 +539,15 @@ export class ResponseFormatterService {
     return text;
   }
 
-  private toMarkdown(
+  private async toMarkdown(
     text: string,
     analysis: ContentAnalysisResponse,
     entities: EntityExtractionResult,
     options: FormattingOptions,
-  ): string {
+    language: string,
+  ): Promise<string> {
     const parts: string[] = [];
+    const labels = await this.translateLabels(language);
 
     if (analysis.category) {
       parts.push(`## ${analysis.category.toUpperCase()}\n`);
@@ -440,7 +556,7 @@ export class ResponseFormatterService {
     parts.push(text);
 
     if (entities.entities.length > 0) {
-      parts.push('\n### Extracted Information\n');
+      parts.push(`\n### ${labels.extractedInformation}\n`);
       entities.entities.forEach((entity) => {
         parts.push(`- **${entity.type}**: ${entity.value}`);
       });
@@ -449,13 +565,15 @@ export class ResponseFormatterService {
     return parts.join('\n');
   }
 
-  private toHtml(
+  private async toHtml(
     text: string,
     analysis: ContentAnalysisResponse,
     entities: EntityExtractionResult,
     options: FormattingOptions,
-  ): string {
+    language: string,
+  ): Promise<string> {
     const parts: string[] = [];
+    const labels = await this.translateLabels(language);
 
     // For Telegram, only use supported HTML tags: <b>, <i>, <u>, <s>, <code>, <pre>, <a>
     // No <div>, <h3>, <p>, <ul>, <li> tags allowed
@@ -470,7 +588,7 @@ export class ResponseFormatterService {
 
     if (entities.entities.length > 0) {
       parts.push(''); // Empty line
-      parts.push('<b>Extracted Information</b>');
+      parts.push(`<b>${labels.extractedInformation}</b>`);
       entities.entities.forEach((entity) => {
         parts.push(`• <b>${entity.type}</b>: ${entity.value}`);
       });
@@ -479,22 +597,53 @@ export class ResponseFormatterService {
     return parts.join('\n');
   }
 
-  private createFallbackResponse(
+  private async createFallbackResponse(
     analysis: ContentAnalysisResponse,
     entities: EntityExtractionResult,
-  ): string {
+    language: string,
+  ): Promise<string> {
     const parts: string[] = [];
 
     if (analysis.summary) {
       parts.push(analysis.summary);
     } else if (analysis.category) {
-      parts.push(`Processed as: ${analysis.category}`);
+      // Translate "Processed as:" label
+      if (language === 'en') {
+        parts.push(`Processed as: ${analysis.category}`);
+      } else {
+        const translated = await this.translationService.translate({
+          text: 'Processed as',
+          targetLanguage: language,
+          context: 'Fallback response label',
+        });
+        parts.push(`${translated.translatedText}: ${analysis.category}`);
+      }
     } else {
-      parts.push('Content processed successfully');
+      // Translate "Content processed successfully"
+      if (language === 'en') {
+        parts.push('Content processed successfully');
+      } else {
+        const translated = await this.translationService.translate({
+          text: 'Content processed successfully',
+          targetLanguage: language,
+          context: 'Fallback success message',
+        });
+        parts.push(translated.translatedText);
+      }
     }
 
     if (entities.summary.totalEntities > 0) {
-      parts.push(`Found ${entities.summary.totalEntities} important details`);
+      // Translate "Found X important details"
+      if (language === 'en') {
+        parts.push(`Found ${entities.summary.totalEntities} important details`);
+      } else {
+        const translated = await this.translationService.translate({
+          text: `Found ${entities.summary.totalEntities} important details`,
+          targetLanguage: language,
+          context: 'Entity count message',
+        });
+        parts.push(translated.translatedText);
+      }
     }
 
     return parts.join('\n');
