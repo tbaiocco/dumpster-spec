@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   Dump,
   ContentType,
@@ -89,6 +90,7 @@ export class DumpService {
     private readonly handwritingService: HandwritingService,
     private readonly entityExtractionService: EntityExtractionService,
     private readonly categorizationService: CategorizationService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -432,6 +434,14 @@ export class DumpService {
       });
 
       this.logger.log(`Enhanced dump created successfully: ${savedDump.id}`);
+
+      // Emit event for async tracking detection (non-blocking)
+      this.eventEmitter.emit('dump.created', {
+        dumpId: savedDump.id,
+        userId: savedDump.user_id,
+        content: savedDump.raw_content || '',
+        contentType: savedDump.content_type,
+      });
 
       return {
         dump: savedDump,

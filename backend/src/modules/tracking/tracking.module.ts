@@ -7,6 +7,7 @@ import { TrackableItem } from '../../entities/trackable-item.entity';
 import { TrackingService } from './tracking.service';
 import { PackageTrackingService } from './package-tracking.service';
 import { TrackingController } from './tracking.controller';
+import { TrackingEventsService } from './tracking-events.service';
 import { ReminderModule } from '../reminders/reminder.module';
 
 /**
@@ -15,6 +16,7 @@ import { ReminderModule } from '../reminders/reminder.module';
  * Provides:
  * - TrackingService: General time-sensitive item tracking
  * - PackageTrackingService: Carrier-specific package tracking
+ * - TrackingEventsService: Event listener for async tracking detection
  */
 @Module({
   imports: [
@@ -23,7 +25,7 @@ import { ReminderModule } from '../reminders/reminder.module';
     ReminderModule, // For auto-reminder creation
   ],
   controllers: [TrackingController],
-  providers: [TrackingService, PackageTrackingService],
+  providers: [TrackingService, PackageTrackingService, TrackingEventsService],
   exports: [TrackingService, PackageTrackingService],
 })
 export class TrackingModule {}
