@@ -6,6 +6,7 @@ import { TelegramWebhookController } from './telegram-webhook.controller';
 import { WhatsAppWebhookController } from './whatsapp-webhook.controller';
 import { HelpCommand } from './commands/help.command';
 import { RecentCommand } from './commands/recent.command';
+import { UpcomingCommand } from './commands/upcoming.command';
 import { ReportCommand } from './commands/report.command';
 import { SearchCommand } from './commands/search.command';
 import { MoreCommand } from './commands/more.command';
@@ -14,6 +15,7 @@ import { UserModule } from '../users/user.module';
 import { DumpModule } from '../dumps/dump.module';
 import { SearchModule } from '../search/search.module';
 import { FeedbackModule } from '../feedback/feedback.module';
+import { ReminderModule } from '../reminders/reminder.module';
 import { ResponseFormatterService } from '../ai/formatter.service';
 import { TranslationService } from '../ai/translation.service';
 import { ClaudeService } from '../ai/claude.service';
@@ -26,6 +28,7 @@ import { User } from '../../entities/user.entity';
     forwardRef(() => DumpModule),
     SearchModule,
     FeedbackModule,
+    ReminderModule,
   ],
   controllers: [
     TelegramWebhookController,
@@ -36,6 +39,7 @@ import { User } from '../../entities/user.entity';
     WhatsAppService,
     HelpCommand,
     RecentCommand,
+    UpcomingCommand,
     ReportCommand,
     SearchCommand,
     MoreCommand,

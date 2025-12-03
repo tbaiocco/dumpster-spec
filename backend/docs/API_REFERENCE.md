@@ -394,6 +394,8 @@ Administrative analytics and management. **All endpoints require JWT authenticat
 - `/start` - Welcome message and registration prompt
 - `/help` - Show available commands
 - `/recent` - Show recent dumps (default: 5)
+- `/upcoming` - Show upcoming reminders (default: next 24h)
+- `/next` - Alias for `/upcoming`
 - `/search <query>` - Semantic search across dumps
 - `/stats` - Show user statistics
 - `/digest` - Get daily digest on-demand
@@ -443,6 +445,8 @@ Administrative analytics and management. **All endpoints require JWT authenticat
 **Supported Commands:**
 - `help` - Show available commands
 - `recent` - Show recent dumps (default: 5)
+- `upcoming` - Show upcoming reminders (default: next 24h)
+- `next` - Alias for `upcoming`
 - `search <query>` - Semantic search across dumps
 - `stats` - Show user statistics
 - `digest` - Get daily digest on-demand

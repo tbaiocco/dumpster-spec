@@ -9,6 +9,7 @@ export class HelpCommand {
         '/start - Welcome message and introduction\n' +
         '/help - Show this help message\n' +
         '/recent - Show your 5 most recent items\n' +
+        '/upcoming - Show upcoming reminders (next 24h)\n' +
         '/search [query] - Search your content\n' +
         '/report [issue] - Report a problem or feedback\n\n' +
         '📝 *What you can send me:*\n' +
@@ -31,6 +32,7 @@ export class HelpCommand {
       '/start - Welcome message and introduction\n' +
       '/help - Show this help message\n' +
       '/recent - Show your 5 most recent items\n' +
+      '/upcoming - Show upcoming reminders (next 24h)\n' +
       '/search [query] - Search your content\n' +
       '/report [issue] - Report a problem or feedback\n\n' +
       '📝 <b>What you can send me:</b>\n' +

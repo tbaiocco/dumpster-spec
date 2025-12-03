@@ -8,6 +8,7 @@ import {
 } from '../dumps/services/dump.service';
 import { HelpCommand } from './commands/help.command';
 import { RecentCommand } from './commands/recent.command';
+import { UpcomingCommand } from './commands/upcoming.command';
 import { SearchCommand } from './commands/search.command';
 import { ReportCommand } from './commands/report.command';
 import { ResponseFormatterService } from '../ai/formatter.service';
@@ -131,6 +132,7 @@ export class WhatsAppService {
     private readonly dumpService: DumpService,
     private readonly helpCommand: HelpCommand,
     private readonly recentCommand: RecentCommand,
+    private readonly upcomingCommand: UpcomingCommand,
     private readonly searchCommand: SearchCommand,
     private readonly reportCommand: ReportCommand,
     private readonly responseFormatterService: ResponseFormatterService,
@@ -690,6 +692,16 @@ export class WhatsAppService {
         case 'recent': {
           const recentMessage = await this.recentCommand.execute(user, 5, 'whatsapp');
           await this.sendTextMessage(phoneNumber, recentMessage);
+          break;
+        }
+
+        case 'upcoming':
+        case 'next': {
+          // Parse optional hours parameter: upcoming 48
+          const parts = command.split(' ');
+          const hours = parts.length > 1 ? Number.parseInt(parts[1], 10) || 24 : 24;
+          const upcomingMessage = await this.upcomingCommand.execute(user, hours, 'whatsapp');
+          await this.sendTextMessage(phoneNumber, upcomingMessage);
           break;
         }
 
