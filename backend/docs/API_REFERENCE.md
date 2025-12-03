@@ -14,12 +14,13 @@
 4. [Dumps (Content)](#dumps-content)
 5. [Search](#search)
 6. [Reminders](#reminders)
-7. [Reviews & Flagging](#reviews--flagging)
-8. [Feedback](#feedback)
-9. [Admin](#admin)
-10. [Webhooks](#webhooks)
-11. [Email](#email)
-12. [Notifications (Testing)](#notifications-testing)
+7. [Tracking](#tracking)
+8. [Reviews & Flagging](#reviews--flagging)
+9. [Feedback](#feedback)
+10. [Admin](#admin)
+11. [Webhooks](#webhooks)
+12. [Email](#email)
+13. [Notifications (Testing)](#notifications-testing)
 
 ---
 
@@ -265,6 +266,220 @@ Manage time-based reminders extracted from content.
   "snooze_until": "2025-12-01T16:00:00Z"
 }
 ```
+
+---
+
+## Tracking
+
+### Base Path: `/api/tracking`
+
+Track time-sensitive items like packages, applications, subscriptions, warranties, loans, and insurance policies. The system automatically detects tracking opportunities from your dumps and can create trackable items with automatic reminders.
+
+**Tracking Types:**
+- `package`: Shipments and deliveries (UPS, FedEx, USPS, DHL, etc.)
+- `application`: Job applications, visa applications, loan applications
+- `subscription`: Trial periods, subscription renewals, memberships
+- `warranty`: Product warranties, service contracts, guarantees
+- `loan`: Loan applications, payment deadlines, maturity dates
+- `insurance`: Policy renewals, claim tracking, coverage periods
+- `other`: Any other time-sensitive items
+
+**Tracking Status:**
+- `pending`: Not yet started
+- `in_progress`: Currently tracking
+- `completed`: Successfully completed
+- `expired`: Deadline passed
+- `cancelled`: Tracking cancelled by user
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `POST` | `/api/tracking` | Create trackable item | Yes (JWT) |
+| `GET` | `/api/tracking` | List user's trackable items (with filters) | Yes (JWT) |
+| `GET` | `/api/tracking/stats` | Get tracking statistics | Yes (JWT) |
+| `GET` | `/api/tracking/:id` | Get specific trackable item | Yes (JWT) |
+| `PUT` | `/api/tracking/:id/status` | Update tracking status (add checkpoint) | Yes (JWT) |
+| `PUT` | `/api/tracking/:id/complete` | Mark tracking as complete | Yes (JWT) |
+| `DELETE` | `/api/tracking/:id` | Delete trackable item | Yes (JWT) |
+| `POST` | `/api/tracking/package` | Track package by number | Yes (JWT) |
+| `POST` | `/api/tracking/detect` | Detect tracking opportunities from dump | Yes (JWT) |
+
+**Request Examples:**
+
+```json
+// POST /api/tracking
+{
+  "type": "package",
+  "title": "Amazon Order - Laptop Charger",
+  "description": "Tracking number: 1Z999AA10123456784",
+  "expectedEndDate": "2025-12-10T18:00:00Z",
+  "metadata": {
+    "carrier": "UPS",
+    "trackingNumber": "1Z999AA10123456784",
+    "orderNumber": "123-4567890-1234567"
+  },
+  "dumpId": "uuid-of-related-dump" // optional
+}
+
+// POST /api/tracking/package
+{
+  "trackingNumber": "1Z999AA10123456784"
+}
+
+// Response
+{
+  "trackableItem": {
+    "id": "uuid",
+    "user_id": "user-uuid",
+    "type": "package",
+    "title": "UPS Package 1Z999AA10123456784",
+    "description": "Package tracking created from tracking number",
+    "status": "in_progress",
+    "start_date": "2025-12-03T10:00:00Z",
+    "expected_end_date": "2025-12-10T18:00:00Z",
+    "checkpoints": [
+      {
+        "timestamp": "2025-12-03T10:00:00Z",
+        "status": "Created",
+        "notes": "Item created for tracking"
+      }
+    ],
+    "metadata": {
+      "carrier": "UPS",
+      "trackingNumber": "1Z999AA10123456784"
+    },
+    "reminder_ids": ["reminder-uuid"],
+    "created_at": "2025-12-03T10:00:00Z",
+    "updated_at": "2025-12-03T10:00:00Z"
+  },
+  "packageInfo": {
+    "carrier": "UPS",
+    "trackingNumber": "1Z999AA10123456784",
+    "status": "In Transit",
+    "estimatedDelivery": "2025-12-10T18:00:00Z",
+    "currentLocation": "Distribution Center - New York, NY"
+  }
+}
+
+// GET /api/tracking?type=package&status=in_progress
+// Response
+{
+  "items": [
+    {
+      "id": "uuid",
+      "type": "package",
+      "title": "Amazon Order - Laptop Charger",
+      "status": "in_progress",
+      "expected_end_date": "2025-12-10T18:00:00Z",
+      "checkpoints": [...],
+      "metadata": {...}
+    }
+  ],
+  "total": 5,
+  "page": 1,
+  "totalPages": 1
+}
+
+// GET /api/tracking/stats
+// Response
+{
+  "total": 15,
+  "byType": {
+    "package": 8,
+    "subscription": 4,
+    "warranty": 2,
+    "application": 1
+  },
+  "byStatus": {
+    "pending": 3,
+    "in_progress": 10,
+    "completed": 2,
+    "expired": 0,
+    "cancelled": 0
+  },
+  "overdueCount": 1
+}
+
+// PUT /api/tracking/:id/status
+{
+  "status": "Out for Delivery",
+  "notes": "Package is out for delivery",
+  "location": "Local Distribution Center"
+}
+
+// Response
+{
+  "id": "uuid",
+  "status": "in_progress",
+  "checkpoints": [
+    {
+      "timestamp": "2025-12-03T10:00:00Z",
+      "status": "Created",
+      "notes": "Item created for tracking"
+    },
+    {
+      "timestamp": "2025-12-05T14:30:00Z",
+      "status": "Out for Delivery",
+      "location": "Local Distribution Center",
+      "notes": "Package is out for delivery"
+    }
+  ]
+}
+
+// POST /api/tracking/detect
+{
+  "dumpId": "dump-uuid"
+}
+
+// Response
+{
+  "detected": true,
+  "suggestions": [
+    {
+      "type": "package",
+      "title": "UPS Package",
+      "description": "Tracking number found: 1Z999AA10123456784",
+      "confidence": "high",
+      "metadata": {
+        "trackingNumber": "1Z999AA10123456784",
+        "carrier": "UPS"
+      }
+    },
+    {
+      "type": "subscription",
+      "title": "Netflix Trial",
+      "description": "Free trial expires in 7 days",
+      "confidence": "medium"
+    }
+  ]
+}
+```
+
+**Bot Commands:**
+
+The tracking system is also available via Telegram and WhatsApp bots:
+
+```
+/track - List your tracked items
+/track [tracking-number] - Track a package by number
+
+Examples:
+/track
+/track 1Z999AA10123456784
+```
+
+**Automatic Detection:**
+
+The system automatically detects tracking opportunities from your dumps using two methods:
+
+1. **Async Detection**: Immediately after dump creation (non-blocking)
+2. **Nightly Proactive Scan**: Runs every night to catch missed opportunities
+
+When tracking opportunities are detected, the system:
+- Analyzes content with AI for intelligent detection
+- Falls back to keyword and regex matching if needed
+- Creates trackable items with automatic reminders
+- Notifies you via bot (future feature)
+- Avoids duplicates
 
 ---
 
