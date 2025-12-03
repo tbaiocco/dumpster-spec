@@ -269,16 +269,32 @@ export class ProactiveService {
     const dumpSummaries = dumps.map((dump, index) => {
       const category = dump.category?.name || 'Uncategorized';
       const content = dump.raw_content?.substring(0, 500) || ''; // Limit content length
-      const entities = dump.extracted_entities
-        ? JSON.stringify(dump.extracted_entities)
-        : '';
+      const summary = dump.ai_summary || '';
+      
+      // Extract key information from entities
+      let entitiesInfo = '';
+      if (dump.extracted_entities) {
+        const entities = dump.extracted_entities.entities as any || {};
+        const dates = entities.dates || [];
+        const times = entities.times || [];
+        const people = entities.people || [];
+        const actionItems = dump.extracted_entities.actionItems || [];
+        
+        if (dates.length > 0 || times.length > 0 || people.length > 0 || actionItems.length > 0) {
+          entitiesInfo = `
+Action Items: ${actionItems.join(', ') || 'None'}
+Dates: ${dates.join(', ') || 'None'}
+Times: ${times.join(', ') || 'None'}
+People: ${people.join(', ') || 'None'}`;
+        }
+      }
 
       return `[${index + 1}] Dump ${dump.id.substring(0, 8)}
 Category: ${category}
 Type: ${dump.content_type}
 Date: ${dump.created_at.toISOString()}
 Content: ${content}
-Entities: ${entities}
+AI Summary: ${summary}${entitiesInfo}
 ---`;
     });
 
@@ -294,65 +310,70 @@ Entities: ${entities}
   ): Promise<ContextualInsight[]> {
     const systemPrompt = `You are a proactive assistant analyzing user content to identify opportunities for helpful reminders.
 
+CRITICAL: You must respond with ONLY a valid JSON array, no other text before or after.
+
 Your task is to identify:
-1. **Expiration dates**: Passports, licenses, subscriptions, warranties
-2. **Deadlines**: Projects, bills, appointments
-3. **Follow-ups**: Tasks that need checking back (e.g., "waiting for response")
+1. **Follow-ups**: Tasks with specific dates/times that need action (e.g., "Call X tomorrow morning")
+2. **Deadlines**: Projects, bills, appointments with due dates
+3. **Expiration dates**: Passports, licenses, subscriptions, warranties
 4. **Recurring tasks**: Regular activities mentioned multiple times
 5. **Preparation needs**: Events requiring advance preparation
 
-For each insight, provide:
-- type: One of [expiration, deadline, follow-up, recurring-task, preparation]
-- title: Short, actionable reminder title
-- description: Context and details
-- suggestedDate: When to remind (ISO format)
-- confidence: high/medium/low based on clarity of information
-- relatedDumpIds: Array of dump IDs that support this insight
-- reasoning: Why this reminder would be helpful
+IMPORTANT: Pay special attention to action items with dates and times. These should ALWAYS generate follow-up reminders.
 
-Return ONLY a valid JSON array of insights, no additional text.
-Example format:
+For each insight, provide:
+- type: One of [follow-up, deadline, expiration, recurring-task, preparation]
+- title: Short, actionable reminder title (e.g., "Call Gilson about car repair")
+- description: Context and details (e.g., "Scheduled for 2025-12-04 at 09:00")
+- suggestedDate: When to remind in ISO format (e.g., "2025-12-04T09:00:00Z")
+- confidence: high (clear date/time), medium (implied timing), or low (vague)
+- relatedDumpIds: Array of dump IDs that support this insight
+- reasoning: Why this reminder would be helpful (e.g., "Action item with specific date and time")
+
+Example response (ONLY THIS, NO OTHER TEXT):
 [
   {
-    "type": "expiration",
-    "title": "Passport renewal reminder",
-    "description": "Your passport expires in 3 months",
-    "suggestedDate": "2025-12-15T09:00:00Z",
+    "type": "follow-up",
+    "title": "Call Gilson about car repair",
+    "description": "Scheduled call tomorrow morning at 09:00",
+    "suggestedDate": "2025-12-04T09:00:00Z",
     "confidence": "high",
-    "relatedDumpIds": ["abc123"],
-    "reasoning": "Clear expiration date mentioned in content"
+    "relatedDumpIds": ["3b9384f5"],
+    "reasoning": "Action item with specific date and time extracted from entities"
   }
-]`;
+]
 
-    const userPrompt = `Analyze this user content and suggest proactive reminders:
+If no opportunities found, return empty array: []`;
+
+    const userPrompt = `Analyze this user content and suggest proactive reminders.
 
 ${contentSummary}
 
-Return insights as JSON array.`;
+CRITICAL: Respond with ONLY a JSON array, no other text. Look especially for action items with dates and times in the entities.`;
 
     try {
-      const response = await this.claudeService.analyzeContent({
-        content: userPrompt,
-        contentType: 'text',
-        customSystemPrompt: systemPrompt,
-        context: {
-          source: 'telegram',
-          userId,
-          timestamp: new Date(),
-        },
-      });
+      // Use queryWithCustomPrompt for raw JSON response instead of analyzeContent
+      const fullPrompt = `${systemPrompt}
 
-      // Try to parse insights from the summary
-      const summary = response.summary || '';
+${userPrompt}`;
+
+      const response = await this.claudeService.queryWithCustomPrompt(fullPrompt);
+
+      this.logger.debug(`AI response: ${response.substring(0, 200)}...`);
 
       // Try to extract JSON array from the response
-      const jsonMatch = summary.match(/\[[\s\S]*\]/);
+      const jsonRegex = /\[[\s\S]*\]/;
+      const jsonMatch = jsonRegex.exec(response);
       if (!jsonMatch) {
-        this.logger.warn('AI response did not contain valid JSON array');
+        this.logger.warn(
+          `AI response did not contain valid JSON array. Response was: ${response.substring(0, 500)}`,
+        );
         return [];
       }
 
       const insights = JSON.parse(jsonMatch[0]) as ContextualInsight[];
+
+      this.logger.log(`Successfully parsed ${insights.length} insights from AI`);
 
       // Validate and parse dates
       const validatedInsights = insights.map((insight) => ({
@@ -362,7 +383,10 @@ Return insights as JSON array.`;
 
       return validatedInsights;
     } catch (error) {
-      this.logger.error(`Failed to extract insights with AI: ${error.message}`);
+      this.logger.error(
+        `Failed to extract insights with AI: ${error.message}`,
+        error.stack,
+      );
       return [];
     }
   }
