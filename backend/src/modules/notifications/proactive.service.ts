@@ -6,6 +6,8 @@ import { Reminder, ReminderType } from '../../entities/reminder.entity';
 import { User } from '../../entities/user.entity';
 import { ClaudeService } from '../ai/claude.service';
 import { ReminderService } from '../reminders/reminder.service';
+import { TrackingService } from '../tracking/tracking.service';
+import { TrackingType } from '../../entities/trackable-item.entity';
 
 /**
  * Confidence level for contextual insights
@@ -61,6 +63,7 @@ export class ProactiveService {
     private readonly userRepository: Repository<User>,
     private readonly claudeService: ClaudeService,
     private readonly reminderService: ReminderService,
+    private readonly trackingService: TrackingService,
   ) {}
 
   /**
@@ -198,6 +201,7 @@ export class ProactiveService {
     usersProcessed: number;
     remindersCreated: number;
     suggestionsGenerated: number;
+    trackingItemsCreated: number;
   }> {
     this.logger.log('Starting daily proactive analysis for all users');
 
@@ -205,10 +209,29 @@ export class ProactiveService {
 
     let remindersCreated = 0;
     let suggestionsGenerated = 0;
+    let trackingItemsCreated = 0;
 
     for (const user of users) {
       try {
-        // Analyze user content
+        // Get recent dumps for analysis (last 7 days)
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - 7);
+
+        const dumps = await this.dumpRepository
+          .createQueryBuilder('dump')
+          .leftJoinAndSelect('dump.category', 'category')
+          .where('dump.user_id = :userId', { userId: user.id })
+          .andWhere('dump.created_at > :cutoffDate', { cutoffDate })
+          .orderBy('dump.created_at', 'DESC')
+          .take(50)
+          .getMany();
+
+        if (dumps.length === 0) {
+          this.logger.log(`User ${user.id}: No recent dumps to analyze`);
+          continue;
+        }
+
+        // Analyze user content for reminders
         const analysis = await this.analyzeUserContent(user.id, {
           lookbackDays: 7,
           maxDumps: 50,
@@ -216,7 +239,7 @@ export class ProactiveService {
         });
 
         // Generate reminders from insights
-        const result = await this.generateRemindersFromInsights(
+        const reminderResult = await this.generateRemindersFromInsights(
           user.id,
           analysis.insights,
           {
@@ -225,11 +248,19 @@ export class ProactiveService {
           },
         );
 
-        remindersCreated += result.created.length;
-        suggestionsGenerated += result.suggestions.length;
+        remindersCreated += reminderResult.created.length;
+        suggestionsGenerated += reminderResult.suggestions.length;
+
+        // Detect and create tracking items
+        const trackingResult = await this.detectAndCreateTrackingItems(
+          user.id,
+          dumps,
+        );
+
+        trackingItemsCreated += trackingResult.created;
 
         this.logger.log(
-          `User ${user.id}: Created ${result.created.length} reminders, ${result.suggestions.length} suggestions`,
+          `User ${user.id}: Created ${reminderResult.created.length} reminders, ${reminderResult.suggestions.length} suggestions, ${trackingResult.created} tracking items`,
         );
       } catch (error) {
         this.logger.error(
@@ -239,13 +270,14 @@ export class ProactiveService {
     }
 
     this.logger.log(
-      `Daily proactive analysis complete: ${users.length} users, ${remindersCreated} reminders, ${suggestionsGenerated} suggestions`,
+      `Daily proactive analysis complete: ${users.length} users, ${remindersCreated} reminders, ${suggestionsGenerated} suggestions, ${trackingItemsCreated} tracking items`,
     );
 
     return {
       usersProcessed: users.length,
       remindersCreated,
       suggestionsGenerated,
+      trackingItemsCreated,
     };
   }
 
@@ -486,5 +518,282 @@ ${userPrompt}`;
     }
 
     return null;
+  }
+
+  /**
+   * Detect tracking opportunities from dumps and create trackable items
+   * Uses AI analysis to identify packages, subscriptions, warranties, etc.
+   */
+  async detectAndCreateTrackingItems(
+    userId: string,
+    dumps: Dump[],
+  ): Promise<{
+    created: number;
+    suggestions: Array<{
+      type: TrackingType;
+      title: string;
+      description: string;
+      dumpId: string;
+    }>;
+  }> {
+    const suggestions: Array<{
+      type: TrackingType;
+      title: string;
+      description: string;
+      dumpId: string;
+    }> = [];
+    let created = 0;
+
+    for (const dump of dumps) {
+      const content = dump.raw_content?.substring(0, 2000) || '';
+      if (!content) continue;
+
+      // Use AI to detect tracking opportunities
+      const trackingInsights = await this.detectTrackingWithAI(content, dump);
+
+      for (const insight of trackingInsights) {
+        try {
+          // Check if similar tracking already exists
+          const existing = await this.trackingService.getUserTrackableItems(
+            userId,
+            {},
+          );
+
+          const isDuplicate = existing.some(
+            (item) =>
+              item.type === insight.type &&
+              item.title.toLowerCase() === insight.title.toLowerCase(),
+          );
+
+          if (!isDuplicate) {
+            // Create the trackable item
+            await this.trackingService.createTrackableItem(
+              userId,
+              dump.id,
+              {
+                type: insight.type,
+                title: insight.title,
+                description: insight.description,
+                expectedEndDate: insight.expectedDate,
+                metadata: {
+                  source: 'proactive_detection',
+                  confidence: insight.confidence,
+                  detectedAt: new Date().toISOString(),
+                  trackingNumber: insight.trackingNumber,
+                },
+                autoReminders: true,
+              },
+            );
+
+            created++;
+            suggestions.push({
+              type: insight.type,
+              title: insight.title,
+              description: insight.description,
+              dumpId: dump.id,
+            });
+          }
+        } catch (error) {
+          this.logger.error(
+            `Failed to create tracking item: ${error.message}`,
+            error.stack,
+          );
+        }
+      }
+    }
+
+    return { created, suggestions };
+  }
+
+  /**
+   * Use Claude AI to detect tracking opportunities
+   */
+  private async detectTrackingWithAI(
+    content: string,
+    dump: Dump,
+  ): Promise<
+    Array<{
+      type: TrackingType;
+      title: string;
+      description: string;
+      trackingNumber?: string;
+      expectedDate?: Date;
+      confidence: ConfidenceLevel;
+    }>
+  > {
+    const prompt = `Analyze the following message and identify any tracking opportunities. Look for:
+
+1. **Packages**: Tracking numbers (UPS, FedEx, USPS, DHL, etc.), shipment notifications, delivery confirmations
+2. **Applications**: Job applications, visa applications, loan applications with reference numbers
+3. **Subscriptions**: Trial periods, subscription renewals, membership expirations
+4. **Warranties**: Product warranties, service contracts, guarantee periods
+5. **Loans**: Loan applications, payment deadlines, maturity dates
+6. **Insurance**: Policy renewals, claim tracking, coverage periods
+7. **Other**: Any time-sensitive items that need tracking
+
+For each opportunity found, provide:
+- type: One of: package, application, subscription, warranty, loan, insurance, other
+- title: Short descriptive title (max 100 chars)
+- description: Detailed description with relevant context
+- trackingNumber: If applicable (tracking codes, reference numbers, policy numbers)
+- expectedDate: When action is needed or expected (ISO 8601 format)
+- confidence: high, medium, or low
+
+Message to analyze:
+${content.substring(0, 2000)}
+
+Return your analysis as a JSON array. If no tracking opportunities found, return empty array [].
+IMPORTANT: Respond with ONLY valid JSON, no other text.`;
+
+    try {
+      const response = await this.claudeService.queryWithCustomPrompt(prompt);
+
+      // Parse AI response
+      const jsonPattern = /\[[\s\S]*\]/;
+      const jsonMatch = jsonPattern.exec(response);
+      if (!jsonMatch) {
+        this.logger.warn('No JSON array found in AI response');
+        return [];
+      }
+
+      const insights = JSON.parse(jsonMatch[0]);
+
+      // Validate and normalize the insights
+      return insights
+        .filter((insight) => insight.type && insight.title)
+        .map((insight) => ({
+          type: this.normalizeTrackingType(insight.type),
+          title: insight.title.substring(0, 100),
+          description: insight.description || insight.title,
+          trackingNumber: insight.trackingNumber || undefined,
+          expectedDate: insight.expectedDate
+            ? new Date(insight.expectedDate)
+            : undefined,
+          confidence: insight.confidence || 'medium',
+        }));
+    } catch (error) {
+      this.logger.error(
+        `AI tracking detection failed: ${error.message}`,
+        error.stack,
+      );
+      // Fallback to keyword-based detection
+      return this.detectTrackingWithKeywords(content);
+    }
+  }
+
+  /**
+   * Normalize tracking type from AI response to valid enum
+   */
+  private normalizeTrackingType(type: string): TrackingType {
+    const normalized = type.toLowerCase().trim();
+    const typeMap: Record<string, TrackingType> = {
+      package: TrackingType.PACKAGE,
+      packages: TrackingType.PACKAGE,
+      shipment: TrackingType.PACKAGE,
+      delivery: TrackingType.PACKAGE,
+      application: TrackingType.APPLICATION,
+      applications: TrackingType.APPLICATION,
+      subscription: TrackingType.SUBSCRIPTION,
+      subscriptions: TrackingType.SUBSCRIPTION,
+      trial: TrackingType.SUBSCRIPTION,
+      warranty: TrackingType.WARRANTY,
+      warranties: TrackingType.WARRANTY,
+      guarantee: TrackingType.WARRANTY,
+      loan: TrackingType.LOAN,
+      loans: TrackingType.LOAN,
+      mortgage: TrackingType.LOAN,
+      insurance: TrackingType.INSURANCE,
+      policy: TrackingType.INSURANCE,
+      claim: TrackingType.INSURANCE,
+    };
+
+    return typeMap[normalized] || TrackingType.OTHER;
+  }
+
+  /**
+   * Fallback keyword-based tracking detection
+   */
+  private detectTrackingWithKeywords(content: string): Array<{
+    type: TrackingType;
+    title: string;
+    description: string;
+    trackingNumber?: string;
+    expectedDate?: Date;
+    confidence: ConfidenceLevel;
+  }> {
+    const results: Array<{
+      type: TrackingType;
+      title: string;
+      description: string;
+      trackingNumber?: string;
+      expectedDate?: Date;
+      confidence: ConfidenceLevel;
+    }> = [];
+    const contentLower = content.toLowerCase();
+
+    // Package detection
+    const trackingNumberPattern =
+      /\b(1Z[\dA-Z]{16}|\d{22}|\d{12}|\d{20})\b/gi;
+    const trackingMatches = content.match(trackingNumberPattern);
+    if (
+      trackingMatches ||
+      contentLower.includes('tracking') ||
+      contentLower.includes('shipment') ||
+      contentLower.includes('delivery')
+    ) {
+      results.push({
+        type: TrackingType.PACKAGE,
+        title: 'Package Delivery',
+        description: trackingMatches
+          ? `Package with tracking number: ${trackingMatches[0]}`
+          : 'Package shipment detected',
+        trackingNumber: trackingMatches ? trackingMatches[0] : undefined,
+        confidence: trackingMatches ? 'high' : 'medium',
+      });
+    }
+
+    // Subscription detection
+    if (
+      contentLower.includes('trial') ||
+      contentLower.includes('subscription') ||
+      contentLower.includes('membership')
+    ) {
+      results.push({
+        type: TrackingType.SUBSCRIPTION,
+        title: 'Subscription/Trial Period',
+        description: 'Subscription or trial period detected',
+        confidence: 'medium',
+      });
+    }
+
+    // Warranty detection
+    if (
+      contentLower.includes('warranty') ||
+      contentLower.includes('guarantee')
+    ) {
+      results.push({
+        type: TrackingType.WARRANTY,
+        title: 'Warranty Period',
+        description: 'Product warranty or guarantee detected',
+        confidence: 'medium',
+      });
+    }
+
+    // Application detection
+    if (
+      contentLower.includes('application') &&
+      (contentLower.includes('reference') ||
+        contentLower.includes('status') ||
+        contentLower.includes('submitted'))
+    ) {
+      results.push({
+        type: TrackingType.APPLICATION,
+        title: 'Application Status',
+        description: 'Application submission detected',
+        confidence: 'medium',
+      });
+    }
+
+    return results;
   }
 }
