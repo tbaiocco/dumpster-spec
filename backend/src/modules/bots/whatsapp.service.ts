@@ -9,6 +9,7 @@ import {
 import { HelpCommand } from './commands/help.command';
 import { RecentCommand } from './commands/recent.command';
 import { UpcomingCommand } from './commands/upcoming.command';
+import { TrackCommand } from './commands/track.command';
 import { SearchCommand } from './commands/search.command';
 import { ReportCommand } from './commands/report.command';
 import { ResponseFormatterService } from '../ai/formatter.service';
@@ -133,6 +134,7 @@ export class WhatsAppService {
     private readonly helpCommand: HelpCommand,
     private readonly recentCommand: RecentCommand,
     private readonly upcomingCommand: UpcomingCommand,
+    private readonly trackCommand: TrackCommand,
     private readonly searchCommand: SearchCommand,
     private readonly reportCommand: ReportCommand,
     private readonly responseFormatterService: ResponseFormatterService,
@@ -702,6 +704,15 @@ export class WhatsAppService {
           const hours = parts.length > 1 ? Number.parseInt(parts[1], 10) || 24 : 24;
           const upcomingMessage = await this.upcomingCommand.execute(user, hours, 'whatsapp');
           await this.sendTextMessage(phoneNumber, upcomingMessage);
+          break;
+        }
+
+        case 'track': {
+          // Parse tracking command: track <tracking-number> OR track list
+          const parts = command.split(' ').filter(p => p.trim());
+          const args = parts.slice(1); // Remove 'track' itself
+          const trackMessage = await this.trackCommand.execute(user, args, 'whatsapp');
+          await this.sendTextMessage(phoneNumber, trackMessage);
           break;
         }
 

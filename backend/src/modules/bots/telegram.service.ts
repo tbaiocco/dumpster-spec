@@ -9,6 +9,7 @@ import {
 import { HelpCommand } from './commands/help.command';
 import { RecentCommand } from './commands/recent.command';
 import { UpcomingCommand } from './commands/upcoming.command';
+import { TrackCommand } from './commands/track.command';
 import { SearchCommand } from './commands/search.command';
 import { ReportCommand } from './commands/report.command';
 import { MessageFormatterHelper } from './helpers/message-formatter.helper';
@@ -92,6 +93,7 @@ export class TelegramService {
     private readonly helpCommand: HelpCommand,
     private readonly recentCommand: RecentCommand,
     private readonly upcomingCommand: UpcomingCommand,
+    private readonly trackCommand: TrackCommand,
     private readonly reportCommand: ReportCommand,
     private readonly searchCommand: SearchCommand,
     private readonly responseFormatterService: ResponseFormatterService,
@@ -679,6 +681,15 @@ export class TelegramService {
           const hours = parts.length > 1 ? Number.parseInt(parts[1], 10) || 24 : 24;
           const upcomingMessage = await this.upcomingCommand.execute(user, hours, 'telegram');
           await this.sendTextMessage(chatId, upcomingMessage);
+          break;
+        }
+
+        case '/track': {
+          // Parse tracking command: /track <tracking-number> OR /track list
+          const parts = command.split(' ').filter(p => p.trim());
+          const args = parts.slice(1); // Remove '/track' itself
+          const trackMessage = await this.trackCommand.execute(user, args, 'telegram');
+          await this.sendTextMessage(chatId, trackMessage);
           break;
         }
 

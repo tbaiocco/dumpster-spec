@@ -3,8 +3,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { HttpModule } from '@nestjs/axios';
 import { Dump } from '../../entities/dump.entity';
 import { Reminder } from '../../entities/reminder.entity';
+import { TrackableItem } from '../../entities/trackable-item.entity';
 import { TrackingService } from './tracking.service';
 import { PackageTrackingService } from './package-tracking.service';
+import { TrackingController } from './tracking.controller';
 import { ReminderModule } from '../reminders/reminder.module';
 
 /**
@@ -16,10 +18,11 @@ import { ReminderModule } from '../reminders/reminder.module';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Dump, Reminder]),
+    TypeOrmModule.forFeature([Dump, Reminder, TrackableItem]),
     HttpModule, // For external carrier APIs
     ReminderModule, // For auto-reminder creation
   ],
+  controllers: [TrackingController],
   providers: [TrackingService, PackageTrackingService],
   exports: [TrackingService, PackageTrackingService],
 })
