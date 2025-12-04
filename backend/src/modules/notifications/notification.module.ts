@@ -13,6 +13,7 @@ import { NotificationTestController } from './notification-test.controller';
 import { ReminderModule } from '../reminders/reminder.module';
 import { BotsModule } from '../bots/bots.module';
 import { UserModule } from '../users/user.module';
+import { TrackingModule } from '../tracking/tracking.module';
 import { ClaudeService } from '../ai/claude.service';
 import { TranslationService } from '../ai/translation.service';
 
@@ -23,7 +24,7 @@ import { TranslationService } from '../ai/translation.service';
  * - DigestService: Daily digest generation
  * - DeliveryService: Multi-channel notification delivery
  * - CronService: Scheduled jobs for automated notifications
- * - ProactiveService: AI-powered contextual reminder suggestions
+ * - ProactiveService: AI-powered contextual reminder suggestions (includes tracking detection)
  * - NotificationTestController: Test endpoints for manual delivery (dev only)
  * - TranslationService: AI-powered translation for multi-language support
  */
@@ -32,6 +33,7 @@ import { TranslationService } from '../ai/translation.service';
     TypeOrmModule.forFeature([Dump, Reminder, User]),
     ScheduleModule.forRoot(), // Enable cron scheduling
     ReminderModule,
+    TrackingModule, // For proactive tracking detection
     forwardRef(() => BotsModule), // Circular dependency with bots
     UserModule,
   ],
