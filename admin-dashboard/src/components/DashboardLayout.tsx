@@ -102,11 +102,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
           {/* Logo */}
           <div className={`flex ${isCollapsed ? 'justify-center' : 'w-full px-3'} mt-3`}>
             <Link to="/dashboard" className={`flex items-center ${isCollapsed ? 'justify-center' : 'w-full'} group`}>
-              <svg className="w-8 h-8 fill-current text-indigo-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M11 17a1 1 0 001.447.894l4-2A1 1 0 0017 15V9.236a1 1 0 00-1.447-.894l-4 2a1 1 0 00-.553.894V17zM15.211 6.276a1 1 0 000-1.788l-4.764-2.382a1 1 0 00-.894 0L4.789 4.488a1 1 0 000 1.788l4.764 2.382a1 1 0 00.894 0l4.764-2.382zM4.447 8.342A1 1 0 003 9.236V15a1 1 0 00.553.894l4 2A1 1 0 009 17v-5.764a1 1 0 00-.553-.894l-4-2z" />
-              </svg>
+              <img 
+                src="/logo192.png" 
+                alt="Clutter.AI Logo" 
+                className="w-8 h-8 object-contain"
+              />
               {!isCollapsed && (
-                <span className="ml-2 text-sm font-bold text-white">Clutter.AI</span>
+                  <span className="ml-2 text-xl font-bold text-white" style={{ fontFamily: "'Bagel Fat One', system-ui" }}>Clutter.AI</span>
               )}
             </Link>
           </div>
