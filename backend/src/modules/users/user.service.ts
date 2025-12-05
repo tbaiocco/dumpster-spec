@@ -49,8 +49,14 @@ export class UserService {
       );
     }
 
+    // Normalize language code to base language (e.g., pt-BR -> pt, en-US -> en)
+    const normalizedLanguage = createUserDto.language
+      ? createUserDto.language.split('-')[0].toLowerCase()
+      : 'en';
+
     const user = this.userRepository.create({
       ...createUserDto,
+      language: normalizedLanguage,
       verified_at: new Date(),
     });
 
