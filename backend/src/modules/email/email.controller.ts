@@ -330,12 +330,18 @@ export class EmailController {
    */
   private async getEmailUserId(emailAddress: string): Promise<string> {
     try {
+      // Extract email from "Name" <email@domain.com> format
+      const emailMatch = emailAddress.match(/<(.+?)>/);
+      const cleanEmail = emailMatch ? emailMatch[1] : emailAddress.trim();
+
+      this.logger.debug(`Extracted email: ${cleanEmail} from: ${emailAddress}`);
+
       // Try to find existing user by email
-      const user = await this.userService.findByEmail(emailAddress);
+      const user = await this.userService.findByEmail(cleanEmail);
 
       // If user doesn't exist, log and throw error
       if (!user) {
-        const errorMsg = `No registered user found for email: ${emailAddress}. Users must be registered before sending emails.`;
+        const errorMsg = `No registered user found for email: ${cleanEmail}. Users must be registered before sending emails.`;
         this.logger.warn(errorMsg);
         throw new BadRequestException(errorMsg);
       }
