@@ -105,7 +105,7 @@ export class DumpController {
       originalText: createDumpDto.originalText,
       metadata: {
         source:
-          (createDumpDto.metadata?.source as 'telegram' | 'whatsapp' | 'email') ||
+          (createDumpDto.metadata?.source as 'telegram' | 'whatsapp' | 'email' | 'api') ||
           'telegram',
         messageId: createDumpDto.metadata?.messageId,
         fileName: createDumpDto.metadata?.fileName,

@@ -25,7 +25,7 @@ export interface MediaFile {
 export interface MediaProcessingRequest {
   url: string;
   type: 'image' | 'audio' | 'video' | 'document';
-  source: 'telegram' | 'whatsapp' | 'email';
+  source: 'telegram' | 'whatsapp' | 'email' | 'api';
   userId: string;
   messageId: string;
   originalName?: string;

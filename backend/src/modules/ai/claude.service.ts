@@ -5,7 +5,7 @@ export interface ContentAnalysisRequest {
   content: string;
   contentType: 'text' | 'transcription' | 'ocr_text';
   context?: {
-    source: 'telegram' | 'whatsapp' | 'email';
+    source: 'telegram' | 'whatsapp' | 'email' | 'api';
     userId: string;
     timestamp: Date;
   };

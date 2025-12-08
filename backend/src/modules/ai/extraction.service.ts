@@ -26,7 +26,7 @@ export interface EntityExtractionRequest {
   content: string;
   contentType?: 'text' | 'voice' | 'image' | 'document';
   context?: {
-    source: 'telegram' | 'whatsapp' | 'email';
+    source: 'telegram' | 'whatsapp' | 'email' | 'api';
     userId?: string;
     timestamp: Date;
   };
