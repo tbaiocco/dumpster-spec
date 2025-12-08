@@ -41,7 +41,7 @@ This is an alternative to SendGrid's Inbound Parse webhook.
 4. For Web app:
    - **Authorized redirect URIs**: 
      - `http://localhost:3000/api/email/gmail/callback`
-     - `https://dumpster-spec-production.up.railway.app/api/email/gmail/callback`
+     - `https://api.theclutter.app/api/email/gmail/callback`
 5. Click "Create"
 6. Download the JSON file (client_secret.json)
 

@@ -10,7 +10,7 @@ if [ -z "$1" ]; then
 fi
 
 BOT_TOKEN="$1"
-WEBHOOK_URL="${2:-https://dumpster-spec-production.up.railway.app/api/webhooks/telegram}"
+WEBHOOK_URL="${2:-https://api.theclutter.app/api/webhooks/telegram}"
 
 echo "Checking current webhook info..."
 curl -s "https://api.telegram.org/bot${BOT_TOKEN}/getWebhookInfo" | jq '.'

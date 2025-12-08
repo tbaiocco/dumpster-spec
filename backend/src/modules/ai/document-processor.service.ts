@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { VisionService } from './vision.service';
 import { EntityExtractionService } from './extraction.service';
+import * as mammoth from 'mammoth';
+import * as XLSX from 'xlsx';
+const pdfParse = require('pdf-parse');
 
 export interface DocumentProcessingResult {
   documentType: DocumentType;
@@ -104,61 +107,96 @@ export class DocumentProcessorService {
   ) {}
 
   /**
-   * Process a document image and extract structured information
+   * Process a document and extract structured information
+   * Supports: images (OCR), PDFs, Word documents, Excel spreadsheets
    */
   async processDocument(
-    imageBuffer: Buffer,
+    documentBuffer: Buffer,
     mimeType: string,
   ): Promise<DocumentProcessingResult> {
     try {
-      this.logger.log('Processing document image');
+      this.logger.log(`Processing document with mime type: ${mimeType}`);
 
-      // Step 1: Detect document type
-      const documentTypeResult = await this.detectDocumentType(
-        imageBuffer,
-        mimeType,
-      );
+      let extractedText: string;
+      let confidence: number;
+      let layoutAnalysis: LayoutAnalysis;
+      let documentTypeResult: { type: DocumentType; confidence: number };
 
-      // Step 2: Extract text using OCR
-      const ocrResult = await this.visionService.extractTextFromImage(
-        imageBuffer,
-        mimeType,
-      );
+      // Handle different document types
+      if (mimeType === 'application/pdf') {
+        // PDF processing
+        this.logger.log('Processing PDF document');
+        extractedText = await this.extractTextFromPDF(documentBuffer);
+        confidence = 0.9; // High confidence for PDF text extraction
+        documentTypeResult = { type: DocumentType.UNKNOWN, confidence: 0.8 };
+        layoutAnalysis = this.createDefaultLayout();
+      } else if (
+        mimeType ===
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        mimeType === 'application/msword'
+      ) {
+        // Word document processing
+        this.logger.log('Processing Word document');
+        extractedText = await this.extractTextFromWord(documentBuffer);
+        confidence = 0.95; // Very high confidence for Word extraction
+        documentTypeResult = { type: DocumentType.MEMO, confidence: 0.9 };
+        layoutAnalysis = this.createDefaultLayout();
+      } else if (
+        mimeType ===
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+        mimeType === 'application/vnd.ms-excel'
+      ) {
+        // Excel spreadsheet processing
+        this.logger.log('Processing Excel spreadsheet');
+        extractedText = await this.extractTextFromExcel(documentBuffer);
+        confidence = 0.9; // High confidence for Excel extraction
+        documentTypeResult = { type: DocumentType.STATEMENT, confidence: 0.85 };
+        layoutAnalysis = this.createDefaultLayout();
+      } else if (mimeType.startsWith('image/')) {
+        // Image processing with OCR
+        this.logger.log('Processing image with OCR');
+        documentTypeResult = await this.detectDocumentType(
+          documentBuffer,
+          mimeType,
+        );
+        const ocrResult = await this.visionService.extractTextFromImage(
+          documentBuffer,
+          mimeType,
+        );
+        extractedText = ocrResult.text;
+        confidence = ocrResult.confidence;
+        layoutAnalysis = this.analyzeLayout(documentBuffer, ocrResult);
+      } else {
+        throw new Error(`Unsupported document type: ${mimeType}`);
+      }
 
-      // Step 3: Analyze layout
-      const layoutAnalysis = this.analyzeLayout(imageBuffer, ocrResult);
-
-      // Step 4: Extract structured data based on document type
+      // Extract structured data based on document type
       const structuredData = this.extractStructuredData(
         documentTypeResult.type,
-        ocrResult.text,
+        extractedText,
         layoutAnalysis,
       );
 
-      // Step 5: Extract entities specific to document type
+      // Extract entities specific to document type
       const entities = this.extractDocumentEntities(
         documentTypeResult.type,
-        ocrResult.text,
+        extractedText,
         structuredData,
       );
 
-      // Step 6: Calculate quality and confidence scores
-      const qualityScore = this.calculateQualityScore(
-        ocrResult,
-        layoutAnalysis,
-      );
+      // Calculate quality score
+      const qualityScore = extractedText.length > 0 ? 0.8 : 0.3;
       const overallConfidence =
-        (documentTypeResult.confidence + ocrResult.confidence + qualityScore) /
-        3;
+        (documentTypeResult.confidence + confidence + qualityScore) / 3;
 
       const result: DocumentProcessingResult = {
         documentType: documentTypeResult.type,
-        extractedText: ocrResult.text,
+        extractedText,
         confidence: overallConfidence,
         entities,
         structuredData,
         processingMetadata: {
-          ocrConfidence: ocrResult.confidence,
+          ocrConfidence: confidence,
           layoutAnalysis,
           detectedFields: Object.keys(structuredData),
           qualityScore,
@@ -174,6 +212,73 @@ export class DocumentProcessorService {
       this.logger.error('Error processing document:', error);
       throw error;
     }
+  }
+
+  /**
+   * Extract text from PDF document
+   */
+  private async extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
+    try {
+      const data = await pdfParse(pdfBuffer);
+      return data.text.trim();
+    } catch (error) {
+      this.logger.error(`Failed to extract text from PDF: ${error.message}`);
+      throw new Error(`PDF extraction failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Extract text from Word document (.docx or .doc)
+   */
+  private async extractTextFromWord(wordBuffer: Buffer): Promise<string> {
+    try {
+      const result = await mammoth.extractRawText({ buffer: wordBuffer });
+      return result.value.trim();
+    } catch (error) {
+      this.logger.error(`Failed to extract text from Word: ${error.message}`);
+      throw new Error(`Word extraction failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Extract text from Excel spreadsheet (.xlsx or .xls)
+   */
+  private async extractTextFromExcel(excelBuffer: Buffer): Promise<string> {
+    try {
+      const workbook = XLSX.read(excelBuffer, { type: 'buffer' });
+      const allText: string[] = [];
+
+      // Process all sheets
+      workbook.SheetNames.forEach((sheetName) => {
+        const sheet = workbook.Sheets[sheetName];
+        allText.push(`Sheet: ${sheetName}\n`);
+
+        // Convert sheet to CSV format for text extraction
+        const csvData = XLSX.utils.sheet_to_csv(sheet);
+        allText.push(csvData);
+        allText.push('\n');
+      });
+
+      return allText.join('\n').trim();
+    } catch (error) {
+      this.logger.error(`Failed to extract text from Excel: ${error.message}`);
+      throw new Error(`Excel extraction failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create default layout analysis for non-image documents
+   */
+  private createDefaultLayout(): LayoutAnalysis {
+    return {
+      structure: 'single_column',
+      hasHeader: false,
+      hasFooter: false,
+      hasTable: false,
+      hasSignature: false,
+      hasLogo: false,
+      textRegions: [],
+    };
   }
 
   /**

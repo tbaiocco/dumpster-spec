@@ -23,7 +23,7 @@ https://your-domain.com/api/email/webhook/sendgrid
 
 **For Railway deployment:**
 ```
-https://dumpster-spec-production.up.railway.app/api/email/webhook/sendgrid
+https://api.theclutter.app/api/email/webhook/sendgrid
 ```
 
 ### 2. Configure DNS Records
@@ -70,7 +70,7 @@ To use your root domain (e.g., `@yourdomain.com`):
    - **Domain**: Your subdomain (e.g., `inbox.yourdomain.com`) or root domain
    - **URL**: Your webhook endpoint
      ```
-     https://dumpster-spec-production.up.railway.app/api/email/webhook/sendgrid
+     https://api.theclutter.app/api/email/webhook/sendgrid
      ```
    - **Spam Check**: ✅ Enable (Recommended)
    - **Send Raw**: ❌ Disable (we process parsed data)
@@ -116,7 +116,7 @@ Body: This is a test message for Dumpster integration
 Use curl to simulate SendGrid's webhook:
 
 ```bash
-curl -X POST https://dumpster-spec-production.up.railway.app/api/email/webhook/sendgrid \
+curl -X POST https://api.theclutter.app/api/email/webhook/sendgrid \
   -H "Content-Type: application/json" \
   -d '{
     "headers": "From: test@example.com\nTo: inbox@yourdomain.com\nSubject: Test\n",

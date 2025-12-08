@@ -1,7 +1,7 @@
 # API Reference - Clutter.AI Backend
 
 **Version:** 1.0  
-**Base URL:** `https://dumpster-spec-production.up.railway.app`  
+**Base URL:** `https://api.theclutter.app`  
 **Last Updated:** December 3, 2025
 
 ---
@@ -865,7 +865,7 @@ Get a JWT token by calling `POST /auth/login` with valid credentials.
 ## Deployment
 
 - **Platform:** Railway
-- **URL:** https://dumpster-spec-production.up.railway.app
+- **URL:** https://api.theclutter.app
 - **Environment:** Production
 - **Region:** US West
 
