@@ -18,7 +18,7 @@ export interface CategorizationRequest {
   userId?: string;
   contentType?: 'text' | 'voice' | 'image' | 'document';
   context?: {
-    source: 'telegram' | 'whatsapp';
+    source: 'telegram' | 'whatsapp' | 'email';
     timestamp: Date;
     previousCategories?: string[];
   };

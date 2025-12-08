@@ -41,7 +41,7 @@ export class CreateDumpDto {
   @IsOptional()
   @IsObject()
   metadata?: {
-    source: 'telegram' | 'whatsapp' | 'api';
+    source: 'telegram' | 'whatsapp' | 'email' | 'api';
     messageId?: string;
     fileName?: string;
     mimeType?: string;
@@ -105,7 +105,7 @@ export class DumpController {
       originalText: createDumpDto.originalText,
       metadata: {
         source:
-          (createDumpDto.metadata?.source as 'telegram' | 'whatsapp') ||
+          (createDumpDto.metadata?.source as 'telegram' | 'whatsapp' | 'email') ||
           'telegram',
         messageId: createDumpDto.metadata?.messageId,
         fileName: createDumpDto.metadata?.fileName,

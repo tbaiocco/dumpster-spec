@@ -33,7 +33,7 @@ export interface CreateDumpRequest {
   contentType: 'text' | 'voice' | 'image' | 'document';
   originalText?: string;
   metadata?: {
-    source: 'telegram' | 'whatsapp';
+    source: 'telegram' | 'whatsapp' | 'email';
     messageId?: string;
     fileName?: string;
     mimeType?: string;
@@ -55,7 +55,7 @@ export interface DumpSearchFilters {
   userId?: string;
   categoryId?: string;
   contentType?: 'text' | 'voice' | 'image' | 'document';
-  source?: 'telegram' | 'whatsapp';
+  source?: 'telegram' | 'whatsapp' | 'email';
   dateFrom?: Date;
   dateTo?: Date;
   minConfidence?: number;

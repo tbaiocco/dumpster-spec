@@ -319,7 +319,7 @@ export class EmailController {
           contentType,
           mediaBuffer: attachment.content,
           metadata: {
-            source: 'telegram', // Use telegram as placeholder for now
+            source: 'email',
             messageId: processedEmail.metadata.messageId,
             fileName: attachment.filename,
             mimeType: attachment.contentType,
