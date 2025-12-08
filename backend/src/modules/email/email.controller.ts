@@ -331,22 +331,19 @@ export class EmailController {
   private async getEmailUserId(emailAddress: string): Promise<string> {
     try {
       // Try to find existing user by email
-      let user = await this.userService.findByEmail(emailAddress);
+      const user = await this.userService.findByEmail(emailAddress);
 
-      // If user doesn't exist, create one
+      // If user doesn't exist, log and throw error
       if (!user) {
-        this.logger.log(`Creating new user for email: ${emailAddress}`);
-        user = await this.userService.create({
-          email: emailAddress,
-          phone_number: `email:${emailAddress}`, // Use email as phone placeholder
-          language: 'en', // Default language
-        });
+        const errorMsg = `No registered user found for email: ${emailAddress}. Users must be registered before sending emails.`;
+        this.logger.warn(errorMsg);
+        throw new BadRequestException(errorMsg);
       }
 
       return user.id;
     } catch (error) {
       this.logger.error(
-        `Failed to get/create user for email ${emailAddress}: ${error.message}`,
+        `Failed to get user for email ${emailAddress}: ${error.message}`,
       );
       throw error;
     }
