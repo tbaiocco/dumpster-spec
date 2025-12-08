@@ -15,6 +15,7 @@ import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
 import { EmailProcessorService } from './email-processor.service';
 import { DumpService } from '../dumps/services/dump.service';
+import { UserService } from '../users/user.service';
 
 // Define email webhook payload interfaces
 interface EmailWebhookPayload {
@@ -58,6 +59,7 @@ export class EmailController {
   constructor(
     private readonly emailProcessor: EmailProcessorService,
     private readonly dumpService: DumpService,
+    private readonly userService: UserService,
   ) {}
 
   /**
@@ -305,10 +307,13 @@ export class EmailController {
       priority: processedEmail.metadata.priority,
     };
 
+    // Get user ID from email address
+    const userId = await this.getEmailUserId(processedEmail.metadata.sender);
+
     // For now, create a simple text dump
     // In the future, this could be enhanced to handle attachments separately
     const dumpRequest = {
-      userId: this.getEmailUserId(processedEmail.metadata.sender).toString(),
+      userId,
       content,
       contentType: 'text' as const,
       metadata: {
@@ -323,10 +328,28 @@ export class EmailController {
   /**
    * Get or create user ID from email address
    */
-  private getEmailUserId(emailAddress: string): number {
-    // This is a placeholder - in a real implementation,
-    // this would look up or create a user based on email address
-    return 1; // Default user ID for now
+  private async getEmailUserId(emailAddress: string): Promise<string> {
+    try {
+      // Try to find existing user by email
+      let user = await this.userService.findByEmail(emailAddress);
+
+      // If user doesn't exist, create one
+      if (!user) {
+        this.logger.log(`Creating new user for email: ${emailAddress}`);
+        user = await this.userService.create({
+          email: emailAddress,
+          phone_number: `email:${emailAddress}`, // Use email as phone placeholder
+          language: 'en', // Default language
+        });
+      }
+
+      return user.id;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get/create user for email ${emailAddress}: ${error.message}`,
+      );
+      throw error;
+    }
   }
 
   /**

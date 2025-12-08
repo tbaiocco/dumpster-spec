@@ -3,7 +3,7 @@ import { VisionService } from './vision.service';
 import { EntityExtractionService } from './extraction.service';
 import * as mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
-const pdfParse = require('pdf-parse');
+const { PDFParse } = require('pdf-parse');
 
 export interface DocumentProcessingResult {
   documentType: DocumentType;
@@ -219,7 +219,7 @@ export class DocumentProcessorService {
    */
   private async extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
     try {
-      const data = await pdfParse(pdfBuffer);
+      const data = await PDFParse(pdfBuffer);
       return data.text.trim();
     } catch (error) {
       this.logger.error(`Failed to extract text from PDF: ${error.message}`);
