@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DocumentProcessorService } from '../ai/document-processor.service';
 
 // Define interfaces for email processing
 interface EmailMessage {
@@ -29,9 +28,11 @@ interface EmailAttachment {
 interface ProcessedEmail {
   originalMessage: EmailMessage;
   extractedText: string;
-  processedAttachments: ProcessedAttachment[];
+  attachments: EmailAttachment[]; // Keep original attachments with buffers
   metadata: {
     sender: string;
+    subject: string;
+    messageId: string;
     timestamp: Date;
     priority: 'low' | 'normal' | 'high';
     hasAttachments: boolean;
@@ -39,22 +40,11 @@ interface ProcessedEmail {
   };
 }
 
-interface ProcessedAttachment {
-  originalFilename: string;
-  contentType: string;
-  extractedText?: string;
-  processingStatus: 'success' | 'failed' | 'skipped';
-  error?: string;
-}
-
 @Injectable()
 export class EmailProcessorService {
   private readonly logger = new Logger(EmailProcessorService.name);
 
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly documentProcessor: DocumentProcessorService,
-  ) {}
+  constructor(private readonly configService: ConfigService) {}
 
   /**
    * Process an incoming email message
@@ -68,26 +58,18 @@ export class EmailProcessorService {
       // Extract text content from email body
       const extractedText = this.extractEmailText(emailMessage);
 
-      // Process attachments
-      const processedAttachments = await this.processAttachments(
-        emailMessage.attachments,
-      );
-
       // Generate metadata
-      const metadata = this.generateMetadata(
-        emailMessage,
-        processedAttachments,
-      );
+      const metadata = this.generateMetadata(emailMessage);
 
       const result: ProcessedEmail = {
         originalMessage: emailMessage,
         extractedText,
-        processedAttachments,
+        attachments: emailMessage.attachments, // Pass through original attachments
         metadata,
       };
 
       this.logger.log(
-        `Successfully processed email with ${processedAttachments.length} attachments`,
+        `Successfully processed email with ${emailMessage.attachments.length} attachments`,
       );
       return result;
     } catch (error) {
@@ -124,158 +106,13 @@ export class EmailProcessorService {
   }
 
   /**
-   * Process email attachments for text extraction
-   */
-  private async processAttachments(
-    attachments: EmailAttachment[],
-  ): Promise<ProcessedAttachment[]> {
-    const results: ProcessedAttachment[] = [];
-
-    for (const attachment of attachments) {
-      try {
-        const processed = await this.processAttachment(attachment);
-        results.push(processed);
-      } catch (error) {
-        this.logger.error(
-          `Failed to process attachment ${attachment.filename}: ${error.message}`,
-        );
-        results.push({
-          originalFilename: attachment.filename,
-          contentType: attachment.contentType,
-          processingStatus: 'failed',
-          error: error.message,
-        });
-      }
-    }
-
-    return results;
-  }
-
-  /**
-   * Process individual attachment based on its type
-   */
-  private async processAttachment(
-    attachment: EmailAttachment,
-  ): Promise<ProcessedAttachment> {
-    const baseResult: ProcessedAttachment = {
-      originalFilename: attachment.filename,
-      contentType: attachment.contentType,
-      processingStatus: 'skipped',
-    };
-
-    // Handle text files
-    if (attachment.contentType.startsWith('text/')) {
-      try {
-        const text = attachment.content.toString('utf-8');
-        return {
-          ...baseResult,
-          extractedText: text,
-          processingStatus: 'success',
-        };
-      } catch (error) {
-        return {
-          ...baseResult,
-          processingStatus: 'failed',
-          error: `Failed to extract text: ${error.message}`,
-        };
-      }
-    }
-
-    // Handle image files (integrate with DocumentProcessorService)
-    if (attachment.contentType.startsWith('image/')) {
-      try {
-        // Use DocumentProcessorService for OCR and document processing
-        const processedDoc = await this.documentProcessor.processDocument(
-          attachment.content,
-          attachment.contentType,
-        );
-
-        return {
-          ...baseResult,
-          extractedText: processedDoc.extractedText,
-          processingStatus: 'success',
-        };
-      } catch (error) {
-        return {
-          ...baseResult,
-          processingStatus: 'failed',
-          error: `Failed to process image: ${error.message}`,
-        };
-      }
-    }
-
-    // Handle PDF files
-    if (attachment.contentType === 'application/pdf') {
-      try {
-        // Use DocumentProcessorService for PDF processing
-        const processedDoc = await this.documentProcessor.processDocument(
-          attachment.content,
-          attachment.contentType,
-        );
-
-        return {
-          ...baseResult,
-          extractedText: processedDoc.extractedText,
-          processingStatus: 'success',
-        };
-      } catch (error) {
-        return {
-          ...baseResult,
-          processingStatus: 'failed',
-          error: `Failed to process PDF: ${error.message}`,
-        };
-      }
-    }
-
-    // Handle Microsoft Office documents (Word, Excel, PowerPoint)
-    const officeTypes = [
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
-      'application/msword', // .doc
-      'application/vnd.ms-excel', // .xls
-      'application/vnd.ms-powerpoint', // .ppt
-    ];
-
-    if (officeTypes.includes(attachment.contentType)) {
-      try {
-        // Use DocumentProcessorService for office document processing
-        const processedDoc = await this.documentProcessor.processDocument(
-          attachment.content,
-          attachment.contentType,
-        );
-
-        return {
-          ...baseResult,
-          extractedText: processedDoc.extractedText,
-          processingStatus: 'success',
-        };
-      } catch (error) {
-        return {
-          ...baseResult,
-          processingStatus: 'failed',
-          error: `Failed to process document: ${error.message}`,
-        };
-      }
-    }
-
-    // Skip unsupported file types
-    return {
-      ...baseResult,
-      extractedText: `[Unsupported file type: ${attachment.contentType}]`,
-      processingStatus: 'skipped',
-    };
-  }
-
-  /**
    * Generate metadata for processed email
    */
-  private generateMetadata(
-    emailMessage: EmailMessage,
-    processedAttachments: ProcessedAttachment[],
-  ) {
+  private generateMetadata(emailMessage: EmailMessage) {
     return {
       sender: emailMessage.from,
+      subject: emailMessage.subject || '',
+      messageId: emailMessage.id,
       timestamp: emailMessage.receivedDate,
       priority: this.determinePriority(emailMessage),
       hasAttachments: emailMessage.attachments.length > 0,

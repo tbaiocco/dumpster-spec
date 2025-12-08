@@ -90,19 +90,19 @@ export class EmailController {
       const processedEmail =
         await this.emailProcessor.processEmail(emailMessage);
 
-      // Create dump entry from processed email
-      const dump = await this.createDumpFromEmail(processedEmail);
+      // Create dumps from email (one for body text, one per attachment)
+      const dumps = await this.createDumpsFromEmail(processedEmail);
 
       const response: EmailWebhookResponse = {
         success: true,
         messageId: payload.messageId,
         processedAt: new Date().toISOString(),
         extractedText: processedEmail.extractedText,
-        attachmentCount: processedEmail.processedAttachments.length,
+        attachmentCount: processedEmail.attachments.length,
       };
 
       this.logger.log(
-        `Successfully processed email ${payload.messageId} as dump ${dump.id}`,
+        `Successfully processed email ${payload.messageId}, created ${dumps.length} dump(s)`,
       );
       return response;
     } catch (error) {
@@ -293,36 +293,84 @@ export class EmailController {
   }
 
   /**
-   * Create dump entry from processed email
+   * Create dump entries from processed email
+   * Creates one dump for email body text and one per attachment
    */
-  private async createDumpFromEmail(processedEmail: any): Promise<any> {
-    // Extract relevant information for dump creation
-    const content = processedEmail.extractedText;
-    const metadata = {
-      source: 'email',
-      sender: processedEmail.metadata.sender,
-      timestamp: processedEmail.metadata.timestamp,
-      hasAttachments: processedEmail.metadata.hasAttachments,
-      attachmentCount: processedEmail.metadata.attachmentCount,
-      priority: processedEmail.metadata.priority,
-    };
-
-    // Get user ID from email address
+  private async createDumpsFromEmail(processedEmail: any): Promise<any[]> {
+    const dumps: any[] = [];
     const userId = await this.getEmailUserId(processedEmail.metadata.sender);
 
-    // For now, create a simple text dump
-    // In the future, this could be enhanced to handle attachments separately
-    const dumpRequest = {
-      userId,
-      content,
-      contentType: 'text' as const,
-      metadata: {
-        ...metadata,
-        source: 'email' as any, // Extend source type in the future
-      },
-    };
+    // Create dump for email body text
+    if (processedEmail.extractedText) {
+      const bodyDump = await this.dumpService.createDumpEnhanced({
+        userId,
+        content: processedEmail.extractedText,
+        contentType: 'text',
+        metadata: {
+          source: 'telegram', // Use telegram as placeholder for now
+          messageId: processedEmail.metadata.messageId,
+          chatId: processedEmail.metadata.sender,
+        },
+      });
+      dumps.push(bodyDump.dump);
+      this.logger.log(`Created text dump from email body: ${bodyDump.dump.id}`);
+    }
 
-    return await this.dumpService.createDumpEnhanced(dumpRequest);
+    // Create one dump per attachment using proper CreateDumpRequest format
+    for (const attachment of processedEmail.attachments) {
+      try {
+        // Determine content type based on MIME type
+        const contentType = this.mapMimeTypeToContentType(
+          attachment.contentType,
+        );
+
+        const attachmentDump = await this.dumpService.createDumpEnhanced({
+          userId,
+          content: `Email attachment: ${attachment.filename}`,
+          contentType,
+          mediaBuffer: attachment.content,
+          metadata: {
+            source: 'telegram', // Use telegram as placeholder for now
+            messageId: processedEmail.metadata.messageId,
+            fileName: attachment.filename,
+            mimeType: attachment.contentType,
+            fileSize: attachment.size,
+            chatId: processedEmail.metadata.sender,
+          },
+        });
+
+        dumps.push(attachmentDump.dump);
+        this.logger.log(
+          `Created ${contentType} dump from attachment: ${attachmentDump.dump.id}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Failed to process attachment ${attachment.filename}: ${error.message}`,
+        );
+      }
+    }
+
+    return dumps;
+  }
+
+  /**
+   * Map MIME type to content type for CreateDumpRequest
+   */
+  private mapMimeTypeToContentType(
+    mimeType: string,
+  ): 'text' | 'voice' | 'image' | 'document' {
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.startsWith('audio/')) return 'voice';
+    if (
+      mimeType === 'application/pdf' ||
+      mimeType.includes('word') ||
+      mimeType.includes('document') ||
+      mimeType.includes('spreadsheet') ||
+      mimeType.includes('presentation')
+    ) {
+      return 'document';
+    }
+    return 'text';
   }
 
   /**
