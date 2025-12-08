@@ -1,4 +1,6 @@
-- change the phoneNumberRegistration (telegram/whatsapp) to request if the new user wants to add his/her email to receive the digests and reminders.
+- change the phoneNumberRegistration (telegram/whatsapp):
+    Registration is the website, DON'T create users when sending message via bot Telegram/WhatsApp
+    NOT NEEDED: to request if the new user wants to add his/her email to receive the digests and reminders.
 
 - Change Twilio by Meta API Cloud???
     Example of 20 users, 12 msg/day average: Twilio 67.15 Meta 30
@@ -20,7 +22,7 @@
     Should enable category creation, and use those in the categorization mechanism
     Should present a dashboard ordered by date and priority of the dumps, showing by day, week and month (like: actions for today, tomorrow, then dates). In day view the next days appear collapsed but with a button to show, same happens in week and month view, in order to load the next actions in time
 
-- E-mail dumps
+- E-mail dumps: DONE
     The user can forward mails to create dumps from them, with images, docs, etc
     Existing webhook in email.controller.ts, missing the config GMAIL_API_SETUP.md for development and SENDGRID_WEBHOOK_SETUP.md for prod.
 

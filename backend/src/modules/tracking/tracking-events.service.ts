@@ -32,6 +32,8 @@ export class TrackingEventsService {
   /**
    * Handle dump creation event - detect tracking opportunities asynchronously
    * This runs after the dump response is sent to the user (non-blocking)
+   * ! SHOULD be integrated to proactive.service and manage reminders and tracking,
+   *   then we can remove the proactive running via cron in the early mornings.!
    */
   @OnEvent('dump.created', { async: true })
   async handleDumpCreated(event: DumpCreatedEvent): Promise<void> {

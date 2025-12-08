@@ -149,6 +149,57 @@ export class ProactiveService {
   }
 
   /**
+   * Analyze user content from pre-fetched dumps (optimized for cron jobs)
+   * Avoids duplicate database queries
+   */
+  private async analyzeUserContentFromDumps(
+    dumps: Dump[],
+    userId: string,
+  ): Promise<ProactiveAnalysisResult> {
+    const startTime = Date.now();
+
+    try {
+      this.logger.log(
+        `Analyzing ${dumps.length} pre-fetched dumps for user ${userId}`,
+      );
+
+      if (dumps.length === 0) {
+        return {
+          insights: [],
+          summary: 'No content provided for analysis',
+          processingTimeMs: Date.now() - startTime,
+        };
+      }
+
+      // Prepare content for AI analysis
+      const contentSummary = this.prepareDumpsForAnalysis(dumps);
+
+      // Use Claude to extract contextual insights
+      const insights = await this.extractInsightsWithAI(contentSummary, userId);
+
+      // Filter by medium confidence threshold (suitable for daily analysis)
+      const filteredInsights = this.filterByConfidence(insights, 'medium');
+
+      const summary = this.generateAnalysisSummary(
+        filteredInsights,
+        dumps.length,
+      );
+
+      return {
+        insights: filteredInsights,
+        summary,
+        processingTimeMs: Date.now() - startTime,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to analyze user content from dumps: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Generate proactive reminders from insights and save them
    */
   async generateRemindersFromInsights(
@@ -213,7 +264,7 @@ export class ProactiveService {
 
     for (const user of users) {
       try {
-        // Get recent dumps for analysis (last 7 days)
+        // Get recent dumps for analysis (last 7 days) - single query
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - 7);
 
@@ -231,12 +282,8 @@ export class ProactiveService {
           continue;
         }
 
-        // Analyze user content for reminders
-        const analysis = await this.analyzeUserContent(user.id, {
-          lookbackDays: 7,
-          maxDumps: 50,
-          confidenceThreshold: 'medium',
-        });
+        // Analyze user content for reminders using pre-fetched dumps
+        const analysis = await this.analyzeUserContentFromDumps(dumps, user.id);
 
         // Generate reminders from insights
         const reminderResult = await this.generateRemindersFromInsights(
@@ -251,10 +298,22 @@ export class ProactiveService {
         remindersCreated += reminderResult.created.length;
         suggestionsGenerated += reminderResult.suggestions.length;
 
-        // Detect and create tracking items
+        // Filter out dumps that were used for reminders to avoid overlap in tracking
+        const dumpIdsWithReminders = new Set(
+          analysis.insights.flatMap((insight) => insight.relatedDumpIds),
+        );
+        const dumpsForTracking = dumps.filter(
+          (dump) => !dumpIdsWithReminders.has(dump.id),
+        );
+
+        this.logger.log(
+          `User ${user.id}: ${dumps.length} dumps, ${dumpIdsWithReminders.size} used for reminders, ${dumpsForTracking.length} available for tracking`,
+        );
+
+        // Detect and create tracking items from remaining dumps
         const trackingResult = await this.detectAndCreateTrackingItems(
           user.id,
-          dumps,
+          dumpsForTracking,
         );
 
         trackingItemsCreated += trackingResult.created;
@@ -621,22 +680,34 @@ ${userPrompt}`;
       confidence: ConfidenceLevel;
     }>
   > {
-    const prompt = `Analyze the following message and identify any tracking opportunities. Look for:
+    const prompt = `Analyze the following message and identify TRACKING opportunities ONLY. 
 
+CRITICAL: DO NOT include reminders, appointments, or action items. Focus ONLY on status-monitoring items.
+
+**TRACKING items** (what to include):
 1. **Packages**: Tracking numbers (UPS, FedEx, USPS, DHL, etc.), shipment notifications, delivery confirmations
 2. **Applications**: Job applications, visa applications, loan applications with reference numbers
 3. **Subscriptions**: Trial periods, subscription renewals, membership expirations
 4. **Warranties**: Product warranties, service contracts, guarantee periods
 5. **Loans**: Loan applications, payment deadlines, maturity dates
 6. **Insurance**: Policy renewals, claim tracking, coverage periods
-7. **Other**: Any time-sensitive items that need tracking
 
-For each opportunity found, provide:
-- type: One of: package, application, subscription, warranty, loan, insurance, other
+**NOT tracking items** (what to EXCLUDE):
+- Appointments (dentist, doctor, meetings) → These are REMINDERS, not tracking
+- Phone calls to make → These are REMINDERS, not tracking
+- Tasks with specific dates/times → These are REMINDERS, not tracking
+- Follow-ups with people → These are REMINDERS, not tracking
+- General action items → These are REMINDERS, not tracking
+
+TRACKING = monitoring status of something in progress (packages, applications, subscriptions)
+REMINDERS = time-based actions you need to take (calls, meetings, follow-ups)
+
+For each TRACKING opportunity found, provide:
+- type: One of: package, application, subscription, warranty, loan, insurance (DO NOT use 'other' for reminder-like items)
 - title: Short descriptive title (max 100 chars)
 - description: Detailed description with relevant context
 - trackingNumber: If applicable (tracking codes, reference numbers, policy numbers)
-- expectedDate: When action is needed or expected (ISO 8601 format)
+- expectedDate: When status update or completion is expected (ISO 8601 format)
 - confidence: high, medium, or low
 
 Message to analyze:
