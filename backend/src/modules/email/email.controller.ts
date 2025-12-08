@@ -294,29 +294,13 @@ export class EmailController {
 
   /**
    * Create dump entries from processed email
-   * Creates one dump for email body text and one per attachment
+   * Creates one dump per attachment with email body included as content
    */
   private async createDumpsFromEmail(processedEmail: any): Promise<any[]> {
     const dumps: any[] = [];
     const userId = await this.getEmailUserId(processedEmail.metadata.sender);
 
-    // Create dump for email body text
-    if (processedEmail.extractedText) {
-      const bodyDump = await this.dumpService.createDumpEnhanced({
-        userId,
-        content: processedEmail.extractedText,
-        contentType: 'text',
-        metadata: {
-          source: 'telegram', // Use telegram as placeholder for now
-          messageId: processedEmail.metadata.messageId,
-          chatId: processedEmail.metadata.sender,
-        },
-      });
-      dumps.push(bodyDump.dump);
-      this.logger.log(`Created text dump from email body: ${bodyDump.dump.id}`);
-    }
-
-    // Create one dump per attachment using proper CreateDumpRequest format
+    // Create one dump per attachment, including email body as content
     for (const attachment of processedEmail.attachments) {
       try {
         // Determine content type based on MIME type
@@ -324,9 +308,14 @@ export class EmailController {
           attachment.contentType,
         );
 
+        // Include email body as additional context in the content field
+        const content = processedEmail.extractedText?.trim()
+          ? `${processedEmail.extractedText}\n\n---\nAttachment: ${attachment.filename}`
+          : `Email attachment: ${attachment.filename}`;
+
         const attachmentDump = await this.dumpService.createDumpEnhanced({
           userId,
-          content: `Email attachment: ${attachment.filename}`,
+          content,
           contentType,
           mediaBuffer: attachment.content,
           metadata: {
