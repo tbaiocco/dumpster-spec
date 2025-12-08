@@ -7,7 +7,12 @@ import {
   HttpStatus,
   Logger,
   BadRequestException,
+  UseInterceptors,
+  UploadedFiles,
+  Req,
 } from '@nestjs/common';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
+import type { Request } from 'express';
 import { EmailProcessorService } from './email-processor.service';
 import { DumpService } from '../dumps/services/dump.service';
 
@@ -118,21 +123,24 @@ export class EmailController {
 
   /**
    * Webhook endpoint for SendGrid-specific format
+   * SendGrid sends multipart/form-data, not JSON
    */
   @Post('webhook/sendgrid')
   @HttpCode(HttpStatus.OK)
+  @UseInterceptors(AnyFilesInterceptor())
   async handleSendGridWebhook(
-    @Body() payload: any,
+    @Req() req: Request,
+    @Body() body: any,
+    @UploadedFiles() files: Array<Express.Multer.File>,
     @Headers() headers: Record<string, string>,
   ): Promise<EmailWebhookResponse> {
     try {
       this.logger.log('Received SendGrid email webhook');
-      this.logger.debug(
-        `SendGrid payload: ${JSON.stringify(payload, null, 2)}`,
-      );
+      this.logger.debug(`SendGrid body keys: ${Object.keys(body || {}).join(', ')}`);
+      this.logger.debug(`SendGrid files count: ${files?.length || 0}`);
 
       // Convert SendGrid format to standard format
-      const standardPayload = this.convertSendGridPayload(payload);
+      const standardPayload = this.convertSendGridPayload(body, files);
 
       // Process using standard webhook handler
       return await this.handleInboundEmail(standardPayload, headers);
@@ -143,7 +151,7 @@ export class EmailController {
       );
       return {
         success: false,
-        messageId: payload.messageId || 'unknown',
+        messageId: body?.messageId || 'unknown',
         processedAt: new Date().toISOString(),
         errors: [error.message],
       };
@@ -324,25 +332,35 @@ export class EmailController {
   /**
    * Convert SendGrid webhook payload to standard format
    */
-  private convertSendGridPayload(payload: any): EmailWebhookPayload {
+  private convertSendGridPayload(
+    payload: any,
+    files?: Array<Express.Multer.File>,
+  ): EmailWebhookPayload {
     // SendGrid webhook format conversion
+    if (!payload) {
+      throw new BadRequestException('Empty payload received from SendGrid');
+    }
+
     this.logger.debug(
       `Converting SendGrid payload with keys: ${Object.keys(payload).join(', ')}`,
     );
 
-    const messageId =
-      payload.messageId ||
-      payload['message-id'] ||
-      payload['Message-ID'] ||
-      payload.headers?.['Message-ID'] ||
-      '';
+    // Extract messageId from headers string if present
+    let messageId = '';
+    if (payload.headers) {
+      const headersStr = payload.headers;
+      const messageIdMatch = headersStr.match(/Message-ID:\s*<(.+?)>/i);
+      if (messageIdMatch) {
+        messageId = messageIdMatch[1];
+      }
+    }
 
     this.logger.debug(`Extracted messageId: ${messageId}`);
 
     return {
       messageId,
-      from: payload.from || payload.fromEmail || '',
-      to: this.parseEmailList(payload.to || payload.toEmail || ''),
+      from: payload.from || payload.email || '',
+      to: this.parseEmailList(payload.to || ''),
       cc: this.parseEmailList(payload.cc || ''),
       bcc: this.parseEmailList(payload.bcc || ''),
       subject: payload.subject || '',
@@ -350,7 +368,10 @@ export class EmailController {
       htmlBody: payload.html || payload['body-html'],
       receivedDate: payload.timestamp || new Date().toISOString(),
       headers: payload.headers || {},
-      attachments: this.convertSendGridAttachments(payload.attachments || []),
+      attachments: this.convertSendGridAttachments(
+        payload.attachments || [],
+        files,
+      ),
     };
   }
 
@@ -388,10 +409,25 @@ export class EmailController {
 
   /**
    * Convert SendGrid attachments format
+   * SendGrid sends attachments as uploaded files via multipart/form-data
    */
   private convertSendGridAttachments(
     attachments: any[],
+    files?: Array<Express.Multer.File>,
   ): EmailWebhookAttachment[] {
+    // If we have uploaded files from multer, use those
+    if (files && files.length > 0) {
+      this.logger.debug(`Processing ${files.length} uploaded files`);
+      return files.map((file) => ({
+        filename: file.originalname,
+        contentType: file.mimetype,
+        size: file.size,
+        content: file.buffer.toString('base64'),
+        disposition: 'attachment' as const,
+      }));
+    }
+
+    // Fallback to attachments array if provided
     return attachments.map((att) => ({
       filename: att.filename || att.name || 'unknown',
       contentType: att.contentType || att.type || 'application/octet-stream',
