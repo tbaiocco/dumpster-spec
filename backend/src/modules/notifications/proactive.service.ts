@@ -219,8 +219,15 @@ export class ProactiveService {
       try {
         if (autoCreate && insight.confidence === 'high') {
           // Automatically create high-confidence reminders
+          // Use the first related dump ID as the primary source
+          const primaryDumpId =
+            insight.relatedDumpIds && insight.relatedDumpIds.length > 0
+              ? insight.relatedDumpIds[0]
+              : undefined;
+
           const reminder = await this.reminderService.createReminder({
             userId,
+            dumpId: primaryDumpId, // Link reminder to the dump that generated it
             message: `${insight.title}\n\n${insight.description}`,
             reminderType: this.mapInsightTypeToReminderType(insight.type),
             scheduledFor: insight.suggestedDate,
@@ -228,7 +235,9 @@ export class ProactiveService {
           });
 
           created.push(reminder);
-          this.logger.log(`Auto-created proactive reminder: ${insight.title}`);
+          this.logger.log(
+            `Auto-created proactive reminder: ${insight.title} (linked to dump ${primaryDumpId || 'none'})`,
+          );
         } else {
           // Add to suggestions for user review
           suggestions.push(insight);
@@ -380,7 +389,7 @@ People: ${people.join(', ') || 'None'}`;
         }
       }
 
-      return `[${index + 1}] Dump ${dump.id.substring(0, 8)}
+      return `[${index + 1}] Dump ${dump.id.substring(0, 8)} (ID: ${dump.id})
 Category: ${category}
 Type: ${dump.content_type}
 Date: ${dump.created_at.toISOString()}
@@ -418,7 +427,7 @@ For each insight, provide:
 - description: Context and details (e.g., "Scheduled for 2025-12-04 at 09:00")
 - suggestedDate: When to remind in ISO format (e.g., "2025-12-04T09:00:00Z")
 - confidence: high (clear date/time), medium (implied timing), or low (vague)
-- relatedDumpIds: Array of dump IDs that support this insight
+- relatedDumpIds: Array of FULL dump IDs from the "ID:" field (e.g., ["3b9384f5-abc1-4567-89ef-0123456789ab"])
 - reasoning: Why this reminder would be helpful (e.g., "Action item with specific date and time")
 
 Example response (ONLY THIS, NO OTHER TEXT):
@@ -429,7 +438,7 @@ Example response (ONLY THIS, NO OTHER TEXT):
     "description": "Scheduled call tomorrow morning at 09:00",
     "suggestedDate": "2025-12-04T09:00:00Z",
     "confidence": "high",
-    "relatedDumpIds": ["3b9384f5"],
+    "relatedDumpIds": ["3b9384f5-abc1-4567-89ef-0123456789ab"],
     "reasoning": "Action item with specific date and time extracted from entities"
   }
 ]
