@@ -219,8 +219,9 @@ export class DocumentProcessorService {
    */
   private async extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
     try {
-      const data = await PDFParse(pdfBuffer);
-      return data.text.trim();
+      const parser = new PDFParse({ data: pdfBuffer });
+      const result = await parser.getText();
+      return result.text.trim();
     } catch (error) {
       this.logger.error(`Failed to extract text from PDF: ${error.message}`);
       throw new Error(`PDF extraction failed: ${error.message}`);
