@@ -127,6 +127,9 @@ export class EmailController {
   ): Promise<EmailWebhookResponse> {
     try {
       this.logger.log('Received SendGrid email webhook');
+      this.logger.debug(
+        `SendGrid payload: ${JSON.stringify(payload, null, 2)}`,
+      );
 
       // Convert SendGrid format to standard format
       const standardPayload = this.convertSendGridPayload(payload);
@@ -323,8 +326,21 @@ export class EmailController {
    */
   private convertSendGridPayload(payload: any): EmailWebhookPayload {
     // SendGrid webhook format conversion
+    this.logger.debug(
+      `Converting SendGrid payload with keys: ${Object.keys(payload).join(', ')}`,
+    );
+
+    const messageId =
+      payload.messageId ||
+      payload['message-id'] ||
+      payload['Message-ID'] ||
+      payload.headers?.['Message-ID'] ||
+      '';
+
+    this.logger.debug(`Extracted messageId: ${messageId}`);
+
     return {
-      messageId: payload.messageId || payload['message-id'] || '',
+      messageId,
       from: payload.from || payload.fromEmail || '',
       to: this.parseEmailList(payload.to || payload.toEmail || ''),
       cc: this.parseEmailList(payload.cc || ''),
