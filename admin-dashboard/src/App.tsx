@@ -9,6 +9,7 @@ import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
 import { SearchMetricsPage } from './pages/analytics/SearchMetricsPage';
 import { AIMetricsPage } from './pages/analytics/AIMetricsPage';
 import { ReviewPage } from './pages/ReviewPage';
+import { FeedbackPage } from './pages/feedback/FeedbackPage';
 
 /**
  * Main App Component (T088)
@@ -52,6 +53,14 @@ function App() {
             element={
               <DashboardLayout>
                 <ReviewPage />
+              </DashboardLayout>
+            }
+          />
+          <Route
+            path="/feedback"
+            element={
+              <DashboardLayout>
+                <FeedbackPage />
               </DashboardLayout>
             }
           />

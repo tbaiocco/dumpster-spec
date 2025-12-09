@@ -1,32 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, In } from 'typeorm';
+import {
+  Feedback,
+  FeedbackType,
+  FeedbackPriority,
+  FeedbackStatus,
+} from '../../entities/feedback.entity';
 
-export enum FeedbackType {
-  BUG_REPORT = 'bug_report',
-  FEATURE_REQUEST = 'feature_request',
-  AI_ERROR = 'ai_error',
-  CATEGORIZATION_ERROR = 'categorization_error',
-  SUMMARY_ERROR = 'summary_error',
-  ENTITY_ERROR = 'entity_error',
-  URGENCY_ERROR = 'urgency_error',
-  GENERAL_FEEDBACK = 'general_feedback',
-  CONTENT_QUALITY = 'content_quality',
-  PERFORMANCE_ISSUE = 'performance_issue',
-}
-
-export enum FeedbackPriority {
-  LOW = 'low',
-  MEDIUM = 'medium',
-  HIGH = 'high',
-  CRITICAL = 'critical',
-}
-
-export enum FeedbackStatus {
-  NEW = 'new',
-  ACKNOWLEDGED = 'acknowledged',
-  IN_PROGRESS = 'in_progress',
-  RESOLVED = 'resolved',
-  CLOSED = 'closed',
-}
+// Re-export enums for backward compatibility
+export { FeedbackType, FeedbackPriority, FeedbackStatus };
 
 export interface FeedbackRequest {
   userId: string;
@@ -71,48 +54,48 @@ export interface FeedbackItem {
 @Injectable()
 export class FeedbackService {
   private readonly logger = new Logger(FeedbackService.name);
-  private readonly feedbackItems: Map<string, FeedbackItem> = new Map();
+
+  constructor(
+    @InjectRepository(Feedback)
+    private readonly feedbackRepository: Repository<Feedback>,
+  ) {}
 
   /**
    * Submit new feedback
    */
   async submitFeedback(request: FeedbackRequest): Promise<string> {
     try {
-      const feedbackId = this.generateFeedbackId();
       const priority = request.priority || this.determinePriority(request.type);
 
-      const feedbackItem: FeedbackItem = {
-        id: feedbackId,
-        userId: request.userId,
+      const feedback = this.feedbackRepository.create({
+        user_id: request.userId,
         type: request.type,
         title: request.title,
         description: request.description,
         priority,
         status: FeedbackStatus.NEW,
-        dumpId: request.dumpId,
-        userAgent: request.userAgent,
+        dump_id: request.dumpId,
+        user_agent: request.userAgent,
         url: request.url,
-        reproductionSteps: request.reproductionSteps,
-        expectedBehavior: request.expectedBehavior,
-        actualBehavior: request.actualBehavior,
-        additionalContext: request.additionalContext,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        internalNotes: [],
+        reproduction_steps: request.reproductionSteps,
+        expected_behavior: request.expectedBehavior,
+        actual_behavior: request.actualBehavior,
+        additional_context: request.additionalContext,
+        internal_notes: [],
         upvotes: 0,
         tags: this.generateTags(request),
-      };
+      });
 
-      this.feedbackItems.set(feedbackId, feedbackItem);
+      const savedFeedback = await this.feedbackRepository.save(feedback);
 
       this.logger.log(
-        `Feedback submitted: ${feedbackId} (${request.type}) by user ${request.userId}`,
+        `Feedback submitted: ${savedFeedback.id} (${request.type}) by user ${request.userId}`,
       );
 
-      // In a real implementation, this could trigger notifications or integrations
-      await this.processNewFeedback(feedbackItem);
+      // Auto-acknowledge feedback
+      await this.processNewFeedback(savedFeedback);
 
-      return feedbackId;
+      return savedFeedback.id;
     } catch (error) {
       this.logger.error('Error submitting feedback:', error);
       throw error;
@@ -123,18 +106,23 @@ export class FeedbackService {
    * Get feedback by ID
    */
   async getFeedback(feedbackId: string): Promise<FeedbackItem | null> {
-    return this.feedbackItems.get(feedbackId) || null;
+    const feedback = await this.feedbackRepository.findOne({
+      where: { id: feedbackId },
+    });
+
+    return feedback ? this.mapToFeedbackItem(feedback) : null;
   }
 
   /**
    * Get user's feedback history
    */
   async getUserFeedback(userId: string): Promise<FeedbackItem[]> {
-    const userFeedback = Array.from(this.feedbackItems.values())
-      .filter((item) => item.userId === userId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const feedbacks = await this.feedbackRepository.find({
+      where: { user_id: userId },
+      order: { created_at: 'DESC' },
+    });
 
-    return userFeedback;
+    return feedbacks.map((f) => this.mapToFeedbackItem(f));
   }
 
   /**
@@ -153,65 +141,71 @@ export class FeedbackService {
     items: FeedbackItem[];
     total: number;
   }> {
-    let filteredItems = Array.from(this.feedbackItems.values());
+    const queryBuilder = this.feedbackRepository.createQueryBuilder('feedback');
 
     // Apply filters
-    if (filters) {
-      if (filters.type) {
-        filteredItems = filteredItems.filter(
-          (item) => item.type === filters.type,
-        );
-      }
-      if (filters.status) {
-        filteredItems = filteredItems.filter(
-          (item) => item.status === filters.status,
-        );
-      }
-      if (filters.priority) {
-        filteredItems = filteredItems.filter(
-          (item) => item.priority === filters.priority,
-        );
-      }
-      if (filters.userId) {
-        filteredItems = filteredItems.filter(
-          (item) => item.userId === filters.userId,
-        );
-      }
-      if (filters.dumpId) {
-        filteredItems = filteredItems.filter(
-          (item) => item.dumpId === filters.dumpId,
-        );
-      }
-      if (filters.tags?.length) {
-        filteredItems = filteredItems.filter((item) =>
-          filters.tags!.some((tag) => item.tags.includes(tag)),
-        );
-      }
+    if (filters?.type) {
+      queryBuilder.andWhere('feedback.type = :type', { type: filters.type });
     }
+    if (filters?.status) {
+      queryBuilder.andWhere('feedback.status = :status', {
+        status: filters.status,
+      });
+    }
+    if (filters?.priority) {
+      queryBuilder.andWhere('feedback.priority = :priority', {
+        priority: filters.priority,
+      });
+    }
+    if (filters?.userId) {
+      queryBuilder.andWhere('feedback.user_id = :userId', {
+        userId: filters.userId,
+      });
+    }
+    if (filters?.dumpId) {
+      queryBuilder.andWhere('feedback.dump_id = :dumpId', {
+        dumpId: filters.dumpId,
+      });
+    }
+    if (filters?.tags?.length) {
+      queryBuilder.andWhere('feedback.tags && :tags', {
+        tags: filters.tags,
+      });
+    }
+
+    // Get total count
+    const total = await queryBuilder.getCount();
 
     // Sort by priority and creation date
-    filteredItems.sort((a, b) => {
-      const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
-      const aPriority = priorityOrder[a.priority];
-      const bPriority = priorityOrder[b.priority];
-
-      if (aPriority !== bPriority) {
-        return bPriority - aPriority;
-      }
-
-      return b.createdAt.getTime() - a.createdAt.getTime();
-    });
-
-    const total = filteredItems.length;
+    queryBuilder
+      .addSelect(
+        `CASE feedback.priority 
+        WHEN 'critical' THEN 4 
+        WHEN 'high' THEN 3 
+        WHEN 'medium' THEN 2 
+        WHEN 'low' THEN 1 
+        END`,
+        'priority_order',
+      )
+      .orderBy('priority_order', 'DESC')
+      .addOrderBy('feedback.created_at', 'DESC');
 
     // Apply pagination
-    if (filters?.limit || filters?.offset) {
-      const offset = filters.offset || 0;
-      const limit = filters.limit || 50;
-      filteredItems = filteredItems.slice(offset, offset + limit);
+    if (filters?.offset !== undefined) {
+      queryBuilder.skip(filters.offset);
+    }
+    if (filters?.limit !== undefined) {
+      queryBuilder.take(filters.limit);
+    } else {
+      queryBuilder.take(50);
     }
 
-    return { items: filteredItems, total };
+    const feedbacks = await queryBuilder.getMany();
+
+    return {
+      items: feedbacks.map((f) => this.mapToFeedbackItem(f)),
+      total,
+    };
   }
 
   /**
@@ -224,19 +218,25 @@ export class FeedbackService {
     resolvedBy?: string,
   ): Promise<boolean> {
     try {
-      const feedbackItem = this.feedbackItems.get(feedbackId);
-      if (!feedbackItem) {
+      const feedback = await this.feedbackRepository.findOne({
+        where: { id: feedbackId },
+      });
+
+      if (!feedback) {
         return false;
       }
 
-      feedbackItem.status = status;
-      feedbackItem.updatedAt = new Date();
+      feedback.status = status;
 
       if (status === FeedbackStatus.RESOLVED && resolution) {
-        feedbackItem.resolution = resolution;
-        feedbackItem.resolvedAt = new Date();
-        feedbackItem.resolvedBy = resolvedBy;
+        feedback.resolution = resolution;
+        feedback.resolved_at = new Date();
+        if (resolvedBy) {
+          feedback.resolved_by = resolvedBy;
+        }
       }
+
+      await this.feedbackRepository.save(feedback);
 
       this.logger.log(`Feedback ${feedbackId} status updated to ${status}`);
 
@@ -252,15 +252,21 @@ export class FeedbackService {
    */
   async addInternalNote(feedbackId: string, note: string): Promise<boolean> {
     try {
-      const feedbackItem = this.feedbackItems.get(feedbackId);
-      if (!feedbackItem) {
+      const feedback = await this.feedbackRepository.findOne({
+        where: { id: feedbackId },
+      });
+
+      if (!feedback) {
         return false;
       }
 
-      feedbackItem.internalNotes ??= [];
+      if (!feedback.internal_notes) {
+        feedback.internal_notes = [];
+      }
 
-      feedbackItem.internalNotes.push(`${new Date().toISOString()}: ${note}`);
-      feedbackItem.updatedAt = new Date();
+      feedback.internal_notes.push(`${new Date().toISOString()}: ${note}`);
+
+      await this.feedbackRepository.save(feedback);
 
       return true;
     } catch (error) {
@@ -274,13 +280,17 @@ export class FeedbackService {
    */
   async upvoteFeedback(feedbackId: string): Promise<boolean> {
     try {
-      const feedbackItem = this.feedbackItems.get(feedbackId);
-      if (!feedbackItem) {
+      const feedback = await this.feedbackRepository.findOne({
+        where: { id: feedbackId },
+      });
+
+      if (!feedback) {
         return false;
       }
 
-      feedbackItem.upvotes++;
-      feedbackItem.updatedAt = new Date();
+      feedback.upvotes++;
+
+      await this.feedbackRepository.save(feedback);
 
       return true;
     } catch (error) {
@@ -300,7 +310,7 @@ export class FeedbackService {
     avgResolutionTimeHours?: number;
     topTags: Array<{ tag: string; count: number }>;
   }> {
-    const allFeedback = Array.from(this.feedbackItems.values());
+    const allFeedback = await this.feedbackRepository.find();
 
     const stats = {
       total: allFeedback.length,
@@ -323,7 +333,7 @@ export class FeedbackService {
     }
 
     // Count feedback and calculate resolution time
-    const resolvedFeedback: FeedbackItem[] = [];
+    const resolvedFeedback: Feedback[] = [];
     const tagCounts: Record<string, number> = {};
 
     for (const feedback of allFeedback) {
@@ -331,12 +341,12 @@ export class FeedbackService {
       stats.byStatus[feedback.status]++;
       stats.byPriority[feedback.priority]++;
 
-      if (feedback.status === FeedbackStatus.RESOLVED && feedback.resolvedAt) {
+      if (feedback.status === FeedbackStatus.RESOLVED && feedback.resolved_at) {
         resolvedFeedback.push(feedback);
       }
 
       // Count tags
-      for (const tag of feedback.tags) {
+      for (const tag of feedback.tags || []) {
         tagCounts[tag] = (tagCounts[tag] || 0) + 1;
       }
     }
@@ -345,7 +355,8 @@ export class FeedbackService {
     if (resolvedFeedback.length > 0) {
       const totalResolutionTimeMs = resolvedFeedback.reduce((sum, feedback) => {
         return (
-          sum + (feedback.resolvedAt!.getTime() - feedback.createdAt.getTime())
+          sum +
+          (feedback.resolved_at!.getTime() - feedback.created_at.getTime())
         );
       }, 0);
 
@@ -410,21 +421,51 @@ export class FeedbackService {
     return tags;
   }
 
-  private async processNewFeedback(feedbackItem: FeedbackItem): Promise<void> {
+  private async processNewFeedback(feedback: Feedback): Promise<void> {
     // In a real implementation, this could:
     // - Send notifications to admins for critical issues
     // - Create tickets in external systems
     // - Trigger automated responses
     // - Update dashboards or metrics
 
-    if (feedbackItem.priority === FeedbackPriority.CRITICAL) {
+    if (feedback.priority === FeedbackPriority.CRITICAL) {
       this.logger.warn(
-        `Critical feedback received: ${feedbackItem.id} - ${feedbackItem.title}`,
+        `Critical feedback received: ${feedback.id} - ${feedback.title}`,
       );
     }
 
     // Auto-acknowledge feedback
-    feedbackItem.status = FeedbackStatus.ACKNOWLEDGED;
-    feedbackItem.updatedAt = new Date();
+    feedback.status = FeedbackStatus.ACKNOWLEDGED;
+    await this.feedbackRepository.save(feedback);
+  }
+
+  /**
+   * Map database entity to FeedbackItem interface for backward compatibility
+   */
+  private mapToFeedbackItem(feedback: Feedback): FeedbackItem {
+    return {
+      id: feedback.id,
+      userId: feedback.user_id,
+      type: feedback.type,
+      title: feedback.title,
+      description: feedback.description,
+      priority: feedback.priority,
+      status: feedback.status,
+      dumpId: feedback.dump_id,
+      userAgent: feedback.user_agent,
+      url: feedback.url,
+      reproductionSteps: feedback.reproduction_steps,
+      expectedBehavior: feedback.expected_behavior,
+      actualBehavior: feedback.actual_behavior,
+      additionalContext: feedback.additional_context,
+      createdAt: feedback.created_at,
+      updatedAt: feedback.updated_at,
+      resolvedAt: feedback.resolved_at,
+      resolvedBy: feedback.resolved_by,
+      resolution: feedback.resolution,
+      internalNotes: feedback.internal_notes,
+      upvotes: feedback.upvotes,
+      tags: feedback.tags,
+    };
   }
 }

@@ -377,6 +377,55 @@ class ApiService {
   }
 
   /**
+   * Feedback Management
+   */
+  public async getAllFeedback(params?: {
+    type?: string;
+    status?: string;
+    priority?: string;
+    userId?: string;
+    dumpId?: string;
+    tags?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    return this.get('/feedback', { params });
+  }
+
+  public async getFeedback(feedbackId: string) {
+    return this.get(`/feedback/${feedbackId}`);
+  }
+
+  public async getUserFeedback(userId: string) {
+    return this.get(`/feedback/user/${userId}`);
+  }
+
+  public async updateFeedbackStatus(
+    feedbackId: string,
+    status: string,
+    resolution?: string,
+    userId?: string
+  ) {
+    return this.put(`/feedback/${feedbackId}/status`, { status, resolution }, { params: { userId } });
+  }
+
+  public async addFeedbackNote(feedbackId: string, note: string) {
+    return this.post(`/feedback/${feedbackId}/notes`, { note });
+  }
+
+  public async upvoteFeedback(feedbackId: string) {
+    return this.post(`/feedback/${feedbackId}/upvote`);
+  }
+
+  public async getFeedbackStats() {
+    return this.get('/feedback/stats/overview');
+  }
+
+  public async getFeedbackMetadata() {
+    return this.get('/feedback/options/metadata');
+  }
+
+  /**
    * Admin Operations
    */
   public async recreateVectorIndex() {

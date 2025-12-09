@@ -1,4 +1,4 @@
-- change the phoneNumberRegistration (telegram/whatsapp):
+- change the phoneNumberRegistration (telegram/whatsapp): DONE
     Registration is the website, DON'T create users when sending message via bot Telegram/WhatsApp
     NOT NEEDED: to request if the new user wants to add his/her email to receive the digests and reminders.
 
@@ -8,9 +8,11 @@
 - send security code for frontend login via Telegram or WhatsApp (maybe email)
 
 - Feedbacks must be persisted, first in DATABASE
-    /home/baiocte/personal/dumpster/backend/src/modules/feedback/feedback.service.ts
+    DONE: /home/baiocte/personal/dumpster/backend/src/modules/feedback/feedback.service.ts
+    Should be presented in the admin-dashboard, as a list with possibility of detailed pop-up with full content of the record
+    Should be able to change the feedback status
 
-- Tracking feature is not used/connected to anything.
+- Tracking feature is not used/connected to anything: DONE
     It must be used when receiving a new dump that is time-sensitive (package deliveries, applications, subscriptions, warranties, etc)
     persist?
     send specific section/reminder for these?
@@ -21,6 +23,8 @@
     Should enable users to update the dumps, not only accept/reject but enable corrections
     Should enable category creation, and use those in the categorization mechanism
     Should present a dashboard ordered by date and priority of the dumps, showing by day, week and month (like: actions for today, tomorrow, then dates). In day view the next days appear collapsed but with a button to show, same happens in week and month view, in order to load the next actions in time
+    Should also have views for Reminders and Tracking items, using same ordering idea of dumps (mainly by due-date, with day, week, month views)
+    Should have feedback management, to send, view and manage feedbacks of the app
 
 - E-mail dumps: DONE
     The user can forward mails to create dumps from them, with images, docs, etc

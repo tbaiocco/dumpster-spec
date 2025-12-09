@@ -11,6 +11,14 @@ import {
   Logger,
 } from '@nestjs/common';
 import {
+  IsEnum,
+  IsString,
+  IsOptional,
+  IsArray,
+  IsObject,
+  IsUUID,
+} from 'class-validator';
+import {
   FeedbackService,
   FeedbackType,
   FeedbackPriority,
@@ -19,25 +27,60 @@ import {
 } from './feedback.service';
 
 export class SubmitFeedbackDto {
+  @IsEnum(FeedbackType)
   type: FeedbackType;
+
+  @IsString()
   title: string;
+
+  @IsString()
   description: string;
+
+  @IsOptional()
+  @IsEnum(FeedbackPriority)
   priority?: FeedbackPriority;
+
+  @IsOptional()
+  @IsUUID()
   dumpId?: string;
+
+  @IsOptional()
+  @IsString()
   userAgent?: string;
+
+  @IsOptional()
+  @IsString()
   url?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   reproductionSteps?: string[];
+
+  @IsOptional()
+  @IsString()
   expectedBehavior?: string;
+
+  @IsOptional()
+  @IsString()
   actualBehavior?: string;
+
+  @IsOptional()
+  @IsObject()
   additionalContext?: Record<string, any>;
 }
 
 export class UpdateFeedbackStatusDto {
+  @IsEnum(FeedbackStatus)
   status: FeedbackStatus;
+
+  @IsOptional()
+  @IsString()
   resolution?: string;
 }
 
 export class AddNoteDto {
+  @IsString()
   note: string;
 }
 
