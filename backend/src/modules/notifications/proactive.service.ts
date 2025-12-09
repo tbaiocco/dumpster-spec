@@ -613,11 +613,16 @@ ${userPrompt}`;
     let created = 0;
 
     for (const dump of dumps) {
-      const content = dump.raw_content?.substring(0, 2000) || '';
-      if (!content) continue;
+      // Prepare enriched context from dump's AI analysis
+      const enrichedContent = this.prepareEnrichedContextForTracking(dump);
+      
+      if (!enrichedContent) {
+        this.logger.debug(`Skipping dump ${dump.id} - no content available`);
+        continue;
+      }
 
-      // Use AI to detect tracking opportunities
-      const trackingInsights = await this.detectTrackingWithAI(content, dump);
+      // Use AI to detect tracking opportunities with enriched context
+      const trackingInsights = await this.detectTrackingWithAI(enrichedContent, dump);
 
       for (const insight of trackingInsights) {
         try {
@@ -674,10 +679,67 @@ ${userPrompt}`;
   }
 
   /**
-   * Use Claude AI to detect tracking opportunities
+   * Prepare enriched context for tracking detection
+   * Uses AI summary, extracted entities, and category for better accuracy
+   */
+  private prepareEnrichedContextForTracking(dump: Dump): string | null {
+    const parts: string[] = [];
+
+    // AI Summary (most important - already processed and understood by AI)
+    if (dump.ai_summary) {
+      parts.push(`AI Summary: ${dump.ai_summary}`);
+    }
+
+    // Category provides context
+    const category = dump.category?.name || 'Uncategorized';
+    parts.push(`Category: ${category}`);
+
+    // Content type
+    parts.push(`Content Type: ${dump.content_type}`);
+
+    // Extracted entities (structured data)
+    if (dump.extracted_entities) {
+      const entities = dump.extracted_entities.entities as any || {};
+      const extractedData: string[] = [];
+
+      if (entities.dates && entities.dates.length > 0) {
+        extractedData.push(`Dates: ${entities.dates.join(', ')}`);
+      }
+      if (entities.organizations && entities.organizations.length > 0) {
+        extractedData.push(`Organizations: ${entities.organizations.join(', ')}`);
+      }
+      if (entities.locations && entities.locations.length > 0) {
+        extractedData.push(`Locations: ${entities.locations.join(', ')}`);
+      }
+      if (entities.amounts && entities.amounts.length > 0) {
+        extractedData.push(`Amounts: ${entities.amounts.join(', ')}`);
+      }
+
+      if (extractedData.length > 0) {
+        parts.push(`Extracted Data:\n${extractedData.join('\n')}`);
+      }
+    }
+
+    // Raw content excerpt (for additional context)
+    if (dump.raw_content) {
+      const excerpt = dump.raw_content.substring(0, 500);
+      parts.push(`Content Excerpt: ${excerpt}`);
+    }
+
+    // Return null if we have no meaningful content
+    if (parts.length === 0) {
+      return null;
+    }
+
+    return parts.join('\n\n');
+  }
+
+  /**
+   * Use Claude AI to detect tracking opportunities from enriched dump content
+   * Now receives AI summary, entities, and structured data for better accuracy
    */
   private async detectTrackingWithAI(
-    content: string,
+    enrichedContent: string,
     dump: Dump,
   ): Promise<
     Array<{
@@ -689,9 +751,13 @@ ${userPrompt}`;
       confidence: ConfidenceLevel;
     }>
   > {
-    const prompt = `Analyze the following message and identify TRACKING opportunities ONLY. 
+    const prompt = `You are analyzing enriched content from a user's message that has already been processed by AI. The content includes:
+- An AI-generated summary
+- Extracted entities (dates, organizations, locations, amounts)
+- Category classification
+- Original content excerpt
 
-CRITICAL: DO NOT include reminders, appointments, or action items. Focus ONLY on status-monitoring items.
+Your task: Identify items that should be TRACKED (status monitoring), NOT reminded about.
 
 **TRACKING items** (what to include):
 1. **Packages**: Tracking numbers (UPS, FedEx, USPS, DHL, etc.), shipment notifications, delivery confirmations
@@ -719,8 +785,15 @@ For each TRACKING opportunity found, provide:
 - expectedDate: When status update or completion is expected (ISO 8601 format)
 - confidence: high, medium, or low
 
-Message to analyze:
-${content.substring(0, 2000)}
+Enriched Content to analyze:
+${enrichedContent}
+
+**Analysis Strategy:**
+1. Start with the AI Summary - it contains the most accurate understanding
+2. Use extracted dates for expectedDate
+3. Use extracted organizations for context (shipping companies, service providers)
+4. Consider the category to understand intent
+5. Review content excerpt for additional details
 
 Return your analysis as a JSON array. If no tracking opportunities found, return empty array [].
 IMPORTANT: Respond with ONLY valid JSON, no other text.`;
@@ -757,7 +830,7 @@ IMPORTANT: Respond with ONLY valid JSON, no other text.`;
         error.stack,
       );
       // Fallback to keyword-based detection
-      return this.detectTrackingWithKeywords(content);
+      return this.detectTrackingWithKeywords(enrichedContent);
     }
   }
 
