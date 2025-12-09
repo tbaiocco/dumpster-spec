@@ -763,20 +763,20 @@ export class WhatsAppService {
    */
   async autoRegisterUser(phoneNumber: string): Promise<void> {
     try {
-      this.logger.log(`Auto-registering WhatsApp user: ${phoneNumber}`);
+      this.logger.log(`Linking WhatsApp user: ${phoneNumber}`);
 
-      // Check if user already exists with this phone number
+      // Check if user exists with this phone number
       const existingUser = await this.userService.findByPhone(phoneNumber);
 
       if (existingUser) {
-        // Update existing user with WhatsApp chat ID
+        // Link existing user to WhatsApp chat ID
         await this.userService.update(existingUser.id, {
           chat_id_whatsapp: phoneNumber,
         });
 
         await this.sendTextMessage(
           phoneNumber,
-          `✅ Welcome back! Your account has been linked to WhatsApp.\n\n` +
+          `✅ Welcome! Your account has been linked to WhatsApp.\n\n` +
             `You can now send me:\n` +
             `📝 Text messages to save thoughts\n` +
             `🎤 Voice messages\n` +
@@ -789,38 +789,23 @@ export class WhatsAppService {
           `Linked existing user ${existingUser.id} to WhatsApp: ${phoneNumber}`,
         );
       } else {
-        // Create new user
-        const newUser = await this.userService.create({
-          phone_number: phoneNumber,
-          timezone: 'Europe/Lisbon', // Default for Portuguese users
-          language: 'pt',
-        });
-
-        // Update with WhatsApp chat ID
-        await this.userService.update(newUser.id, {
-          chat_id_whatsapp: phoneNumber,
-        });
-
+        // User not found - they need to register first
         await this.sendTextMessage(
           phoneNumber,
-          `🎉 Registration complete! Welcome to your personal life inbox.\n\n` +
-            `I'll help you capture and organize everything:\n` +
-            `📝 Notes and reminders\n` +
-            `🎤 Voice messages\n` +
-            `📸 Photos and documents\n` +
-            `🔍 Smart search and categorization\n\n` +
-            `Try sending: "Reunião com cliente amanhã às 15h"`,
+          `❌ No account found with phone number ${phoneNumber}.\n\n` +
+            `Please register first at:\nhttps://theclutter.app\n\n` +
+            `After registration, send a message here to link your account.`,
         );
 
         this.logger.log(
-          `Created new user ${newUser.id} for WhatsApp: ${phoneNumber}`,
+          `Phone number ${phoneNumber} not found, user needs to register at website`,
         );
       }
     } catch (error) {
       this.logger.error('Error during auto-registration:', error);
       await this.sendTextMessage(
         phoneNumber,
-        '❌ Sorry, there was an error during registration. Please try again or contact support.',
+        '❌ Sorry, there was an error. Please try again or contact support.',
       );
       throw error;
     }

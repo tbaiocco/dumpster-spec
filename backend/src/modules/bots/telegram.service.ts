@@ -376,18 +376,18 @@ export class TelegramService {
     }
 
     try {
-      // Check if user already exists with this phone number
+      // Check if user exists with this phone number
       const existingUser = await this.userService.findByPhone(cleanPhone);
 
       if (existingUser) {
-        // Update existing user with Telegram chat ID
+        // Link existing user to Telegram chat ID
         await this.userService.update(existingUser.id, {
           chat_id_telegram: chatId.toString(),
         });
 
         await this.sendTextMessage(
           chatId,
-          `✅ Welcome back! Your account has been linked to Telegram.\n\n` +
+          `✅ Welcome! Your account has been linked to Telegram.\n\n` +
             `You can now send me:\n` +
             `📝 Text messages to save thoughts\n` +
             `🎤 Voice messages\n` +
@@ -401,33 +401,18 @@ export class TelegramService {
         );
         return true;
       } else {
-        // Create new user
-        const newUser = await this.userService.create({
-          phone_number: cleanPhone,
-          timezone: 'Europe/Lisbon', // Default for Portuguese users
-          language: 'pt',
-        });
-
-        // Update with Telegram chat ID
-        await this.userService.update(newUser.id, {
-          chat_id_telegram: chatId.toString(),
-        });
-
+        // User not found - they need to register first
         await this.sendTextMessage(
           chatId,
-          `🎉 Registration complete! Welcome to your personal life inbox.\n\n` +
-            `I'll help you capture and organize everything:\n` +
-            `📝 Notes and reminders\n` +
-            `🎤 Voice messages\n` +
-            `📸 Photos and documents\n` +
-            `🔍 Smart search and categorization\n\n` +
-            `Try sending: "Reunião com cliente amanhã às 15h"`,
+          `❌ No account found with phone number ${cleanPhone}.\n\n` +
+            `Please register first at:\nhttps://theclutter.app\n\n` +
+            `Then send your registered phone number here to link your account.`,
         );
 
         this.logger.log(
-          `Created new user ${newUser.id} for Telegram chat ${chatId}`,
+          `Phone number ${cleanPhone} not found, user needs to register at website`,
         );
-        return true;
+        return true; // Handled
       }
     } catch (error) {
       this.logger.error('Error during phone registration:', error);
