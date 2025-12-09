@@ -140,27 +140,10 @@ export class TelegramWebhookController {
           `No user found for Telegram chat ID: ${message.chat.id}`,
         );
 
-        // Self-registration flow
-        // Try to handle phone number registration if it's a text message
-        if (message.text) {
-          const registrationHandled =
-            await this.telegramService.handlePhoneNumberRegistration({
-              message_id: message.message_id,
-              from: message.from,
-              chat: message.chat,
-              date: message.date,
-              text: message.text,
-            });
-
-          if (registrationHandled) {
-            return; // Registration was processed
-          }
-        }
-
-        // Send registration prompt
+        // User must be pre-registered - send registration prompt
         await this.telegramService.sendMessage({
           chat_id: message.chat.id,
-          text: '👋 Welcome! Please register first by providing your phone number to start using this service.\n\nExample: +351999888777',
+          text: '👋 Welcome to Clutter.AI!\n\nYou need to register first at:\nhttps://theclutter.app\n\nAfter registration, link your Telegram account in your profile settings.',
         });
         return;
       }

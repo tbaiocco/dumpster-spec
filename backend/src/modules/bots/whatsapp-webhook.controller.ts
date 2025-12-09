@@ -22,8 +22,8 @@ export class WhatsAppWebhookController {
    * Handle incoming WhatsApp messages via Twilio webhook (POST request)
    * Twilio WhatsApp webhooks don't require verification like Meta/Facebook
    * 
-   * Auto-registration: We use the phone number from Twilio's webhook payload
-   * (no need to ask user to type their phone number again!)
+   * Users must be pre-registered at https://theclutter.app
+   * Messages from unregistered users receive a registration prompt
    */
   @Post()
   @HttpCode(HttpStatus.OK)
@@ -44,13 +44,19 @@ export class WhatsAppWebhookController {
       const user = await this.userService.findByChatId(fromNumber, 'whatsapp');
 
       if (!user) {
-        this.logger.log(`New user detected: ${fromNumber} - auto-registering`);
+        this.logger.warn(
+          `No user found for WhatsApp number: ${fromNumber}`,
+        );
 
-        // Auto-register using the phone number from Twilio
-        await this.whatsAppService.autoRegisterUser(fromNumber);
-        
-        // After registration, process the original message
-        await this.whatsAppService.processTwilioWebhook(body);
+        // User must be pre-registered - send registration prompt
+        await this.whatsAppService.sendMessage({
+          messaging_product: 'whatsapp',
+          to: fromNumber,
+          type: 'text',
+          text: {
+            body: '👋 Welcome to Clutter.AI!\n\nYou need to register first at:\nhttps://theclutter.app\n\nAfter registration, link your WhatsApp account in your profile settings.',
+          },
+        });
         return 'OK';
       }
 

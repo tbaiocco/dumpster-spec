@@ -54,7 +54,7 @@ export class EmailService {
     this.provider = this.configService.get<string>('EMAIL_PROVIDER', 'gmail');
     this.fromEmail = this.configService.get<string>(
       'EMAIL_FROM',
-      'clutterai.noreply@gmail.com',
+      'no-reply@theclutter.app',
     );
     this.fromName = this.configService.get<string>(
       'EMAIL_FROM_NAME',
