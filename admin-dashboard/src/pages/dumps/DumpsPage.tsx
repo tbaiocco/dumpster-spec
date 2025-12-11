@@ -1,11 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../../components/ui/Card';
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/Table';
-import { Badge } from '../../components/ui/Badge';
-import { Input } from '../../components/ui/Input';
-import { Spinner } from '../../components/ui/Spinner';
-import { Modal } from '../../components/ui/Modal';
 import apiService from '../../services/api.service';
+import { Spinner } from '../../components/ui/Spinner';
+import { DumpDetailModal } from '../../components/dumps/DumpDetailModal';
 
 interface Dump {
   id: string;
@@ -30,7 +26,6 @@ export const DumpsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDump, setSelectedDump] = useState<Dump | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   useEffect(() => {
@@ -41,10 +36,7 @@ export const DumpsPage: React.FC = () => {
   const loadDumps = async () => {
     setLoading(true);
     const response = await apiService.getDumps({ limit: 50, search: searchQuery });
-    console.log('[DumpsPage] API response:', response);
     if (response.success && response.data) {
-      // Backend returns { dumps: [...], total, page, totalPages }
-      console.log('[DumpsPage] Setting dumps:', response.data.dumps);
       setDumps(response.data.dumps || []);
     }
     setLoading(false);
@@ -52,7 +44,6 @@ export const DumpsPage: React.FC = () => {
 
   const handleRowClick = async (dumpId: string) => {
     setLoadingDetail(true);
-    setIsModalOpen(true);
     try {
       const response = await apiService.getDump(dumpId);
       if (response.success && response.data) {
@@ -66,215 +57,194 @@ export const DumpsPage: React.FC = () => {
   };
 
   const handleCloseModal = () => {
-    setIsModalOpen(false);
     setSelectedDump(null);
   };
 
   if (loading) {
-    return <Spinner size="lg" className="mt-20" />;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Spinner />
+      </div>
+    );
   }
 
+  // Calculate stats
+  const totalDumps = dumps.length;
+  const highConfidence = dumps.filter(d => d.ai_confidence >= 80).length;
+  const avgConfidence = dumps.length > 0 
+    ? Math.round(dumps.reduce((sum, d) => sum + d.ai_confidence, 0) / dumps.length) 
+    : 0;
+  const categoriesSet = new Set(dumps.filter(d => d.category).map(d => d.category!.name));
+  const uniqueCategories = categoriesSet.size;
+
+  const getConfidenceColor = (confidence: number) => {
+    if (confidence >= 80) return 'text-green-800 bg-green-100 border-green-300';
+    if (confidence >= 60) return 'text-yellow-800 bg-yellow-100 border-yellow-300';
+    return 'text-red-800 bg-red-100 border-red-300';
+  };
+
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Page Header */}
-      <div className="space-y-2">
-        <h1 className="text-4xl font-display font-bold text-gradient">📝 Dumps Overview</h1>
-        <p className="text-lg text-slate-600">Monitor and manage all content dumps</p>
+    <div>
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900">Content Dumps</h1>
+        </div>
+        <p className="text-gray-600 ml-14">Monitor and manage all content dumps across users</p>
       </div>
 
-      <Card hover>
-        <CardHeader>
-          <CardTitle>Recent Dumps</CardTitle>
-          <CardDescription>View and search all content dumps across users</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-6">
-            <Input
-              placeholder="🔍 Search dumps by content..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="max-w-md"
-            />
-          </div>
-
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-2/5">Content</TableHead>
-                  <TableHead className="w-1/6">Category</TableHead>
-                  <TableHead className="w-1/8">Confidence</TableHead>
-                  <TableHead className="w-1/6">User</TableHead>
-                  <TableHead className="w-1/6">Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {dumps.map((dump) => (
-                  <TableRow 
-                    key={dump.id}
-                    onClick={() => handleRowClick(dump.id)}
-                    className="cursor-pointer hover:bg-slate-50"
-                  >
-                    <TableCell className="max-w-md">
-                      <div className="truncate text-slate-900">
-                        {dump.raw_content || dump.ai_summary || `[${dump.content_type}]`}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="default">{dump.category?.name || 'Uncategorized'}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={dump.ai_confidence > 70 ? 'success' : 'warning'}>
-                        {dump.ai_confidence}%
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm text-slate-700">
-                      {dump.user.phone_number}
-                    </TableCell>
-                    <TableCell className="text-slate-600">
-                      {new Date(dump.created_at).toLocaleDateString('en-US', { 
-                        month: 'short', 
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+      {/* Stats Cards - Clutter.AI Design */}
+      {dumps.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-sans text-muted">Total Dumps</span>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500/10 to-green-600/20 flex items-center justify-center">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+            </div>
+            <div className="text-3xl font-heading font-bold text-slate-900">{totalDumps}</div>
           </div>
           
-          {dumps.length === 0 && (
-            <div className="text-center py-16 text-slate-500">
-              <div className="text-6xl mb-4 opacity-50">📭</div>
-              <p className="text-sm">No dumps found. Try adjusting your search.</p>
+          <div className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-sans text-muted">High Confidence</span>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/10 to-primary/20 flex items-center justify-center">
+                <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0121 12c0 5.523-4.477 10-10 10S1 17.523 1 12 5.477 2 11 2c.454 0 .901.028 1.337.082M19 6l-7 7" />
+                </svg>
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Dump Details Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        title="Dump Details"
-        size="lg"
-      >
-        {loadingDetail && (
-          <div className="flex justify-center py-8">
-            <Spinner size="lg" />
+            <div className="text-3xl font-heading font-bold text-slate-900">{highConfidence}</div>
           </div>
-        )}
-        
-        {!loadingDetail && selectedDump && (
-          <div className="space-y-6">
-            {/* Content */}
-            <div>
-              <h3 className="text-sm font-semibold text-slate-700 mb-2">Content</h3>
-              <p className="text-slate-900 bg-slate-50 p-4 rounded-lg border border-slate-200 whitespace-pre-wrap">
-                {selectedDump.raw_content || '[No content]'}
-              </p>
+          
+          <div className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-sans text-muted">Avg Confidence</span>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-secondary/10 to-secondary/20 flex items-center justify-center">
+                <svg className="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              </div>
             </div>
-
-            {/* AI Summary */}
-            {selectedDump.ai_summary && (
-              <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-2">AI Summary</h3>
-                <p className="text-slate-700 bg-blue-50 p-4 rounded-lg border border-blue-200">
-                  {selectedDump.ai_summary}
-                </p>
+            <div className="text-3xl font-heading font-bold text-slate-900">{avgConfidence}%</div>
+          </div>
+          
+          <div className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-sans text-muted">Categories</span>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500/10 to-orange-600/20 flex items-center justify-center">
+                <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
               </div>
-            )}
-
-            {/* Metadata Grid */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-2">Category</h3>
-                <Badge variant="default">{selectedDump.category?.name || 'Uncategorized'}</Badge>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-2">AI Confidence</h3>
-                <Badge variant={selectedDump.ai_confidence > 70 ? 'success' : 'warning'}>
-                  {selectedDump.ai_confidence}%
-                </Badge>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-2">Content Type</h3>
-                <span className="text-slate-900 font-mono text-sm">{selectedDump.content_type}</span>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-2">User</h3>
-                <span className="text-slate-900 font-mono text-sm">{selectedDump.user.phone_number}</span>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-2">Created</h3>
-                <span className="text-slate-700 text-sm">
-                  {new Date(selectedDump.created_at).toLocaleString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
-              </div>
-
-              {selectedDump.updated_at && (
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-700 mb-2">Updated</h3>
-                  <span className="text-slate-700 text-sm">
-                    {new Date(selectedDump.updated_at).toLocaleString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                </div>
-              )}
             </div>
+            <div className="text-3xl font-heading font-bold text-slate-900">{uniqueCategories}</div>
+          </div>
+        </div>
+      )}
 
-            {/* Extracted Entities */}
-            {selectedDump.extracted_entities && Object.keys(selectedDump.extracted_entities).length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-2">Extracted Entities</h3>
-                <pre className="text-xs text-slate-700 bg-slate-50 p-4 rounded-lg border border-slate-200 overflow-auto max-h-60">
-                  {JSON.stringify(selectedDump.extracted_entities, null, 2)}
-                </pre>
-              </div>
-            )}
+      {/* Dumps Table - Clutter.AI Design */}
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-100">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-heading font-bold text-slate-700 uppercase tracking-wider">
+                  Content
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-heading font-bold text-slate-700 uppercase tracking-wider">
+                  Category
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-heading font-bold text-slate-700 uppercase tracking-wider">
+                  Confidence
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-heading font-bold text-slate-700 uppercase tracking-wider">
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-heading font-bold text-slate-700 uppercase tracking-wider">
+                  Created
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-heading font-bold text-slate-700 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-50">
+              {dumps.map((dump) => (
+                <tr key={dump.id} className="hover:bg-slate-50 transition-colors cursor-pointer">
+                  <td className="px-6 py-5">
+                    <div className="flex items-start gap-2 max-w-md">
+                      <svg className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span className="text-sm text-gray-900 line-clamp-2">{dump.raw_content}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {dump.category ? (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800 border border-indigo-300">
+                        {dump.category.name}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getConfidenceColor(dump.ai_confidence)}`}>
+                      {dump.ai_confidence}%
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {dump.user?.phone_number || 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {new Date(dump.created_at).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <button
+                      onClick={() => handleRowClick(dump.id)}
+                      className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-primary to-secondary text-white rounded-xl transition-all hover:shadow-md gap-1.5"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      View
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-            {/* Metadata */}
-            {selectedDump.metadata && Object.keys(selectedDump.metadata).length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-2">Metadata</h3>
-                <pre className="text-xs text-slate-700 bg-slate-50 p-4 rounded-lg border border-slate-200 overflow-auto max-h-60">
-                  {JSON.stringify(selectedDump.metadata, null, 2)}
-                </pre>
-              </div>
-            )}
+      {/* Dump Detail Modal */}
+      {selectedDump && !loadingDetail && (
+        <DumpDetailModal
+          dump={selectedDump}
+          onClose={handleCloseModal}
+        />
+      )}
 
-            {/* ID (for reference) */}
-            <div>
-              <h3 className="text-sm font-semibold text-slate-700 mb-2">ID</h3>
-              <code className="text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded border border-slate-200">
-                {selectedDump.id}
-              </code>
+      {/* Loading Detail Modal */}
+      {loadingDetail && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4">
+            <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"></div>
+            <div className="relative bg-white rounded-lg p-8">
+              <Spinner />
             </div>
           </div>
-        )}
-        
-        {!loadingDetail && !selectedDump && (
-          <div className="text-center py-8 text-slate-500">
-            <p>No dump selected</p>
-          </div>
-        )}
-      </Modal>
+        </div>
+      )}
     </div>
   );
 };

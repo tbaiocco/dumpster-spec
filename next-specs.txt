@@ -36,3 +36,10 @@
 
 - Agentic personas?
     Identify which agents are important, order them by priority to implement and when to introduce them
+
+
+- IMPORTANT: Metrics
+    Active users: at least 5 dumps
+    Total users
+    Dumps per user per day/week
+    Features/commands used by user

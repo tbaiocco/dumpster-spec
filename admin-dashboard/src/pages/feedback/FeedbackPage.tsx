@@ -162,7 +162,7 @@ export const FeedbackPage: React.FC = () => {
         </div>
         <button
           onClick={loadFeedbacks}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-xl transition-all hover:shadow-md"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -332,7 +332,7 @@ export const FeedbackPage: React.FC = () => {
                       {/* View Details Button */}
                       <button
                         onClick={() => handleViewDetails(feedback.id)}
-                        className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm font-medium"
+                        className="px-3 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-xl transition-all hover:shadow-md text-sm font-medium"
                       >
                         View Details
                       </button>

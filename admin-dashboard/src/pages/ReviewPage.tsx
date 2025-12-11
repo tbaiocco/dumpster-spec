@@ -1,11 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
-import { Badge } from '../components/ui/Badge';
-import { Button } from '../components/ui/Button';
-import { Modal } from '../components/ui/Modal';
-import { Spinner } from '../components/ui/Spinner';
 import apiService from '../services/api.service';
+import { Spinner } from '../components/ui/Spinner';
+import { ReviewDetailModal } from '../components/review/ReviewDetailModal';
 
 interface Review {
   id: string;
@@ -13,7 +9,7 @@ interface Review {
     id: string;
     rawContent: string;
     category?: { name: string };
-    aiConfidence: number; // 0-100 integer
+    aiConfidence: number;
   };
   priority: 'low' | 'medium' | 'high' | 'critical';
   status: 'pending' | 'approved' | 'rejected';
@@ -41,17 +37,13 @@ export const ReviewPage: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
-  const [showModal, setShowModal] = useState(false);
-  const [editedContent, setEditedContent] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [notes, setNotes] = useState('');
-
-  console.log('[ReviewPage] Render - showModal:', showModal, 'selectedReview:', selectedReview);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
 
   useEffect(() => {
     loadReviews();
     loadCategories();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter]);
 
   const loadCategories = async () => {
     const response = await apiService.getCategories();
@@ -62,277 +54,257 @@ export const ReviewPage: React.FC = () => {
 
   const loadReviews = async () => {
     setLoading(true);
-    const response = await apiService.getReviews({ status: 'pending' });
-    console.log('[ReviewPage] API response:', response);
+    const filterParam = statusFilter === 'all' ? undefined : statusFilter;
+    const response = await apiService.getReviews({ status: filterParam });
     if (response.success && response.data) {
-      // Backend returns array directly in data field
       const reviewsData = Array.isArray(response.data) ? response.data : [];
-      console.log('[ReviewPage] Setting reviews:', reviewsData);
       setReviews(reviewsData);
     }
     setLoading(false);
   };
 
-  const handleApprove = async (dumpId: string) => {
-    const payload: {
-      raw_content?: string;
-      category?: string;
-      notes?: string;
-    } = {};
-
-    // Only include fields that were modified
-    if (editedContent && editedContent !== selectedReview?.dump.rawContent) {
-      payload.raw_content = editedContent;
-    }
-    if (selectedCategory) {
-      payload.category = selectedCategory;
-    }
-    if (notes) {
-      payload.notes = notes;
-    }
-
-    const response = await apiService.approveReview(dumpId, payload);
-    if (response.success) {
-      await loadReviews();
-      setShowModal(false);
-      resetForm();
+  const handleApprove = async (dumpId: string, data: { raw_content?: string; category?: string; notes?: string }) => {
+    try {
+      const response = await apiService.approveReview(dumpId, data);
+      if (response.success) {
+        setSelectedReview(null);
+        loadReviews();
+      }
+    } catch (error) {
+      console.error('[ReviewPage] Error approving review:', error);
     }
   };
 
-  const handleReject = async (dumpId: string) => {
-    const response = await apiService.rejectReview(dumpId, 'Rejected by admin', notes || 'Low quality content');
-    if (response.success) {
-      await loadReviews();
-      setShowModal(false);
-      resetForm();
+  const handleReject = async (dumpId: string, reason: string, notes?: string) => {
+    try {
+      const response = await apiService.rejectReview(dumpId, reason, notes);
+      if (response.success) {
+        setSelectedReview(null);
+        loadReviews();
+      }
+    } catch (error) {
+      console.error('[ReviewPage] Error rejecting review:', error);
     }
   };
 
-  const resetForm = () => {
-    setEditedContent('');
-    setSelectedCategory('');
-    setNotes('');
-  };
-
-  const openReviewModal = (review: Review) => {
-    console.log('[ReviewPage] Review button clicked for:', review);
-    setSelectedReview(review);
-    setEditedContent(review.dump.rawContent);
-    setSelectedCategory(review.dump.category?.name || '');
-    setNotes('');
-    setShowModal(true);
-    console.log('[ReviewPage] Modal state set to true');
-  };
-
-  const priorityVariant = (priority: string) => {
-    switch (priority) {
-      case 'critical': return 'error';
-      case 'high': return 'warning';
-      case 'medium': return 'info';
-      default: return 'default';
-    }
+  const handleCloseModal = () => {
+    setSelectedReview(null);
   };
 
   if (loading) {
-    return <Spinner size="lg" className="mt-20" />;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Spinner />
+      </div>
+    );
   }
 
+  const pendingCount = reviews.filter(r => r.status === 'pending').length;
+  const approvedCount = reviews.filter(r => r.status === 'approved').length;
+  const rejectedCount = reviews.filter(r => r.status === 'rejected').length;
+  const criticalCount = reviews.filter(r => r.priority === 'critical' && r.status === 'pending').length;
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'critical': return 'text-red-800 bg-red-100 border-red-300';
+      case 'high': return 'text-orange-800 bg-orange-100 border-orange-300';
+      case 'medium': return 'text-yellow-800 bg-yellow-100 border-yellow-300';
+      default: return 'text-blue-800 bg-blue-100 border-blue-300';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'approved': return 'text-green-800 bg-green-100 border-green-300';
+      case 'rejected': return 'text-red-800 bg-red-100 border-red-300';
+      default: return 'text-yellow-800 bg-yellow-100 border-yellow-300';
+    }
+  };
+
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Page Header */}
-      <div className="space-y-2">
-        <h1 className="text-4xl font-display font-bold text-gradient">✅ Content Review</h1>
-        <p className="text-lg text-slate-600">Review flagged content with low AI confidence scores</p>
+    <div>
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900">Content Review</h1>
+        </div>
+        <p className="text-gray-600 ml-14">Review and moderate flagged content requiring manual attention</p>
       </div>
 
-      <Card hover>
-        <CardHeader>
-          <CardTitle>
-            Flagged Content
-            {' '}
-            <span className="ml-2 text-sm font-medium text-slate-600">
-              ({reviews.length} pending review)
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {reviews.length === 0 ? (
-            <div className="text-center py-16 text-slate-500">
-              <div className="text-6xl mb-4 opacity-50">✅</div>
-              <p className="text-sm">No items pending review. All content has been processed!</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto rounded-lg border border-slate-200">
-              <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Content</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Confidence</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Flagged</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {reviews.map((review) => (
-                  <TableRow key={review.id}>
-                    <TableCell className="max-w-md truncate">{review.dump.rawContent}</TableCell>
-                    <TableCell>
-                      <Badge variant="default">
-                        {review.dump.category?.name || 'Uncategorized'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={review.dump.aiConfidence > 70 ? 'success' : 'error'}>
-                        {review.dump.aiConfidence}%
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={priorityVariant(review.priority)}>
-                        {review.priority}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(review.flaggedAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openReviewModal(review)}
-                      >
-                        Review
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Review Modal */}
-      <Modal
-        isOpen={showModal && selectedReview !== null}
-        onClose={() => {
-          setShowModal(false);
-          setSelectedReview(null);
-          resetForm();
-        }}
-        title="📋 Review Content Details"
-        size="lg"
-      >
-        {selectedReview && (
-          <div className="space-y-4">
-            {/* Editable Content */}
-            <div>
-              <label htmlFor="content-edit" className="block font-medium text-gray-700 mb-2" style={{ fontSize: '0.875rem' }}>
-                Content
-              </label>
-              <textarea
-                id="content-edit"
-                value={editedContent}
-                onChange={(e) => setEditedContent(e.target.value)}
-                rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                style={{ fontFamily: 'inherit', fontSize: '0.875rem', lineHeight: '1.5' }}
-              />
-            </div>
-
-            {/* Category Selector */}
-            <div>
-              <label htmlFor="category-select" className="block font-medium text-gray-700 mb-2" style={{ fontSize: '0.875rem' }}>
-                Category
-              </label>
-              <select
-                id="category-select"
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                style={{ fontSize: '0.875rem' }}
-              >
-                <option value="">-- Select Category --</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.name}>
-                    {cat.icon} {cat.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* AI Confidence and Priority Info */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <h4 className="font-medium text-gray-700 mb-2" style={{ fontSize: '0.875rem' }}>AI Confidence</h4>
-                <Badge variant={selectedReview.dump.aiConfidence > 70 ? 'success' : 'error'}>
-                  {selectedReview.dump.aiConfidence}%
-                </Badge>
-              </div>
-              <div>
-                <h4 className="font-medium text-gray-700 mb-2" style={{ fontSize: '0.875rem' }}>Priority</h4>
-                <Badge variant={priorityVariant(selectedReview.priority)}>
-                  {selectedReview.priority}
-                </Badge>
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label htmlFor="review-notes" className="block font-medium text-gray-700 mb-2" style={{ fontSize: '0.875rem' }}>
-                Review Notes (optional)
-              </label>
-              <textarea
-                id="review-notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={2}
-                placeholder="Add any notes about this review..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                style={{ fontFamily: 'inherit', fontSize: '0.875rem', lineHeight: '1.5' }}
-              />
-            </div>
-
-            {selectedReview.user && (
-              <div style={{ 
-                padding: 'var(--spacing-md)', 
-                background: 'var(--color-gray-50)',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.875rem'
-              }}>
-                <strong>User:</strong> {selectedReview.user.phoneNumber}
-              </div>
-            )}
-
-            <div className="flex gap-4 pt-4 border-t border-slate-200">
-              <Button
-                variant="default"
-                onClick={() => handleApprove(selectedReview.dump.id)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
-              >
-                ✓ Approve
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => handleReject(selectedReview.dump.id)}
-              >
-                ✗ Reject
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowModal(false);
-                  resetForm();
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl p-6 text-white shadow-lg">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-yellow-100">Pending</span>
+            <svg className="w-8 h-8 text-yellow-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </div>
-        )}
-      </Modal>
+          <div className="text-3xl font-bold">{pendingCount}</div>
+        </div>
+        
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-green-100">Approved</span>
+            <svg className="w-8 h-8 text-green-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div className="text-3xl font-bold">{approvedCount}</div>
+        </div>
+        
+        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-6 text-white shadow-lg">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-red-100">Rejected</span>
+            <svg className="w-8 h-8 text-red-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div className="text-3xl font-bold">{rejectedCount}</div>
+        </div>
+        
+        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-orange-100">Critical Priority</span>
+            <svg className="w-8 h-8 text-orange-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div className="text-3xl font-bold">{criticalCount}</div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="mb-6 flex gap-3">
+        <button
+          onClick={() => setStatusFilter('all')}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            statusFilter === 'all'
+              ? 'bg-purple-600 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          All
+        </button>
+        <button
+          onClick={() => setStatusFilter('pending')}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            statusFilter === 'pending'
+              ? 'bg-purple-600 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          Pending
+        </button>
+        <button
+          onClick={() => setStatusFilter('approved')}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            statusFilter === 'approved'
+              ? 'bg-purple-600 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          Approved
+        </button>
+        <button
+          onClick={() => setStatusFilter('rejected')}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            statusFilter === 'rejected'
+              ? 'bg-purple-600 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          Rejected
+        </button>
+      </div>
+
+      {/* Reviews Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Content
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Priority
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Confidence
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Flagged
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-100">
+              {reviews.map((review) => (
+                <tr key={review.id} className="hover:bg-purple-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-start gap-2 max-w-md">
+                      <svg className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span className="text-sm text-gray-900 line-clamp-2">{review.dump.rawContent}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border uppercase ${getPriorityColor(review.priority)}`}>
+                      {review.priority}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border uppercase ${getStatusColor(review.status)}`}>
+                      {review.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {review.dump.aiConfidence}%
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {new Date(review.flaggedAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <button
+                      onClick={() => setSelectedReview(review)}
+                      className="inline-flex items-center px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors gap-1.5"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      Review
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Review Detail Modal */}
+      {selectedReview && (
+        <ReviewDetailModal
+          review={selectedReview}
+          categories={categories}
+          onClose={handleCloseModal}
+          onApprove={handleApprove}
+          onReject={handleReject}
+        />
+      )}
     </div>
   );
 };

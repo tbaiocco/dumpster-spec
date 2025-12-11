@@ -1,57 +1,51 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { 
+  LayoutDashboard, 
+  Users, 
+  FileText, 
+  CheckCircle, 
+  MessageSquare, 
+  BarChart3, 
+  Search, 
+  Lightbulb, 
+  LogOut,
+  ChevronLeft,
+  ChevronRight
+} from 'lucide-react';
 import apiService from '../services/api.service';
+import logo from '../logo.svg';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
-// Navigation items with proper organization
+// Navigation items with Lucide React icons
 const mainNavigation = [
   { 
     name: 'Dashboard', 
     href: '/dashboard',
-    icon: (
-      <svg className="w-6 h-6 stroke-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-      </svg>
-    )
+    icon: LayoutDashboard
   },
   { 
     name: 'Users', 
     href: '/users',
-    icon: (
-      <svg className="w-6 h-6 stroke-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-      </svg>
-    )
+    icon: Users
   },
   { 
     name: 'Dumps', 
     href: '/dumps',
-    icon: (
-      <svg className="w-6 h-6 stroke-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
-      </svg>
-    )
+    icon: FileText
   },
   { 
     name: 'Reviews', 
     href: '/reviews',
-    icon: (
-      <svg className="w-6 h-6 stroke-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    )
+    icon: CheckCircle
   },
   { 
     name: 'Feedback', 
     href: '/feedback',
-    icon: (
-      <svg className="w-6 h-6 stroke-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-      </svg>
-    )
+    icon: MessageSquare
   },
 ];
 
@@ -59,29 +53,17 @@ const analyticsNavigation = [
   { 
     name: 'Analytics', 
     href: '/analytics',
-    icon: (
-      <svg className="w-6 h-6 stroke-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
-    )
+    icon: BarChart3
   },
   { 
     name: 'Search Metrics', 
     href: '/analytics/search',
-    icon: (
-      <svg className="w-6 h-6 stroke-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
-    )
+    icon: Search
   },
   { 
     name: 'AI Metrics', 
     href: '/analytics/ai',
-    icon: (
-      <svg className="w-6 h-6 stroke-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-      </svg>
-    )
+    icon: Lightbulb
   },
 ];
 
@@ -104,56 +86,61 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 ${isCollapsed ? 'w-16' : 'w-64'} bg-gray-900 transition-all duration-300 ease-in-out`}>
-        <div className="flex h-full flex-col overflow-hidden text-gray-400">
-          {/* Logo */}
-          <div className={`flex ${isCollapsed ? 'justify-center' : 'w-full px-3'} mt-3`}>
-            <Link to="/dashboard" className={`flex items-center ${isCollapsed ? 'justify-center' : 'w-full'} group`}>
+    <div className="min-h-screen bg-[#FAFAF9]">
+      {/* Sidebar - Clutter.AI Design */}
+      <aside className={`fixed inset-y-0 left-0 z-50 ${isCollapsed ? 'w-20' : 'w-64'} bg-white border-r border-slate-100 transition-all duration-300 ease-in-out shadow-soft`}>
+        <div className="flex h-full flex-col">
+          {/* Logo Section */}
+          <div className={`flex ${isCollapsed ? 'justify-center' : 'items-center px-6'} h-20 border-b border-slate-100`}>
+            <Link to="/dashboard" className="flex items-center gap-3 group">
               <img 
-                src="/logo192.png" 
-                alt="Clutter.AI Logo" 
-                className="w-8 h-8 object-contain"
+                src={logo} 
+                alt="Clutter.AI" 
+                className="w-10 h-10 object-contain"
               />
               {!isCollapsed && (
-                  <span className="ml-2 text-xl font-bold text-white" style={{ fontFamily: "'Bagel Fat One', system-ui" }}>Clutter.AI</span>
+                <span className="text-2xl font-heading font-bold text-gradient">The Clutter.APP</span>
               )}
             </Link>
           </div>
 
           {/* Toggle Button */}
-          <div className={`${isCollapsed ? 'px-2' : 'px-3'} mt-3`}>
+          <div className={`${isCollapsed ? 'px-4' : 'px-4'} mt-4`}>
             <button
               onClick={toggleSidebar}
-              className="flex items-center justify-center w-full h-10 rounded hover:bg-gray-700 hover:text-gray-300 transition-colors"
+              className="flex items-center justify-center w-full h-10 rounded-xl hover:bg-slate-50 text-slate-400 hover:text-slate-600 transition-all duration-200"
               title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
-              <svg className="w-6 h-6 stroke-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={isCollapsed ? "M13 5l7 7-7 7M5 5l7 7-7 7" : "M11 19l-7-7 7-7m8 14l-7-7 7-7"} />
-              </svg>
+              {isCollapsed ? <ChevronRight className="w-5 h-5" strokeWidth={2} /> : <ChevronLeft className="w-5 h-5" strokeWidth={2} />}
             </button>
           </div>
 
           {/* Main Navigation */}
-          <div className={`${isCollapsed ? 'px-2' : 'w-full px-2'}`}>
-            <div className="flex flex-col items-center w-full mt-3 border-t border-gray-700">
+          <nav className={`flex-1 ${isCollapsed ? 'px-3' : 'px-4'} mt-6 space-y-1 overflow-y-auto`}>
+            {/* Main Section */}
+            <div className="space-y-1">
               {mainNavigation.map((item) => {
                 const isActive = location.pathname === item.href;
+                const Icon = item.icon;
                 return (
                   <Link
                     key={item.name}
                     to={item.href}
-                    className={`flex items-center ${isCollapsed ? 'justify-center w-12' : 'w-full px-3'} h-12 mt-2 rounded ${
+                    className={`flex items-center gap-3 ${isCollapsed ? 'justify-center px-3' : 'px-4'} h-12 rounded-xl font-sans text-sm font-medium transition-all duration-200 group relative ${
                       isActive 
-                        ? 'bg-gray-700 text-gray-200' 
-                        : 'hover:bg-gray-700 hover:text-gray-300'
-                    } transition-colors`}
+                        ? 'bg-primary/10 text-primary shadow-sm' 
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
                     title={isCollapsed ? item.name : undefined}
                   >
-                    {item.icon}
+                    {/* Active Indicator */}
+                    {isActive && (
+                      <div className="absolute left-0 w-1 h-8 bg-gradient-to-b from-primary to-secondary rounded-r-full" />
+                    )}
+                    
+                    <Icon className={`w-5 h-5 ${isCollapsed ? '' : 'ml-2'}`} strokeWidth={2} />
                     {!isCollapsed && (
-                      <span className="ml-2 text-sm font-medium">{item.name}</span>
+                      <span>{item.name}</span>
                     )}
                   </Link>
                 );
@@ -161,42 +148,53 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             </div>
 
             {/* Analytics Section */}
-            <div className="flex flex-col items-center w-full mt-2 border-t border-gray-700">
-              {analyticsNavigation.map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`flex items-center ${isCollapsed ? 'justify-center w-12' : 'w-full px-3'} h-12 mt-2 rounded ${
-                      isActive 
-                        ? 'bg-gray-700 text-gray-200' 
-                        : 'hover:bg-gray-700 hover:text-gray-300'
-                    } transition-colors`}
-                    title={isCollapsed ? item.name : undefined}
-                  >
-                    {item.icon}
-                    {!isCollapsed && (
-                      <span className="ml-2 text-sm font-medium">{item.name}</span>
-                    )}
-                  </Link>
-                );
-              })}
+            <div className="pt-6 mt-6 border-t border-slate-100">
+              {!isCollapsed && (
+                <p className="px-4 mb-3 text-xs font-heading font-semibold text-slate-400 uppercase tracking-wider">
+                  Analytics
+                </p>
+              )}
+              <div className="space-y-1">
+                {analyticsNavigation.map((item) => {
+                  const isActive = location.pathname === item.href;
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className={`flex items-center gap-3 ${isCollapsed ? 'justify-center px-3' : 'px-4'} h-12 rounded-xl font-sans text-sm font-medium transition-all duration-200 group relative ${
+                        isActive 
+                          ? 'bg-primary/10 text-primary shadow-sm' 
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                      title={isCollapsed ? item.name : undefined}
+                    >
+                      {/* Active Indicator */}
+                      {isActive && (
+                        <div className="absolute left-0 w-1 h-8 bg-gradient-to-b from-primary to-secondary rounded-r-full" />
+                      )}
+                      
+                      <Icon className={`w-5 h-5 ${isCollapsed ? '' : 'ml-2'}`} strokeWidth={2} />
+                      {!isCollapsed && (
+                        <span>{item.name}</span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          </nav>
 
           {/* User Section at Bottom */}
-          <div className="mt-auto">
+          <div className="border-t border-slate-100">
             <button
               onClick={handleLogout}
-              className={`flex items-center justify-center w-full h-16 bg-gray-800 hover:bg-gray-700 hover:text-gray-300 transition-colors`}
+              className={`flex items-center gap-3 ${isCollapsed ? 'justify-center px-3' : 'px-4'} w-full h-16 text-slate-600 hover:bg-red-50 hover:text-red-600 transition-all duration-200 font-sans text-sm font-medium`}
               title={isCollapsed ? 'Logout' : undefined}
             >
-              <svg className="w-6 h-6 stroke-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
+              <LogOut className="w-5 h-5" strokeWidth={2} />
               {!isCollapsed && (
-                <span className="ml-2 text-sm font-medium">Logout</span>
+                <span>Logout</span>
               )}
             </button>
           </div>
@@ -204,7 +202,36 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       </aside>
 
       {/* Main Content */}
-      <div className={`${isCollapsed ? 'pl-16' : 'pl-64'} transition-all duration-300 ease-in-out`}>
+      <div className={`${isCollapsed ? 'pl-20' : 'pl-64'} transition-all duration-300 ease-in-out`}>
+        {/* Topbar - Glassmorphism */}
+        <header className="sticky top-0 z-40 backdrop-blur-lg bg-white/80 border-b border-slate-100 shadow-soft">
+          <div className="px-8 py-4">
+            <div className="flex items-center justify-between">
+              {/* Page Title or Breadcrumbs can go here */}
+              <div className="flex-1"></div>
+              
+              {/* Right Side - Notifications, Profile, etc */}
+              <div className="flex items-center gap-4">
+                {/* Notification Icon */}
+                <button className="relative p-2 rounded-xl hover:bg-slate-50 text-slate-400 hover:text-slate-600 transition-colors">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-secondary rounded-full ring-2 ring-white"></span>
+                </button>
+
+                {/* User Avatar */}
+                <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-brand flex items-center justify-center shadow-purple">
+                    <span className="text-white font-heading font-bold text-sm">AD</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Page Content */}
         <main className="py-8 px-8">
           <div className="mx-auto max-w-7xl">
             {children}
