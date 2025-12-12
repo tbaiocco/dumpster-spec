@@ -355,8 +355,7 @@ export class FeedbackService {
     if (resolvedFeedback.length > 0) {
       const totalResolutionTimeMs = resolvedFeedback.reduce((sum, feedback) => {
         return (
-          sum +
-          (feedback.resolved_at!.getTime() - feedback.created_at.getTime())
+          sum + (feedback.resolved_at.getTime() - feedback.created_at.getTime())
         );
       }, 0);
 

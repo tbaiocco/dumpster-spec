@@ -18,6 +18,7 @@ import { SearchModule } from '../search/search.module';
 import { FeedbackModule } from '../feedback/feedback.module';
 import { ReminderModule } from '../reminders/reminder.module';
 import { TrackingModule } from '../tracking/tracking.module';
+import { MetricsModule } from '../metrics/metrics.module';
 import { ResponseFormatterService } from '../ai/formatter.service';
 import { TranslationService } from '../ai/translation.service';
 import { ClaudeService } from '../ai/claude.service';
@@ -32,11 +33,9 @@ import { User } from '../../entities/user.entity';
     FeedbackModule,
     ReminderModule,
     TrackingModule,
+    MetricsModule,
   ],
-  controllers: [
-    TelegramWebhookController,
-    WhatsAppWebhookController,
-  ],
+  controllers: [TelegramWebhookController, WhatsAppWebhookController],
   providers: [
     TelegramService,
     WhatsAppService,

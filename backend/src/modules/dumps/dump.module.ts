@@ -30,17 +30,16 @@ import { UserModule } from '../users/user.module';
 import { VectorService } from '../search/vector.service';
 import { DatabaseInitService } from '../../database/database-init.service';
 import { BotsModule } from '../bots/bots.module';
+import { MetricsModule } from '../metrics/metrics.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Dump, Category, Reminder, User]),
     UserModule, // Import UserModule to make UserService available
     forwardRef(() => BotsModule), // Use forwardRef to resolve circular dependency
+    MetricsModule,
   ],
-  controllers: [
-    DumpController,
-    ReviewController,
-  ],
+  controllers: [DumpController, ReviewController],
   providers: [
     DumpService,
     // AI Services

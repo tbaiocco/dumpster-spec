@@ -11,6 +11,7 @@ import { SemanticSearchService } from './semantic-search.service';
 import { RankingService, EnhancedQuery } from './ranking.service';
 import { FuzzyMatchService } from './fuzzy-match.service';
 import { FiltersService } from './filters.service';
+import { MetricsService } from '../metrics/metrics.service';
 
 export interface SearchRequest {
   query: string;
@@ -79,6 +80,7 @@ export class SearchService {
     private readonly rankingService: RankingService,
     private readonly fuzzyMatchService: FuzzyMatchService,
     private readonly filtersService: FiltersService,
+    private readonly metricsService: MetricsService,
   ) {}
 
   /**
@@ -111,16 +113,19 @@ export class SearchService {
             : 'complex',
     };
   }
-
   /**
    * Main search entry point with natural language processing
    */
   async search(request: SearchRequest): Promise<SearchResponse> {
-    const startTime = Date.now();
+    const startTime = performance.now(); // Use high-precision timer
 
     this.logger.log(
       `Search request: "${request.query}" for user ${request.userId}`,
     );
+
+    let resultsCount = 0;
+    let searchType: 'vector' | 'fuzzy' | 'exact' | 'hybrid' = 'hybrid';
+    let success = true;
 
     try {
       // Step 1: Enhance query using AI
@@ -189,10 +194,16 @@ export class SearchService {
         request.limit || 20,
       );
 
-      const processingTime = Date.now() - startTime;
+      resultsCount = rankedResults.length;
+      searchType = this.determineSearchType(
+        semanticResults,
+        fuzzyResults,
+        exactResults,
+      );
 
-      // Get vector health metrics for monitoring
-      const vectorHealth = await this.getVectorHealthMetrics();
+      // Calculate processing time and get vector health
+      const processingTime = Math.round(performance.now() - startTime);
+      const vectorHealthCheck = await this.checkVectorHealth();
 
       const response: SearchResponse = {
         results: paginatedResults,
@@ -206,7 +217,7 @@ export class SearchService {
           semanticResults: semanticResults.length,
           fuzzyResults: fuzzyResults.length,
           exactResults: exactResults.length,
-          vectorHealth,
+          vectorHealth: vectorHealthCheck.metrics,
           filters: request.filters || {},
         },
       };
@@ -216,9 +227,53 @@ export class SearchService {
       );
       return response;
     } catch (error) {
+      success = false;
       this.logger.error('Search failed:', error);
       throw new Error(`Search failed: ${error.message}`);
+    } finally {
+      // ASYNC METRIC TRACKING (Fire-and-Forget)
+      const latencyMs = performance.now() - startTime;
+      this.metricsService.fireAndForget(() =>
+        this.metricsService.trackSearch({
+          queryText: request.query,
+          queryLength: request.query.length,
+          resultsCount,
+          latencyMs,
+          searchType,
+          userId: request.userId,
+          success,
+          metadata: {
+            filters: request.filters,
+          },
+        }),
+      );
     }
+  }
+
+  /**
+   * Determine the predominant search type based on results
+   */
+  private determineSearchType(
+    semanticResults: SearchResult[],
+    fuzzyResults: SearchResult[],
+    exactResults: SearchResult[],
+  ): 'vector' | 'fuzzy' | 'exact' | 'hybrid' {
+    const counts = {
+      semantic: semanticResults.length,
+      fuzzy: fuzzyResults.length,
+      exact: exactResults.length,
+    };
+
+    // If we have results from multiple sources, it's hybrid
+    const nonZero = Object.values(counts).filter((c) => c > 0).length;
+    if (nonZero > 1) return 'hybrid';
+
+    // Otherwise, return the dominant type
+    if (counts.semantic > 0) return 'vector';
+    if (counts.fuzzy > 0) return 'fuzzy';
+    if (counts.exact > 0) return 'exact';
+
+    return 'hybrid';
   }
 
   /**

@@ -69,9 +69,7 @@ export class UpcomingCommand {
       if (grouped.tomorrow.length > 0) {
         response += '━━━━━━━━━━━━━━━━━━\n';
         response +=
-          platform === 'whatsapp'
-            ? '📅 *TOMORROW*\n'
-            : '📅 <b>TOMORROW</b>\n';
+          platform === 'whatsapp' ? '📅 *TOMORROW*\n' : '📅 <b>TOMORROW</b>\n';
         response += this.formatReminders(grouped.tomorrow, platform);
       }
 
@@ -141,7 +139,8 @@ export class UpcomingCommand {
       const reminderTime = new Date(reminder.scheduled_for);
 
       // Within 1 hour or overdue
-      const diffMinutes = (reminderTime.getTime() - now.getTime()) / (1000 * 60);
+      const diffMinutes =
+        (reminderTime.getTime() - now.getTime()) / (1000 * 60);
       if (diffMinutes <= 60) {
         grouped.now.push(reminder);
       }
@@ -171,11 +170,11 @@ export class UpcomingCommand {
     for (const reminder of reminders) {
       const icon = this.getReminderIcon(reminder.reminder_type);
       const time = this.formatTime(new Date(reminder.scheduled_for));
-      
+
       // Title/message
       const title = reminder.message || 'Reminder';
       const titleText = platform === 'whatsapp' ? title : title;
-      
+
       output += `${icon} ${titleText}\n`;
       output += `   📅 ${time}\n`;
 

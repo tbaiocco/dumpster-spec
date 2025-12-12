@@ -67,6 +67,19 @@ export class AdminController {
   }
 
   /**
+   * Get feature usage statistics (NEW)
+   */
+  @Get('analytics/features')
+  async getFeatureStats() {
+    const stats = await this.adminService.getFeatureStats();
+
+    return {
+      success: true,
+      data: stats,
+    };
+  }
+
+  /**
    * Get all dumps for admin overview
    * Used by: DumpsPage (T082)
    */

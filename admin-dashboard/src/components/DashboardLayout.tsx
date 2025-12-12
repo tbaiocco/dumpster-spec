@@ -11,7 +11,9 @@ import {
   Lightbulb, 
   LogOut,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Zap,
+  Activity
 } from 'lucide-react';
 import apiService from '../services/api.service';
 import logo from '../logo.svg';
@@ -65,6 +67,16 @@ const analyticsNavigation = [
     href: '/analytics/ai',
     icon: Lightbulb
   },
+  { 
+    name: 'User Stats', 
+    href: '/analytics/users',
+    icon: Activity
+  },
+  { 
+    name: 'Feature Usage', 
+    href: '/analytics/features',
+    icon: Zap
+  },
 ];
 
 /**
@@ -91,16 +103,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       <aside className={`fixed inset-y-0 left-0 z-50 ${isCollapsed ? 'w-20' : 'w-64'} bg-white border-r border-slate-100 transition-all duration-300 ease-in-out shadow-soft`}>
         <div className="flex h-full flex-col">
           {/* Logo Section */}
-          <div className={`flex ${isCollapsed ? 'justify-center' : 'items-center px-6'} h-20 border-b border-slate-100`}>
+          <div className={`flex justify-center h-20 border-b border-slate-100`}>
             <Link to="/dashboard" className="flex items-center gap-3 group">
               <img 
                 src={logo} 
                 alt="Clutter.AI" 
                 className="w-10 h-10 object-contain"
               />
-              {!isCollapsed && (
-                <span className="text-2xl font-heading font-bold text-gradient">The Clutter.APP</span>
-              )}
             </Link>
           </div>
 
@@ -208,7 +217,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
           <div className="px-8 py-4">
             <div className="flex items-center justify-between">
               {/* Page Title or Breadcrumbs can go here */}
-              <div className="flex-1"></div>
+              <div className="flex-1">
+                <span className="text-2xl font-heading font-bold text-gradient">The Clutter.APP</span>
+              </div>
               
               {/* Right Side - Notifications, Profile, etc */}
               <div className="flex items-center gap-4">

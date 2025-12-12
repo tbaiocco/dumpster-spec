@@ -13,6 +13,8 @@ import { TrackCommand } from './commands/track.command';
 import { SearchCommand } from './commands/search.command';
 import { ReportCommand } from './commands/report.command';
 import { ResponseFormatterService } from '../ai/formatter.service';
+import { MetricsService } from '../metrics/metrics.service';
+import { FeatureType } from '../../entities/feature-usage.entity';
 import { EntityExtractionResult } from '../ai/extraction.service';
 import { ContentAnalysisResponse } from '../ai/claude.service';
 
@@ -138,6 +140,7 @@ export class WhatsAppService {
     private readonly searchCommand: SearchCommand,
     private readonly reportCommand: ReportCommand,
     private readonly responseFormatterService: ResponseFormatterService,
+    private readonly metricsService: MetricsService,
   ) {
     // Twilio WhatsApp API Configuration
     this.authToken =
@@ -159,8 +162,8 @@ export class WhatsAppService {
     this.logger.log(`Sending WhatsApp message to ${request.to}`);
 
     // Ensure phone number has whatsapp: prefix for Twilio
-    const toNumber = request.to.startsWith('whatsapp:') 
-      ? request.to 
+    const toNumber = request.to.startsWith('whatsapp:')
+      ? request.to
       : `whatsapp:${request.to}`;
 
     // Convert to Twilio format
@@ -209,7 +212,7 @@ export class WhatsAppService {
     // Extract analysis and entities from the dump
     const dump = result.dump;
     const extractedEntities = dump.extracted_entities || {};
-    
+
     // Build ContentAnalysisResponse from dump data
     const analysis: ContentAnalysisResponse = {
       summary: dump.ai_summary || '',
@@ -225,15 +228,27 @@ export class WhatsAppService {
         tags: [],
       },
       actionItems: extractedEntities.actionItems || [],
-      sentiment: (extractedEntities.sentiment as 'positive' | 'neutral' | 'negative') || 'neutral',
-      urgency: (extractedEntities.urgency as 'low' | 'medium' | 'high') || 'low',
+      sentiment:
+        (extractedEntities.sentiment as 'positive' | 'neutral' | 'negative') ||
+        'neutral',
+      urgency:
+        (extractedEntities.urgency as 'low' | 'medium' | 'high') || 'low',
       confidence: (dump.ai_confidence || 95) / 100,
     };
 
     // Build EntityExtractionResult from dump data
     const entities: EntityExtractionResult = {
       entities: (extractedEntities.entityDetails || []).map((entity: any) => ({
-        type: entity.type as 'date' | 'time' | 'location' | 'person' | 'organization' | 'amount' | 'phone' | 'email' | 'url',
+        type: entity.type as
+          | 'date'
+          | 'time'
+          | 'location'
+          | 'person'
+          | 'organization'
+          | 'amount'
+          | 'phone'
+          | 'email'
+          | 'url',
         value: entity.value,
         confidence: entity.confidence,
         context: entity.context,
@@ -260,20 +275,22 @@ export class WhatsAppService {
     };
 
     // Use ResponseFormatterService with brief format
-    const formatted = await this.responseFormatterService.formatAnalysisResponse(
-      userId,
-      analysis,
-      entities,
-      {
-        platform: 'whatsapp',
-        format: 'brief',
-        includeEmojis: true,
-        includeMarkdown: false, // WhatsApp uses basic markdown
-      },
-    );
+    const formatted =
+      await this.responseFormatterService.formatAnalysisResponse(
+        userId,
+        analysis,
+        entities,
+        {
+          platform: 'whatsapp',
+          format: 'brief',
+          includeEmojis: true,
+          includeMarkdown: false, // WhatsApp uses basic markdown
+        },
+      );
 
     // WhatsApp doesn't support HTML, use plain text
-    const messageText = formatted.text || formatted.html || 'Content processed successfully';
+    const messageText =
+      formatted.text || formatted.html || 'Content processed successfully';
 
     const response = await this.sendTextMessage(to, messageText);
     return response.id;
@@ -379,7 +396,9 @@ export class WhatsAppService {
       if (!user) {
         // This should not happen as webhook controller handles registration
         // But keeping as safety fallback
-        this.logger.warn(`User not found for WhatsApp number ${phoneNumber} - skipping message processing`);
+        this.logger.warn(
+          `User not found for WhatsApp number ${phoneNumber} - skipping message processing`,
+        );
         return;
       }
 
@@ -431,9 +450,9 @@ export class WhatsAppService {
       text.startsWith('/') ||
       text.toLowerCase().includes('help') ||
       text.toLowerCase().includes('start') ||
-      text.toLowerCase().includes('more')||
-      text.toLowerCase().includes('recent')||
-      text.toLowerCase().includes('report')||
+      text.toLowerCase().includes('more') ||
+      text.toLowerCase().includes('recent') ||
+      text.toLowerCase().includes('report') ||
       text.toLowerCase().includes('search')
     ) {
       await this.handleCommand(text, phoneNumber, userId);
@@ -471,11 +490,7 @@ export class WhatsAppService {
       }
 
       // Send success response with processing details
-      await this.sendFormattedResponse(
-        userId,
-        phoneNumber,
-        result,
-      );
+      await this.sendFormattedResponse(userId, phoneNumber, result);
     } catch (error) {
       this.logger.error('Error processing text message:', error);
 
@@ -532,11 +547,7 @@ export class WhatsAppService {
       const result = await this.dumpService.createDumpEnhanced(dumpRequest);
 
       // Send success response with processing details
-      await this.sendFormattedResponse(
-        userId,
-        phoneNumber,
-        result,
-      );
+      await this.sendFormattedResponse(userId, phoneNumber, result);
     } catch (error) {
       this.logger.error('Error handling audio message:', error);
       await this.sendTextMessage(
@@ -583,11 +594,7 @@ export class WhatsAppService {
       const result = await this.dumpService.createDumpEnhanced(dumpRequest);
 
       // Send success response with processing details
-      await this.sendFormattedResponse(
-        userId,
-        phoneNumber,
-        result,
-      );
+      await this.sendFormattedResponse(userId, phoneNumber, result);
     } catch (error) {
       this.logger.error('Error handling image message:', error);
       await this.sendTextMessage(phoneNumber, '❌ Failed to process image.');
@@ -632,15 +639,24 @@ export class WhatsAppService {
       const result = await this.dumpService.createDumpEnhanced(dumpRequest);
 
       // Send success response with processing details
-      await this.sendFormattedResponse(
-        userId,
-        phoneNumber,
-        result,
-      );
+      await this.sendFormattedResponse(userId, phoneNumber, result);
     } catch (error) {
       this.logger.error('Error handling document message:', error);
       await this.sendTextMessage(phoneNumber, '❌ Failed to process document.');
     }
+  }
+
+  private trackBotCommand(command: string, userId: string): void {
+    this.metricsService.fireAndForget(() =>
+      this.metricsService.trackFeature({
+        featureType: FeatureType.BOT_COMMAND,
+        detail: command,
+        userId,
+        metadata: {
+          platform: 'whatsapp',
+        },
+      }),
+    );
   }
 
   private async handleCommand(
@@ -655,6 +671,9 @@ export class WhatsAppService {
       .replace(/^[/!#@]/, ''); // Remove leading /, !, #, or @
 
     const [cmd] = normalizedCommand.split(' ');
+
+    // Track bot command usage
+    this.trackBotCommand(cmd, userId);
 
     // Get the user entity for command handlers
     const user = await this.userService.findOne(userId);
@@ -692,7 +711,11 @@ export class WhatsAppService {
         }
 
         case 'recent': {
-          const recentMessage = await this.recentCommand.execute(user, 5, 'whatsapp');
+          const recentMessage = await this.recentCommand.execute(
+            user,
+            5,
+            'whatsapp',
+          );
           await this.sendTextMessage(phoneNumber, recentMessage);
           break;
         }
@@ -701,29 +724,46 @@ export class WhatsAppService {
         case 'next': {
           // Parse optional hours parameter: upcoming 48
           const parts = command.split(' ');
-          const hours = parts.length > 1 ? Number.parseInt(parts[1], 10) || 24 : 24;
-          const upcomingMessage = await this.upcomingCommand.execute(user, hours, 'whatsapp');
+          const hours =
+            parts.length > 1 ? Number.parseInt(parts[1], 10) || 24 : 24;
+          const upcomingMessage = await this.upcomingCommand.execute(
+            user,
+            hours,
+            'whatsapp',
+          );
           await this.sendTextMessage(phoneNumber, upcomingMessage);
           break;
         }
 
         case 'track': {
           // Parse tracking command: track <tracking-number> OR track list
-          const parts = command.split(' ').filter(p => p.trim());
+          const parts = command.split(' ').filter((p) => p.trim());
           const args = parts.slice(1); // Remove 'track' itself
-          const trackMessage = await this.trackCommand.execute(user, args, 'whatsapp');
+          const trackMessage = await this.trackCommand.execute(
+            user,
+            args,
+            'whatsapp',
+          );
           await this.sendTextMessage(phoneNumber, trackMessage);
           break;
         }
 
         case 'search': {
-          const searchMessage = await this.searchCommand.execute(user, command, 'whatsapp');
+          const searchMessage = await this.searchCommand.execute(
+            user,
+            command,
+            'whatsapp',
+          );
           await this.sendTextMessage(phoneNumber, searchMessage);
           break;
         }
 
         case 'report': {
-          const reportMessage = await this.reportCommand.execute(user, command, 'whatsapp');
+          const reportMessage = await this.reportCommand.execute(
+            user,
+            command,
+            'whatsapp',
+          );
           await this.sendTextMessage(phoneNumber, reportMessage);
           break;
         }
@@ -815,7 +855,10 @@ export class WhatsAppService {
    * Handle phone number registration for Telegram (kept for backward compatibility)
    * Note: WhatsApp doesn't need this since we get the phone number from Twilio
    */
-  async handlePhoneNumberRegistration(phoneNumber: string, text: string): Promise<boolean> {
+  async handlePhoneNumberRegistration(
+    phoneNumber: string,
+    text: string,
+  ): Promise<boolean> {
     // Detect phone number pattern (international format)
     const phonePattern = /^\+?[1-9]\d{1,14}$/;
     const cleanPhone = text.replaceAll(/[\s\-()]/g, '');

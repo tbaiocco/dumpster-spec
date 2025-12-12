@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { User } from '../../../entities/user.entity';
-import { SearchService } from '../../search/search.service';
+import { SearchRequest, SearchService } from '../../search/search.service';
 
 @Injectable()
 export class SearchCommand {
@@ -22,13 +22,16 @@ export class SearchCommand {
 
     try {
       // Perform search using the SearchService
-      const searchResults = await this.searchService.quickSearch(
-        query,
-        user.id,
-        10,
-      );
+      const request: SearchRequest = {
+        query: query,
+        userId: user.id,
+        filters: {},
+        limit: 10,
+        offset: 0,
+      };
+      const searchResults = await this.searchService.search(request);
 
-      if (!searchResults || searchResults.length === 0) {
+      if (!searchResults?.results || searchResults?.results.length === 0) {
         if (platform === 'whatsapp') {
           return (
             `🔍 *Search Results*\n\n` +
@@ -54,8 +57,8 @@ export class SearchCommand {
 
       const headerStart =
         platform === 'whatsapp'
-          ? `🔍 *Search Results* (${searchResults.length} found)\n`
-          : `🔍 <b>Search Results</b> (${searchResults.length} found)\n`;
+          ? `🔍 *Search Results* (${searchResults?.results.length} found)\n`
+          : `🔍 <b>Search Results</b> (${searchResults?.results.length} found)\n`;
       const queryLine =
         platform === 'whatsapp'
           ? `Query: "_${query}_"\n\n`
@@ -63,7 +66,7 @@ export class SearchCommand {
 
       let response = headerStart + queryLine;
 
-      for (const result of searchResults.slice(0, 5)) {
+      for (const result of searchResults?.results.slice(0, 5)) {
         // Limit to 5 results for bot display
         const date = new Date(result.dump.created_at).toLocaleDateString(
           'en-US',
@@ -109,11 +112,11 @@ export class SearchCommand {
         response += '\n';
       }
 
-      if (searchResults.length > 5) {
+      if (searchResults?.results.length > 5) {
         const moreText =
           platform === 'whatsapp'
-            ? `_... and ${searchResults.length - 5} more results_\n\n`
-            : `<i>... and ${searchResults.length - 5} more results</i>\n\n`;
+            ? `_... and ${searchResults?.results.length - 5} more results_\n\n`
+            : `<i>... and ${searchResults?.results.length - 5} more results</i>\n\n`;
         response += moreText;
       }
 
@@ -139,7 +142,9 @@ export class SearchCommand {
     }
   }
 
-  private getSearchHelp(platform: 'telegram' | 'whatsapp' = 'telegram'): string {
+  private getSearchHelp(
+    platform: 'telegram' | 'whatsapp' = 'telegram',
+  ): string {
     if (platform === 'whatsapp') {
       return (
         `🔍 *Search Your Content*\n\n` +

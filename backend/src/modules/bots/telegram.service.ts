@@ -12,6 +12,8 @@ import { UpcomingCommand } from './commands/upcoming.command';
 import { TrackCommand } from './commands/track.command';
 import { SearchCommand } from './commands/search.command';
 import { ReportCommand } from './commands/report.command';
+import { MetricsService } from '../metrics/metrics.service';
+import { FeatureType } from '../../entities/feature-usage.entity';
 import { MessageFormatterHelper } from './helpers/message-formatter.helper';
 import { ResponseFormatterService } from '../ai/formatter.service';
 import { EntityExtractionResult } from '../ai/extraction.service';
@@ -97,6 +99,7 @@ export class TelegramService {
     private readonly reportCommand: ReportCommand,
     private readonly searchCommand: SearchCommand,
     private readonly responseFormatterService: ResponseFormatterService,
+    private readonly metricsService: MetricsService,
   ) {
     this.botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN') || '';
     this.apiUrl = `https://api.telegram.org/bot${this.botToken}`;
@@ -159,7 +162,7 @@ export class TelegramService {
     // Extract analysis and entities from the dump
     const dump = result.dump;
     const extractedEntities = dump.extracted_entities || {};
-    
+
     // Build ContentAnalysisResponse from dump data
     const analysis: ContentAnalysisResponse = {
       summary: dump.ai_summary || '',
@@ -175,15 +178,27 @@ export class TelegramService {
         tags: [],
       },
       actionItems: extractedEntities.actionItems || [],
-      sentiment: (extractedEntities.sentiment as 'positive' | 'neutral' | 'negative') || 'neutral',
-      urgency: (extractedEntities.urgency as 'low' | 'medium' | 'high') || 'low',
+      sentiment:
+        (extractedEntities.sentiment as 'positive' | 'neutral' | 'negative') ||
+        'neutral',
+      urgency:
+        (extractedEntities.urgency as 'low' | 'medium' | 'high') || 'low',
       confidence: (dump.ai_confidence || 95) / 100,
     };
 
     // Build EntityExtractionResult from dump data
     const entities: EntityExtractionResult = {
       entities: (extractedEntities.entityDetails || []).map((entity: any) => ({
-        type: entity.type as 'date' | 'time' | 'location' | 'person' | 'organization' | 'amount' | 'phone' | 'email' | 'url',
+        type: entity.type as
+          | 'date'
+          | 'time'
+          | 'location'
+          | 'person'
+          | 'organization'
+          | 'amount'
+          | 'phone'
+          | 'email'
+          | 'url',
         value: entity.value,
         confidence: entity.confidence,
         context: entity.context,
@@ -210,17 +225,18 @@ export class TelegramService {
     };
 
     // Use ResponseFormatterService with brief format
-    const formatted = await this.responseFormatterService.formatAnalysisResponse(
-      userId,
-      analysis,
-      entities,
-      {
-        platform: 'telegram',
-        format: 'brief',
-        includeEmojis: true,
-        includeMarkdown: true,
-      },
-    );
+    const formatted =
+      await this.responseFormatterService.formatAnalysisResponse(
+        userId,
+        analysis,
+        entities,
+        {
+          platform: 'telegram',
+          format: 'brief',
+          includeEmojis: true,
+          includeMarkdown: true,
+        },
+      );
 
     const message = await this.sendMessage({
       chat_id: chatId,
@@ -613,12 +629,28 @@ export class TelegramService {
     }
   }
 
+  private trackBotCommand(command: string, userId: string): void {
+    this.metricsService.fireAndForget(() =>
+      this.metricsService.trackFeature({
+        featureType: FeatureType.BOT_COMMAND,
+        detail: command,
+        userId,
+        metadata: {
+          platform: 'telegram',
+        },
+      }),
+    );
+  }
+
   private async handleCommand(
     command: string,
     chatId: number,
     userId: string,
   ): Promise<void> {
     const [cmd] = command.split(' ');
+
+    // Track bot command usage
+    this.trackBotCommand(cmd.toLowerCase(), userId);
 
     // Get the user entity for command handlers
     const user = await this.userService.findOne(userId);
@@ -654,7 +686,11 @@ export class TelegramService {
         }
 
         case '/recent': {
-          const recentMessage = await this.recentCommand.execute(user, 5, 'telegram');
+          const recentMessage = await this.recentCommand.execute(
+            user,
+            5,
+            'telegram',
+          );
           await this.sendTextMessage(chatId, recentMessage);
           break;
         }
@@ -663,29 +699,46 @@ export class TelegramService {
         case '/next': {
           // Parse optional hours parameter: /upcoming 48
           const parts = command.split(' ');
-          const hours = parts.length > 1 ? Number.parseInt(parts[1], 10) || 24 : 24;
-          const upcomingMessage = await this.upcomingCommand.execute(user, hours, 'telegram');
+          const hours =
+            parts.length > 1 ? Number.parseInt(parts[1], 10) || 24 : 24;
+          const upcomingMessage = await this.upcomingCommand.execute(
+            user,
+            hours,
+            'telegram',
+          );
           await this.sendTextMessage(chatId, upcomingMessage);
           break;
         }
 
         case '/track': {
           // Parse tracking command: /track <tracking-number> OR /track list
-          const parts = command.split(' ').filter(p => p.trim());
+          const parts = command.split(' ').filter((p) => p.trim());
           const args = parts.slice(1); // Remove '/track' itself
-          const trackMessage = await this.trackCommand.execute(user, args, 'telegram');
+          const trackMessage = await this.trackCommand.execute(
+            user,
+            args,
+            'telegram',
+          );
           await this.sendTextMessage(chatId, trackMessage);
           break;
         }
 
         case '/search': {
-          const searchMessage = await this.searchCommand.execute(user, command, 'telegram');
+          const searchMessage = await this.searchCommand.execute(
+            user,
+            command,
+            'telegram',
+          );
           await this.sendTextMessage(chatId, searchMessage);
           break;
         }
 
         case '/report': {
-          const reportMessage = await this.reportCommand.execute(user, command, 'telegram');
+          const reportMessage = await this.reportCommand.execute(
+            user,
+            command,
+            'telegram',
+          );
           await this.sendTextMessage(chatId, reportMessage);
           break;
         }

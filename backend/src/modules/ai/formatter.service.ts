@@ -117,14 +117,29 @@ export class ResponseFormatterService {
     try {
       switch (options.format) {
         case 'brief':
-          formattedText = await this.formatBrief(translatedAnalysis, entities, options, language);
+          formattedText = await this.formatBrief(
+            translatedAnalysis,
+            entities,
+            options,
+            language,
+          );
           break;
         case 'detailed':
-          formattedText = await this.formatDetailed(translatedAnalysis, entities, options, language);
+          formattedText = await this.formatDetailed(
+            translatedAnalysis,
+            entities,
+            options,
+            language,
+          );
           break;
         case 'summary':
         default:
-          formattedText = await this.formatSummary(translatedAnalysis, entities, options, language);
+          formattedText = await this.formatSummary(
+            translatedAnalysis,
+            entities,
+            options,
+            language,
+          );
           break;
       }
 
@@ -161,7 +176,13 @@ export class ResponseFormatterService {
       }
 
       if (constraints.supportsHtml) {
-        result.html = await this.toHtml(formattedText, translatedAnalysis, entities, options, language);
+        result.html = await this.toHtml(
+          formattedText,
+          translatedAnalysis,
+          entities,
+          options,
+          language,
+        );
       }
 
       this.logger.log(`Formatted response: ${formattedText.length} characters`);
@@ -170,7 +191,11 @@ export class ResponseFormatterService {
       this.logger.error('Error formatting response:', error);
 
       // Fallback to simple text
-      const fallbackText = await this.createFallbackResponse(translatedAnalysis, entities, language);
+      const fallbackText = await this.createFallbackResponse(
+        translatedAnalysis,
+        entities,
+        language,
+      );
       return {
         text: fallbackText,
         metadata: {
@@ -456,7 +481,13 @@ export class ResponseFormatterService {
       options,
     );
     this.addEntityGroup(parts, 'Dates', structuredData.dates, '📅', options);
-    this.addEntityGroup(parts, 'Amounts', structuredData.amounts, '💰', options);
+    this.addEntityGroup(
+      parts,
+      'Amounts',
+      structuredData.amounts,
+      '💰',
+      options,
+    );
     this.addContactInfo(parts, structuredData.contacts, options);
 
     return parts.length > 0
@@ -577,7 +608,7 @@ export class ResponseFormatterService {
 
     // For Telegram, only use supported HTML tags: <b>, <i>, <u>, <s>, <code>, <pre>, <a>
     // No <div>, <h3>, <p>, <ul>, <li> tags allowed
-    
+
     if (analysis.category) {
       parts.push(`<b>${analysis.category.toUpperCase()}</b>`);
       parts.push(''); // Empty line

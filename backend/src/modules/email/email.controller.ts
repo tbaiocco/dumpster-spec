@@ -16,6 +16,8 @@ import type { Request } from 'express';
 import { EmailProcessorService } from './email-processor.service';
 import { DumpService } from '../dumps/services/dump.service';
 import { UserService } from '../users/user.service';
+import { MetricsService } from '../metrics/metrics.service';
+import { FeatureType } from '../../entities/feature-usage.entity';
 
 // Define email webhook payload interfaces
 interface EmailWebhookPayload {
@@ -60,6 +62,7 @@ export class EmailController {
     private readonly emailProcessor: EmailProcessorService,
     private readonly dumpService: DumpService,
     private readonly userService: UserService,
+    private readonly metricsService: MetricsService,
   ) {}
 
   /**
@@ -101,6 +104,21 @@ export class EmailController {
         attachmentCount: processedEmail.attachments.length,
       };
 
+      // TRACK EMAIL PROCESSING FEATURE (Fire-and-Forget)
+      const userId = await this.getEmailUserId(payload.from);
+      this.metricsService.fireAndForget(() =>
+        this.metricsService.trackFeature({
+          featureType: FeatureType.EMAIL_PROCESSED,
+          detail: 'webhook_inbound',
+          userId,
+          metadata: {
+            hasAttachments: (payload.attachments?.length || 0) > 0,
+            attachmentCount: payload.attachments?.length || 0,
+            dumpsCreated: dumps.length,
+          },
+        }),
+      );
+
       this.logger.log(
         `Successfully processed email ${payload.messageId}, created ${dumps.length} dump(s)`,
       );
@@ -138,14 +156,34 @@ export class EmailController {
   ): Promise<EmailWebhookResponse> {
     try {
       this.logger.log('Received SendGrid email webhook');
-      this.logger.debug(`SendGrid body keys: ${Object.keys(body || {}).join(', ')}`);
+      this.logger.debug(
+        `SendGrid body keys: ${Object.keys(body || {}).join(', ')}`,
+      );
       this.logger.debug(`SendGrid files count: ${files?.length || 0}`);
 
       // Convert SendGrid format to standard format
       const standardPayload = this.convertSendGridPayload(body, files);
 
       // Process using standard webhook handler
-      return await this.handleInboundEmail(standardPayload, headers);
+      const result = await this.handleInboundEmail(standardPayload, headers);
+
+      // TRACK EMAIL PROCESSING FEATURE (Fire-and-Forget)
+      if (result.success) {
+        const userId = await this.getEmailUserId(standardPayload.from);
+        this.metricsService.fireAndForget(() =>
+          this.metricsService.trackFeature({
+            featureType: FeatureType.EMAIL_PROCESSED,
+            detail: 'webhook_sendgrid',
+            userId,
+            metadata: {
+              hasAttachments: (standardPayload.attachments?.length || 0) > 0,
+              attachmentCount: standardPayload.attachments?.length || 0,
+            },
+          }),
+        );
+      }
+
+      return result;
     } catch (error) {
       this.logger.error(
         `Failed to process SendGrid webhook: ${error.message}`,
@@ -176,7 +214,25 @@ export class EmailController {
       const standardPayload = this.convertMailgunPayload(payload);
 
       // Process using standard webhook handler
-      return await this.handleInboundEmail(standardPayload, headers);
+      const result = await this.handleInboundEmail(standardPayload, headers);
+
+      // TRACK EMAIL PROCESSING FEATURE (Fire-and-Forget)
+      if (result.success) {
+        const userId = await this.getEmailUserId(standardPayload.from);
+        this.metricsService.fireAndForget(() =>
+          this.metricsService.trackFeature({
+            featureType: FeatureType.EMAIL_PROCESSED,
+            detail: 'webhook_mailgun',
+            userId,
+            metadata: {
+              hasAttachments: (standardPayload.attachments?.length || 0) > 0,
+              attachmentCount: standardPayload.attachments?.length || 0,
+            },
+          }),
+        );
+      }
+
+      return result;
     } catch (error) {
       this.logger.error(
         `Failed to process Mailgun webhook: ${error.message}`,

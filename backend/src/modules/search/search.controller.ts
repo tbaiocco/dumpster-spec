@@ -15,6 +15,8 @@ import { GetUser } from '../auth/decorators/get-user.decorator';
 import { User } from '../../entities/user.entity';
 import { SearchService, SearchRequest, SearchResponse } from './search.service';
 import { VectorService } from './vector.service';
+import { MetricsService } from '../metrics/metrics.service';
+import { FeatureType } from '../../entities/feature-usage.entity';
 import {
   IsString,
   IsOptional,
@@ -101,6 +103,7 @@ export class SearchController {
   constructor(
     private readonly searchService: SearchService,
     private readonly vectorService: VectorService,
+    private readonly metricsService: MetricsService,
   ) {}
 
   @Post()
@@ -108,6 +111,18 @@ export class SearchController {
   async search(
     @Body(ValidationPipe) searchDto: SearchQueryDto,
   ): Promise<ApiResponse<SearchResponse>> {
+    // TRACK SEARCH FEATURE (Fire-and-Forget)
+    this.metricsService.fireAndForget(() =>
+      this.metricsService.trackFeature({
+        featureType: FeatureType.SEARCH_PERFORMED,
+        detail: 'api_search',
+        userId: searchDto.userId,
+        metadata: {
+          hasFilters: !!(searchDto.contentTypes || searchDto.categories || searchDto.dateFrom),
+        },
+      }),
+    );
+
     const request: SearchRequest = {
       query: searchDto.query,
       userId: searchDto.userId,
@@ -138,6 +153,16 @@ export class SearchController {
     @Query(ValidationPipe) quickSearchDto: QuickSearchDto,
     @GetUser() user: User,
   ): Promise<ApiResponse<any[]>> {
+    // TRACK SEARCH FEATURE (Fire-and-Forget)
+    this.metricsService.fireAndForget(() =>
+      this.metricsService.trackFeature({
+        featureType: FeatureType.SEARCH_PERFORMED,
+        detail: 'quick_search',
+        userId: user.id,
+        metadata: {},
+      }),
+    );
+
     const results = await this.searchService.quickSearch(
       quickSearchDto.q,
       user.id,
@@ -156,6 +181,16 @@ export class SearchController {
     @GetUser() user: User,
     @Query('limit') limit?: number,
   ): Promise<ApiResponse<string[]>> {
+    // TRACK SEARCH FEATURE (Fire-and-Forget)
+    this.metricsService.fireAndForget(() =>
+      this.metricsService.trackFeature({
+        featureType: FeatureType.SEARCH_PERFORMED,
+        detail: 'suggestions',
+        userId: user.id,
+        metadata: {},
+      }),
+    );
+
     const suggestions = await this.searchService.getSearchSuggestions(
       user.id,
       limit ? Number(limit) : 10,

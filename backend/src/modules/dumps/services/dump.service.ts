@@ -26,6 +26,9 @@ import { DocumentProcessorService } from '../../ai/document-processor.service';
 import { HandwritingService } from '../../ai/handwriting.service';
 import { EntityExtractionService } from '../../ai/extraction.service';
 import { CategorizationService } from './categorization.service';
+import { MetricsService } from '../../metrics/metrics.service';
+import { AIOperationType } from '../../../entities/ai-metric.entity';
+import { FeatureType } from '../../../entities/feature-usage.entity';
 
 export interface CreateDumpRequest {
   userId: string;
@@ -91,6 +94,7 @@ export class DumpService {
     private readonly entityExtractionService: EntityExtractionService,
     private readonly categorizationService: CategorizationService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly metricsService: MetricsService,
   ) {}
 
   /**
@@ -230,6 +234,7 @@ export class DumpService {
       }
 
       // Step 3: Analyze content with Claude
+      const startTimeAnalysis = performance.now();
       const analysis = await this.claudeService.analyzeContent({
         content: processedContent,
         contentType: 'text',
@@ -239,7 +244,19 @@ export class DumpService {
           timestamp: new Date(),
         },
       });
+      const latencyAnalysis = performance.now() - startTimeAnalysis;
       processingSteps.push('Content analysis completed');
+
+      // TRACK CONTENT ANALYSIS (Fire-and-Forget)
+      this.metricsService.fireAndForget(() =>
+        this.metricsService.trackAI({
+          operationType: AIOperationType.CONTENT_ANALYSIS,
+          latencyMs: latencyAnalysis,
+          success: true,
+          userId: request.userId,
+          confidenceScore: Math.round(analysis.confidence * 100),
+        }),
+      );
 
       // Use AI summary for subsequent processing steps (better quality, standardized format)
       const contentForProcessing = analysis.summary || processedContent;
@@ -247,6 +264,7 @@ export class DumpService {
       // Step 4: Extract entities from AI summary
       let entityExtractionResult;
       try {
+        const startTimeExtraction = performance.now();
         entityExtractionResult =
           await this.entityExtractionService.extractEntities({
             content: contentForProcessing,
@@ -257,11 +275,25 @@ export class DumpService {
               timestamp: new Date(),
             },
           });
+        const latencyExtraction = performance.now() - startTimeExtraction;
         processingSteps.push(
           `Entity extraction completed: ${entityExtractionResult.summary.totalEntities} entities found`,
         );
         this.logger.debug(
           `Extracted entities: ${JSON.stringify(entityExtractionResult.structuredData)}`,
+        );
+
+        // TRACK EXTRACTION (Fire-and-Forget)
+        this.metricsService.fireAndForget(() =>
+          this.metricsService.trackAI({
+            operationType: AIOperationType.EXTRACTION,
+            latencyMs: latencyExtraction,
+            success: true,
+            userId: request.userId,
+            metadata: {
+              entitiesExtracted: entityExtractionResult.summary.totalEntities,
+            },
+          }),
         );
       } catch (error) {
         this.logger.warn(`Entity extraction failed: ${error.message}`);
@@ -289,6 +321,7 @@ export class DumpService {
       // Step 5: Categorize content using AI summary
       let categorizationResult;
       try {
+        const startTimeCategorization = performance.now();
         categorizationResult =
           await this.categorizationService.categorizeContent({
             content: contentForProcessing,
@@ -297,14 +330,30 @@ export class DumpService {
             context: {
               source: request.metadata?.source || 'telegram',
               timestamp: new Date(),
-              previousCategories: [], // Could be populated with user's recent categories
             },
           });
+        const latencyCategorization =
+          performance.now() - startTimeCategorization;
         processingSteps.push(
           `Categorization completed: ${categorizationResult.primaryCategory.name} (confidence: ${categorizationResult.confidence})`,
         );
         this.logger.debug(
           `Categorization result: ${JSON.stringify(categorizationResult)}`,
+        );
+
+        // TRACK CATEGORIZATION (Fire-and-Forget)
+        this.metricsService.fireAndForget(() =>
+          this.metricsService.trackAI({
+            operationType: AIOperationType.CATEGORIZATION,
+            latencyMs: latencyCategorization,
+            success: true,
+            userId: request.userId,
+            confidenceScore: Math.round(categorizationResult.confidence * 100),
+            metadata: {
+              categoryAssigned: categorizationResult.primaryCategory.name,
+              reasoning: categorizationResult.reasoning,
+            },
+          }),
         );
       } catch (error) {
         this.logger.warn(
@@ -377,6 +426,20 @@ export class DumpService {
 
       const savedDump = await this.dumpRepository.save(dump);
       processingSteps.push('Dump saved to database');
+
+      // TRACK DUMP CREATION FEATURE (Fire-and-Forget)
+      this.metricsService.fireAndForget(() =>
+        this.metricsService.trackFeature({
+          featureType: FeatureType.DUMP_CREATED,
+          detail: request.contentType,
+          userId: request.userId,
+          dumpId: savedDump.id,
+          metadata: {
+            source: request.metadata?.source,
+            hasMedia: !!request.mediaBuffer,
+          },
+        }),
+      );
 
       // Step 9: Generate content vector for semantic search
       try {

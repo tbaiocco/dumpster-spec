@@ -147,7 +147,9 @@ export class TrackingService {
     }
 
     const updated = await this.trackableItemRepository.save(item);
-    this.logger.log(`Updated tracking for item ${itemId}: ${checkpoint.status}`);
+    this.logger.log(
+      `Updated tracking for item ${itemId}: ${checkpoint.status}`,
+    );
 
     return updated;
   }
@@ -339,7 +341,9 @@ export class TrackingService {
           item.reminder_ids.push(created.id);
           await this.trackableItemRepository.save(item);
 
-          this.logger.log(`Created auto-reminder for ${item.id} at ${reminderDate.toISOString()}`);
+          this.logger.log(
+            `Created auto-reminder for ${item.id} at ${reminderDate.toISOString()}`,
+          );
         } catch (error) {
           this.logger.warn(`Failed to create auto-reminder: ${error.message}`);
         }
@@ -357,10 +361,14 @@ export class TrackingService {
         if (reminder && reminder.status === ReminderStatus.PENDING) {
           reminder.status = ReminderStatus.DISMISSED;
           await this.reminderRepository.save(reminder);
-          this.logger.log(`Cancelled reminder ${reminderId} for item ${item.id}`);
+          this.logger.log(
+            `Cancelled reminder ${reminderId} for item ${item.id}`,
+          );
         }
       } catch (error) {
-        this.logger.warn(`Failed to cancel reminder ${reminderId}: ${error.message}`);
+        this.logger.warn(
+          `Failed to cancel reminder ${reminderId}: ${error.message}`,
+        );
       }
     }
   }
@@ -448,13 +456,17 @@ export class TrackingService {
             alertsCreated++;
             this.logger.log(`Created overdue alert for item ${item.id}`);
           } catch (error) {
-            this.logger.warn(`Failed to create overdue alert for ${item.id}: ${error.message}`);
+            this.logger.warn(
+              `Failed to create overdue alert for ${item.id}: ${error.message}`,
+            );
           }
         }
       }
     }
 
-    this.logger.log(`Checked overdue items: ${overdueCount} overdue, ${alertsCreated} alerts created`);
+    this.logger.log(
+      `Checked overdue items: ${overdueCount} overdue, ${alertsCreated} alerts created`,
+    );
 
     return { overdueCount, alertsCreated };
   }

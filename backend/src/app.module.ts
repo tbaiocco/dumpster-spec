@@ -20,6 +20,7 @@ import { TrackingModule } from './modules/tracking/tracking.module';
 import { HealthModule } from './health/health.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { ReviewModule } from './modules/review/review.module';
+import { MetricsModule } from './modules/metrics/metrics.module';
 import { DatabaseInitService } from './database/database-init.service';
 
 @Module({
@@ -66,6 +67,7 @@ import { DatabaseInitService } from './database/database-init.service';
     BotsModule,
     FeedbackModule,
     EmailModule,
+    MetricsModule, // Production Analytics System
     // Phase 7 modules
     ReminderModule,
     NotificationModule,

@@ -3,9 +3,10 @@ import { EmailProcessorService } from './email-processor.service';
 import { EmailController } from './email.controller';
 import { DumpModule } from '../dumps/dump.module';
 import { UserModule } from '../users/user.module';
+import { MetricsModule } from '../metrics/metrics.module';
 
 @Module({
-  imports: [DumpModule, UserModule], // Import UserModule to access UserService
+  imports: [DumpModule, UserModule, MetricsModule],
   controllers: [EmailController],
   providers: [EmailProcessorService],
   exports: [EmailProcessorService],

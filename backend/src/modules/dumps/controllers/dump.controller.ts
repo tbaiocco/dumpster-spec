@@ -105,8 +105,11 @@ export class DumpController {
       originalText: createDumpDto.originalText,
       metadata: {
         source:
-          (createDumpDto.metadata?.source as 'telegram' | 'whatsapp' | 'email' | 'api') ||
-          'telegram',
+          (createDumpDto.metadata?.source as
+            | 'telegram'
+            | 'whatsapp'
+            | 'email'
+            | 'api') || 'telegram',
         messageId: createDumpDto.metadata?.messageId,
         fileName: createDumpDto.metadata?.fileName,
         mimeType: createDumpDto.metadata?.mimeType,
@@ -255,10 +258,9 @@ export class DumpController {
       }
 
       // Find or create category
-      const category = await this.dumpService['categorizationService'].findOrCreateCategory(
-        updateDumpDto.category,
-        existingDump.user_id,
-      );
+      const category = await this.dumpService[
+        'categorizationService'
+      ].findOrCreateCategory(updateDumpDto.category, existingDump.user_id);
       updates.category_id = category.id;
     }
 

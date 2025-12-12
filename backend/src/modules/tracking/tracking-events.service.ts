@@ -44,11 +44,10 @@ export class TrackingEventsService {
 
     try {
       // Use the existing detectTrackableItems method from TrackingService
-      const detectionResult =
-        await this.trackingService.detectTrackableItems(
-          event.userId,
-          event.dumpId,
-        );
+      const detectionResult = await this.trackingService.detectTrackableItems(
+        event.userId,
+        event.dumpId,
+      );
 
       if (detectionResult.detected && detectionResult.suggestions.length > 0) {
         this.logger.log(

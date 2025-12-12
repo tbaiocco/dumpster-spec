@@ -21,7 +21,7 @@ export class WhatsAppWebhookController {
   /**
    * Handle incoming WhatsApp messages via Twilio webhook (POST request)
    * Twilio WhatsApp webhooks don't require verification like Meta/Facebook
-   * 
+   *
    * Account linking: When a new phone number messages the bot, we check if
    * a user exists with that phone number and automatically link the WhatsApp
    * chat_id. If no user exists, we prompt them to register at theclutter.app
@@ -45,14 +45,19 @@ export class WhatsAppWebhookController {
       const user = await this.userService.findByChatId(fromNumber, 'whatsapp');
 
       if (!user) {
-        this.logger.log(`New WhatsApp number detected: ${fromNumber} - attempting to link`);
+        this.logger.log(
+          `New WhatsApp number detected: ${fromNumber} - attempting to link`,
+        );
 
         // Try to link to existing user account by phone number
         await this.whatsAppService.autoRegisterUser(fromNumber);
-        
+
         // After linking attempt, process the original message if user was found
         // (autoRegisterUser will send appropriate message if user not found)
-        const linkedUser = await this.userService.findByChatId(fromNumber, 'whatsapp');
+        const linkedUser = await this.userService.findByChatId(
+          fromNumber,
+          'whatsapp',
+        );
         if (linkedUser) {
           await this.whatsAppService.processTwilioWebhook(body);
         }

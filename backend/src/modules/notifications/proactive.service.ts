@@ -370,17 +370,22 @@ export class ProactiveService {
       const category = dump.category?.name || 'Uncategorized';
       const content = dump.raw_content?.substring(0, 500) || ''; // Limit content length
       const summary = dump.ai_summary || '';
-      
+
       // Extract key information from entities
       let entitiesInfo = '';
       if (dump.extracted_entities) {
-        const entities = dump.extracted_entities.entities as any || {};
+        const entities = (dump.extracted_entities.entities as any) || {};
         const dates = entities.dates || [];
         const times = entities.times || [];
         const people = entities.people || [];
         const actionItems = dump.extracted_entities.actionItems || [];
-        
-        if (dates.length > 0 || times.length > 0 || people.length > 0 || actionItems.length > 0) {
+
+        if (
+          dates.length > 0 ||
+          times.length > 0 ||
+          people.length > 0 ||
+          actionItems.length > 0
+        ) {
           entitiesInfo = `
 Action Items: ${actionItems.join(', ') || 'None'}
 Dates: ${dates.join(', ') || 'None'}
@@ -457,7 +462,8 @@ CRITICAL: Respond with ONLY a JSON array, no other text. Look especially for act
 
 ${userPrompt}`;
 
-      const response = await this.claudeService.queryWithCustomPrompt(fullPrompt);
+      const response =
+        await this.claudeService.queryWithCustomPrompt(fullPrompt);
 
       this.logger.debug(`AI response: ${response.substring(0, 200)}...`);
 
@@ -473,7 +479,9 @@ ${userPrompt}`;
 
       const insights = JSON.parse(jsonMatch[0]) as ContextualInsight[];
 
-      this.logger.log(`Successfully parsed ${insights.length} insights from AI`);
+      this.logger.log(
+        `Successfully parsed ${insights.length} insights from AI`,
+      );
 
       // Validate and parse dates
       const validatedInsights = insights.map((insight) => ({
@@ -615,14 +623,17 @@ ${userPrompt}`;
     for (const dump of dumps) {
       // Prepare enriched context from dump's AI analysis
       const enrichedContent = this.prepareEnrichedContextForTracking(dump);
-      
+
       if (!enrichedContent) {
         this.logger.debug(`Skipping dump ${dump.id} - no content available`);
         continue;
       }
 
       // Use AI to detect tracking opportunities with enriched context
-      const trackingInsights = await this.detectTrackingWithAI(enrichedContent, dump);
+      const trackingInsights = await this.detectTrackingWithAI(
+        enrichedContent,
+        dump,
+      );
 
       for (const insight of trackingInsights) {
         try {
@@ -640,23 +651,19 @@ ${userPrompt}`;
 
           if (!isDuplicate) {
             // Create the trackable item
-            await this.trackingService.createTrackableItem(
-              userId,
-              dump.id,
-              {
-                type: insight.type,
-                title: insight.title,
-                description: insight.description,
-                expectedEndDate: insight.expectedDate,
-                metadata: {
-                  source: 'proactive_detection',
-                  confidence: insight.confidence,
-                  detectedAt: new Date().toISOString(),
-                  trackingNumber: insight.trackingNumber,
-                },
-                autoReminders: true,
+            await this.trackingService.createTrackableItem(userId, dump.id, {
+              type: insight.type,
+              title: insight.title,
+              description: insight.description,
+              expectedEndDate: insight.expectedDate,
+              metadata: {
+                source: 'proactive_detection',
+                confidence: insight.confidence,
+                detectedAt: new Date().toISOString(),
+                trackingNumber: insight.trackingNumber,
               },
-            );
+              autoReminders: true,
+            });
 
             created++;
             suggestions.push({
@@ -699,14 +706,16 @@ ${userPrompt}`;
 
     // Extracted entities (structured data)
     if (dump.extracted_entities) {
-      const entities = dump.extracted_entities.entities as any || {};
+      const entities = (dump.extracted_entities.entities as any) || {};
       const extractedData: string[] = [];
 
       if (entities.dates && entities.dates.length > 0) {
         extractedData.push(`Dates: ${entities.dates.join(', ')}`);
       }
       if (entities.organizations && entities.organizations.length > 0) {
-        extractedData.push(`Organizations: ${entities.organizations.join(', ')}`);
+        extractedData.push(
+          `Organizations: ${entities.organizations.join(', ')}`,
+        );
       }
       if (entities.locations && entities.locations.length > 0) {
         extractedData.push(`Locations: ${entities.locations.join(', ')}`);
@@ -885,8 +894,7 @@ IMPORTANT: Respond with ONLY valid JSON, no other text.`;
     const contentLower = content.toLowerCase();
 
     // Package detection
-    const trackingNumberPattern =
-      /\b(1Z[\dA-Z]{16}|\d{22}|\d{12}|\d{20})\b/gi;
+    const trackingNumberPattern = /\b(1Z[\dA-Z]{16}|\d{22}|\d{12}|\d{20})\b/gi;
     const trackingMatches = content.match(trackingNumberPattern);
     if (
       trackingMatches ||

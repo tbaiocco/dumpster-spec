@@ -13,7 +13,10 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TrackingService } from './tracking.service';
 import { PackageTrackingService } from './package-tracking.service';
-import { TrackingType, TrackingStatus } from '../../entities/trackable-item.entity';
+import {
+  TrackingType,
+  TrackingStatus,
+} from '../../entities/trackable-item.entity';
 
 @Controller('tracking')
 @UseGuards(JwtAuthGuard)
@@ -218,11 +221,10 @@ export class TrackingController {
 
     try {
       // Get package tracking info
-      const trackingInfo =
-        await this.packageTrackingService.trackPackage(
-          body.trackingNumber,
-          body.carrier as any, // Allow string to be converted
-        );
+      const trackingInfo = await this.packageTrackingService.trackPackage(
+        body.trackingNumber,
+        body.carrier as any, // Allow string to be converted
+      );
 
       // Create trackable item
       const expectedDeliveryDate = trackingInfo.estimatedDelivery
@@ -275,10 +277,7 @@ export class TrackingController {
    * POST /api/tracking/detect
    */
   @Post('detect')
-  async detectTrackableItems(
-    @Request() req,
-    @Body() body: { dumpId: string },
-  ) {
+  async detectTrackableItems(@Request() req, @Body() body: { dumpId: string }) {
     const userId = req.user.userId;
 
     const result = await this.trackingService.detectTrackableItems(

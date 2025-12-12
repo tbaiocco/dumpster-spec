@@ -65,7 +65,7 @@ export class RecentCommand {
 
         // Build analysis and entities data from dump
         const extractedEntities = dump.extracted_entities || {};
-        
+
         const analysis: ContentAnalysisResponse = {
           summary: dump.ai_summary || '',
           category: dump.category?.name || 'General',
@@ -80,19 +80,35 @@ export class RecentCommand {
             tags: [],
           },
           actionItems: extractedEntities.actionItems || [],
-          sentiment: (extractedEntities.sentiment as 'positive' | 'neutral' | 'negative') || 'neutral',
-          urgency: (extractedEntities.urgency as 'low' | 'medium' | 'high') || 'low',
+          sentiment:
+            (extractedEntities.sentiment as
+              | 'positive'
+              | 'neutral'
+              | 'negative') || 'neutral',
+          urgency:
+            (extractedEntities.urgency as 'low' | 'medium' | 'high') || 'low',
           confidence: (dump.ai_confidence || 0) / 100,
         };
 
         const entities: EntityExtractionResult = {
-          entities: (extractedEntities.entityDetails || []).map((entity: any) => ({
-            type: entity.type as 'date' | 'time' | 'location' | 'person' | 'organization' | 'amount' | 'phone' | 'email' | 'url',
-            value: entity.value,
-            confidence: entity.confidence,
-            context: entity.context,
-            position: entity.position,
-          })),
+          entities: (extractedEntities.entityDetails || []).map(
+            (entity: any) => ({
+              type: entity.type as
+                | 'date'
+                | 'time'
+                | 'location'
+                | 'person'
+                | 'organization'
+                | 'amount'
+                | 'phone'
+                | 'email'
+                | 'url',
+              value: entity.value,
+              confidence: entity.confidence,
+              context: entity.context,
+              position: entity.position,
+            }),
+          ),
           summary: extractedEntities.entitySummary || {
             totalEntities: 0,
             entitiesByType: {},
@@ -114,20 +130,21 @@ export class RecentCommand {
         };
 
         // Use ResponseFormatterService with detailed format
-        const formatted = await this.responseFormatterService.formatAnalysisResponse(
-          user.id,
-          analysis,
-          entities,
-          {
-            platform: platform,
-            format: 'detailed',
-            includeEmojis: true,
-            includeMarkdown: true,
-          },
-        );
+        const formatted =
+          await this.responseFormatterService.formatAnalysisResponse(
+            user.id,
+            analysis,
+            entities,
+            {
+              platform: platform,
+              format: 'detailed',
+              includeEmojis: true,
+              includeMarkdown: true,
+            },
+          );
 
         response += formatted.html || formatted.text;
-        
+
         if (dump.processing_status === 'failed') {
           const failedText =
             platform === 'whatsapp'

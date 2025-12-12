@@ -94,7 +94,9 @@ export class ReportCommand {
     return '';
   }
 
-  private showReportOptions(platform: 'telegram' | 'whatsapp' = 'telegram'): string {
+  private showReportOptions(
+    platform: 'telegram' | 'whatsapp' = 'telegram',
+  ): string {
     if (platform === 'whatsapp') {
       let response = '🚨 *Report an Issue*\n\n';
       response += 'To report an issue, use:\n';

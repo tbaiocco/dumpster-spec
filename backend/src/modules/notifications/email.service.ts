@@ -195,7 +195,7 @@ export class EmailService {
     if (this.provider === 'sendgrid') {
       return this.sendViaSendGridAPI(options);
     }
-    
+
     if (this.provider === 'resend') {
       return this.sendViaResendAPI(options);
     }

@@ -434,7 +434,7 @@ export class EntityExtractionService {
     try {
       // Try parsing with chrono-node (handles natural language dates)
       const parsed = chrono.parseDate(dateStr, referenceDate);
-      
+
       if (parsed) {
         // Return ISO date format (YYYY-MM-DD)
         return parsed.toISOString().split('T')[0];
@@ -465,16 +465,16 @@ export class EntityExtractionService {
 
       // Handle common relative time expressions
       const relativeTimeMap: Record<string, string> = {
-        'midnight': '00:00',
+        midnight: '00:00',
         'early morning': '08:00',
-        'morning': '09:00',
+        morning: '09:00',
         'late morning': '11:00',
-        'noon': '12:00',
-        'midday': '12:00',
-        'afternoon': '14:00',
+        noon: '12:00',
+        midday: '12:00',
+        afternoon: '14:00',
         'late afternoon': '16:00',
-        'evening': '18:00',
-        'night': '20:00',
+        evening: '18:00',
+        night: '20:00',
         'late night': '22:00',
       };
 
@@ -492,7 +492,7 @@ export class EntityExtractionService {
 
       // Try parsing with chrono-node (handles times with dates)
       const parsed = chrono.parseDate(timeStr, referenceDate);
-      
+
       if (parsed) {
         const hours = String(parsed.getHours()).padStart(2, '0');
         const minutes = String(parsed.getMinutes()).padStart(2, '0');
@@ -502,7 +502,7 @@ export class EntityExtractionService {
       // Try direct time parsing for formats like "14:30", "2:30pm", etc.
       const timeRegex = /(\d{1,2}):?(\d{2})?\s*(am|pm)?/i;
       const match = lowerTime.match(timeRegex);
-      
+
       if (match) {
         let hours = parseInt(match[1], 10);
         const minutes = match[2] ? parseInt(match[2], 10) : 0;

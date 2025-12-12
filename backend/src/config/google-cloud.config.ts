@@ -17,7 +17,10 @@ export default registerAs('googleCloud', () => {
         credentials,
       };
     } catch (error) {
-      console.error('Failed to parse Google Cloud credentials from base64:', error);
+      console.error(
+        'Failed to parse Google Cloud credentials from base64:',
+        error,
+      );
       throw new Error('Invalid Google Cloud credentials format');
     }
   }
@@ -36,7 +39,9 @@ export default registerAs('googleCloud', () => {
   }
 
   // Allow running without Google Cloud credentials if not required
-  console.warn('Google Cloud credentials not configured. Some features may be unavailable.');
+  console.warn(
+    'Google Cloud credentials not configured. Some features may be unavailable.',
+  );
   return {
     projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
     credentials: null,

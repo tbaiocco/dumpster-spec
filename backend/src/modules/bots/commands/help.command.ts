@@ -15,8 +15,8 @@ export class HelpCommand {
         '/report [issue] - Report a problem or feedback\n\n' +
         '📝 *What you can send me:*\n' +
         '• Text messages (notes, reminders, ideas)\n' +
-        '• Voice messages (I\'ll transcribe them)\n' +
-        '• Photos (I\'ll extract text and information)\n' +
+        "• Voice messages (I'll transcribe them)\n" +
+        "• Photos (I'll extract text and information)\n" +
         '• Documents (bills, receipts, etc.)\n\n' +
         '🤖 *What I do:*\n' +
         '• Categorize your content automatically\n' +

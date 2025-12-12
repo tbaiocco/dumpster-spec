@@ -376,6 +376,10 @@ class ApiService {
     return this.get('/admin/analytics/users');
   }
 
+  public async getFeatureStats() {
+    return this.get('/admin/analytics/features');
+  }
+
   /**
    * Feedback Management
    */
