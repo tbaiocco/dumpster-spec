@@ -1,7 +1,13 @@
 - Change Twilio by Meta API Cloud???
     Example of 20 users, 12 msg/day average: Twilio 67.15 Meta 30
+    not now, complexity phone number issues.
+    Check also others Infobip, Wati, 360Dialog, Sinch
     
 - send security code for frontend login via Telegram or WhatsApp (maybe email)
+
+- ?Dump answers more cool and meaningfull.?
+
+- Cost tracking in admin-dashboard?
 
 - Dashboard for the users
     Should be able to search the dumps, simply, with natural lang
@@ -19,7 +25,7 @@
     Identify which agents are important, order them by priority to implement and when to introduce them
 
 
-- Metrics in the admin-dashboard:     
+- Metrics in the admin-dashboard: DONE    
     Add the new endpoints of admin.controller and fix any of the others needed.
 
 - IMPORTANT: Metrics: DONE

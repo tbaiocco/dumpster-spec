@@ -1,0 +1,133 @@
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Query,
+  Logger,
+  HttpCode,
+  HttpStatus,
+  ForbiddenException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { WhatsAppService } from './whatsapp.service';
+import { UserService } from '../users/user.service';
+
+@Controller('api/webhooks/whatsapp')
+export class WhatsAppWebhookController {
+  private readonly logger = new Logger(WhatsAppWebhookController.name);
+  private readonly verifyToken: string;
+
+  constructor(
+    private readonly whatsAppService: WhatsAppService,
+    private readonly userService: UserService,
+    private readonly configService: ConfigService,
+  ) {
+    this.verifyToken =
+      this.configService.get<string>('WHATSAPP_VERIFY_TOKEN') || '';
+  }
+
+  /**
+   * Webhook verification endpoint (GET request)
+   * Meta requires this endpoint to verify webhook ownership
+   * Called when setting up webhook in Meta Business Suite
+   */
+  @Get()
+  async verifyWebhook(@Query() query: any): Promise<string> {
+    this.logger.log('WhatsApp webhook verification request received');
+
+    const mode = query['hub.mode'];
+    const token = query['hub.verify_token'];
+    const challenge = query['hub.challenge'];
+
+    this.logger.debug('Verification params:', { mode, token: '***', challenge });
+
+    if (mode === 'subscribe' && token === this.verifyToken) {
+      this.logger.log('✅ Webhook verified successfully');
+      return challenge;
+    }
+
+    this.logger.error('❌ Webhook verification failed - invalid token');
+    throw new ForbiddenException('Invalid verify token');
+  }
+
+  /**
+   * Handle incoming WhatsApp messages via Meta API webhook (POST request)
+   * 
+   * Account linking: When a new phone number messages the bot, we check if
+   * a user exists with that phone number and automatically link the WhatsApp
+   * chat_id. If no user exists, we prompt them to register at theclutter.app
+   */
+  @Post()
+  @HttpCode(HttpStatus.OK)
+  async handleIncomingMessage(@Body() body: any): Promise<string> {
+    try {
+      this.logger.log('WhatsApp webhook message received');
+      this.logger.debug('Webhook payload:', JSON.stringify(body, null, 2));
+
+      // Meta API sends nested structure: object -> entry -> changes -> value -> messages
+      if (body.object !== 'whatsapp_business_account') {
+        this.logger.warn('Non-WhatsApp webhook payload received');
+        return 'OK';
+      }
+
+      // Extract messages from nested structure
+      for (const entry of body.entry || []) {
+        for (const change of entry.changes || []) {
+          if (change.field !== 'messages') {
+            continue;
+          }
+
+          const messages = change.value?.messages || [];
+          const contacts = change.value?.contacts || [];
+
+          for (let i = 0; i < messages.length; i++) {
+            const message = messages[i];
+            const contact = contacts[i];
+
+            // Extract phone number (Meta format: no prefix, just digits)
+            const fromNumber = message.from;
+
+            if (!fromNumber) {
+              this.logger.error('No phone number in message');
+              continue;
+            }
+
+            // Check if user exists
+            const user = await this.userService.findByChatId(
+              fromNumber,
+              'whatsapp',
+            );
+
+            if (!user) {
+              this.logger.log(
+                `New WhatsApp number detected: ${fromNumber} - attempting to link`,
+              );
+
+              // Try to link to existing user account by phone number
+              await this.whatsAppService.autoRegisterUser(fromNumber, contact);
+
+              // After linking attempt, process the original message if user was found
+              const linkedUser = await this.userService.findByChatId(
+                fromNumber,
+                'whatsapp',
+              );
+              if (linkedUser) {
+                await this.whatsAppService.processMetaWebhook(message, contact);
+              }
+              continue;
+            }
+
+            // User exists, process the message normally
+            await this.whatsAppService.processMetaWebhook(message, contact);
+          }
+        }
+      }
+
+      return 'OK';
+    } catch (error) {
+      this.logger.error('Error handling WhatsApp webhook:', error);
+      throw error;
+    }
+  }
+}
