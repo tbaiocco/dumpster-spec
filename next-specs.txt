@@ -5,7 +5,7 @@
     
 - send security code for frontend login via Telegram or WhatsApp (maybe email)
 
-- ?Dump answers more cool and meaningfull.?
+- ?Dump answers more cool and meaningfull?
 
 - Cost tracking in admin-dashboard?
 

@@ -27,6 +27,20 @@ export interface AuthTokens {
 }
 
 /**
+ * User data from authentication
+ */
+export interface UserData {
+  id: string;
+  phone_number: string;
+  role: string;
+  verified_at: Date;
+  chat_id_telegram: string | null;
+  chat_id_whatsapp: string | null;
+  timezone: string;
+  language: string;
+}
+
+/**
  * API Client Service for Admin Dashboard
  * Provides centralized HTTP client with authentication, error handling, and retry logic
  */
@@ -34,6 +48,7 @@ class ApiService {
   private client: AxiosInstance;
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
+  private userData: UserData | null = null;
 
   constructor(baseURL?: string) {
     this.client = axios.create({
@@ -103,35 +118,50 @@ class ApiService {
   }
 
   /**
-   * Set authentication tokens
+   * Set authentication tokens and user data
    */
-  public setTokens(tokens: AuthTokens): void {
+  public setTokens(tokens: AuthTokens, user?: UserData): void {
     this.accessToken = tokens.accessToken;
     this.refreshToken = tokens.refreshToken || null;
+    this.userData = user || null;
 
     // Persist to localStorage
     localStorage.setItem('accessToken', tokens.accessToken);
     if (tokens.refreshToken) {
       localStorage.setItem('refreshToken', tokens.refreshToken);
     }
+    if (user) {
+      localStorage.setItem('userData', JSON.stringify(user));
+    }
   }
 
   /**
-   * Clear authentication tokens
+   * Clear authentication tokens and user data
    */
   public clearTokens(): void {
     this.accessToken = null;
     this.refreshToken = null;
+    this.userData = null;
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    localStorage.removeItem('userData');
   }
 
   /**
-   * Load tokens from localStorage
+   * Load tokens and user data from localStorage
    */
   private loadTokens(): void {
     this.accessToken = localStorage.getItem('accessToken');
     this.refreshToken = localStorage.getItem('refreshToken');
+    const storedUser = localStorage.getItem('userData');
+    if (storedUser) {
+      try {
+        this.userData = JSON.parse(storedUser);
+      } catch (e) {
+        console.error('Failed to parse stored user data:', e);
+        this.userData = null;
+      }
+    }
   }
 
   /**
@@ -139,6 +169,20 @@ class ApiService {
    */
   public isAuthenticated(): boolean {
     return !!this.accessToken;
+  }
+
+  /**
+   * Check if authenticated user is an admin
+   */
+  public isAdmin(): boolean {
+    return this.userData?.role === 'ADMIN';
+  }
+
+  /**
+   * Get current user data
+   */
+  public getCurrentUser(): UserData | null {
+    return this.userData;
   }
 
   /**

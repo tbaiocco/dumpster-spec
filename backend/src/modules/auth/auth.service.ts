@@ -24,6 +24,7 @@ export interface AuthResponse {
     chat_id_whatsapp: string | null;
     timezone: string;
     language: string;
+    role: string;
   };
 }
 
@@ -82,6 +83,7 @@ export class AuthService {
         chat_id_whatsapp: user.chat_id_whatsapp,
         timezone: user.timezone,
         language: user.language,
+        role: user.role,
       },
     };
   }
