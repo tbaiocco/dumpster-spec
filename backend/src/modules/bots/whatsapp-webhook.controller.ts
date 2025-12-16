@@ -35,9 +35,19 @@ export class WhatsAppWebhookController {
 
       // Extract phone number from Twilio format (e.g., "whatsapp:+351964938153")
       const fromNumber = body.From?.replace('whatsapp:', '') || '';
+      const toNumber = body.To?.replace('whatsapp:', '') || '';
+      
+      // Get Twilio WhatsApp number from environment
+      const twilioWhatsAppNumber = this.whatsAppService.getTwilioWhatsAppNumber();
 
       if (!fromNumber) {
         this.logger.error('No phone number in webhook payload');
+        return 'OK';
+      }
+
+      // Ignore messages from our own WhatsApp number (bot number)
+      if (fromNumber === twilioWhatsAppNumber) {
+        this.logger.log(`Ignoring message from bot's own number: ${fromNumber}`);
         return 'OK';
       }
 
@@ -72,5 +82,14 @@ export class WhatsAppWebhookController {
       this.logger.error('Error handling WhatsApp webhook:', error);
       throw error;
     }
+  }
+
+  @Post('status')
+  @HttpCode(HttpStatus.OK)
+  async handleStatusCallback(@Body() body: any): Promise<string> {
+    this.logger.log('WhatsApp status callback received');
+    this.logger.debug('Status payload:', JSON.stringify(body, null, 2));
+    // Handle message status updates (sent, delivered, failed, etc.)
+    return 'OK';
   }
 }

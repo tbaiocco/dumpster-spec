@@ -156,6 +156,14 @@ export class WhatsAppService {
     }
   }
 
+  /**
+   * Get the Twilio WhatsApp number (bot's number)
+   * Returns the number without the whatsapp: prefix
+   */
+  getTwilioWhatsAppNumber(): string {
+    return this.phoneNumber.replace('whatsapp:', '');
+  }
+
   async sendMessage(
     request: WhatsAppSendMessageRequest,
   ): Promise<{ id: string }> {
