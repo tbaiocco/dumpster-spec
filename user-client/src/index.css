@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+@theme {
+  /* Clutter.AI Brand Colors */
+  --color-stone: #FAFAF9;
+  --color-electric-purple: #B929EB;
+  --color-bright-cyan: #2DD9F6;
+  
+  /* Primary scale */
+  --color-primary-50: #faf5ff;
+  --color-primary-100: #f3e8ff;
+  --color-primary-200: #e9d5ff;
+  --color-primary-300: #d8b4fe;
+  --color-primary-400: #c084fc;
+  --color-primary-500: #B929EB;
+  --color-primary-600: #9333ea;
+  --color-primary-700: #7e22ce;
+  --color-primary-800: #6b21a8;
+  --color-primary-900: #581c87;
+  --color-primary-950: #3b0764;
+  
+  /* Secondary scale */
+  --color-secondary-50: #ecfeff;
+  --color-secondary-100: #cffafe;
+  --color-secondary-200: #a5f3fc;
+  --color-secondary-300: #67e8f9;
+  --color-secondary-400: #2DD9F6;
+  --color-secondary-500: #06b6d4;
+  --color-secondary-600: #0891b2;
+  --color-secondary-700: #0e7490;
+  --color-secondary-800: #155e75;
+  --color-secondary-900: #164e63;
+  --color-secondary-950: #083344;
+  
+  /* Font families */
+  --font-family-heading: 'Outfit', system-ui, -apple-system, sans-serif;
+  --font-family-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-family-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  
+  /* Border radius */
+  --radius-charming: 12px;
+  --radius-charming-lg: 16px;
+  --radius-charming-xl: 24px;
+  
+  /* Box shadows */
+  --shadow-glow-sm: 0 2px 8px rgba(185, 41, 235, 0.15);
+  --shadow-glow: 0 4px 16px rgba(185, 41, 235, 0.2);
+  --shadow-glow-lg: 0 8px 24px rgba(185, 41, 235, 0.25);
+  --shadow-warm: 0 4px 12px rgba(250, 250, 249, 0.5);
+  
+  /* Background gradients */
+  --gradient-primary: linear-gradient(to right, #B929EB, #2DD9F6);
+  --gradient-primary-hover: linear-gradient(to right, #9333ea, #06b6d4);
+  
+  /* Animations */
+  --animate-fade-in: fadeIn 0.3s ease-in-out;
+  --animate-slide-up: slideUp 0.4s ease-out;
+  --animate-slide-down: slideDown 0.4s ease-out;
+  --animate-scale-in: scaleIn 0.3s ease-out;
+  --animate-shimmer: shimmer 2s linear infinite;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes shimmer {
+  from { background-position: -1000px 0; }
+  to { background-position: 1000px 0; }
+}
+
+@layer base {
+  :root {
+    --background: #FAFAF9;
+    --foreground: #0f172a;
+  }
+  
+  * {
+    border-color: rgb(209 213 219);
+  }
+  
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-family-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-family-heading);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .bg-gradient-primary {
+    background-image: var(--gradient-primary);
+  }
+  
+  .bg-gradient-primary-hover:hover {
+    background-image: var(--gradient-primary-hover);
+  }
+}

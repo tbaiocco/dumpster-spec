@@ -18,6 +18,7 @@ npm test && npm run lint
 TypeScript 5.0+, Node.js 18+: Follow standard conventions
 
 ## Recent Changes
+- 002-user-frontend-interface: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 - 001-universal-life-inbox: Added TypeScript 5.0+, Node.js 18+ + NestJS (backend framework), Supabase (PostgreSQL + storage), pgvector (semantic search)
 
 <!-- MANUAL ADDITIONS START -->
