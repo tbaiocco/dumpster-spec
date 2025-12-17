@@ -330,47 +330,47 @@
 
 ### Critical Security Fixes
 
-- [ ] T118 [CRITICAL] [SECURITY] Fix search userId filtering - add userId to SearchRequest type and searchDumps() call using useAuth(), verify backend validates userId from JWT token, test cross-user data exposure scenarios
+- [X] T118 [CRITICAL] [SECURITY] Fix search userId filtering - add userId to SearchRequest type and searchDumps() call using useAuth(), verify backend validates userId from JWT token, test cross-user data exposure scenarios
 
 ### High Priority Features
 
-- [ ] T119 [P] Create user-client/src/pages/ProfilePage.tsx with GET /auth/profile to display user settings (timezone, language, notification preferences)
-- [ ] T120 [P] Add profile update form in ProfilePage with PATCH /auth/profile for timezone, language, digest_time, notification preferences
-- [ ] T121 [P] Add profile link to DashboardLayout navigation menu
+- [X] T119 [P] Create user-client/src/pages/ProfilePage.tsx with GET /auth/profile to display user settings (timezone, language, notification preferences)
+- [X] T120 [P] Add profile update form in ProfilePage with PATCH /auth/profile for timezone, language, digest_time, notification preferences
+- [X] T121 [P] Add profile link to DashboardLayout navigation menu
 
 ### Reminder Management (User Story 5 Enhancement)
 
-- [ ] T123 [P] Add snooze button to reminder cards in TrackingPage calling POST /api/reminders/:id/snooze with snooze_until datetime picker
-- [ ] T124 [P] Add dismiss button to reminder cards calling POST /api/reminders/:id/dismiss
-- [ ] T125 [P] Create EditReminderModal component with form for reminder_text, reminder_date, status fields
-- [ ] T126 [P] Wire EditReminderModal to PUT /api/reminders/:id endpoint with validation
+- [X] T123 [P] Add snooze button to reminder cards in TrackingPage calling POST /api/reminders/:id/snooze with snooze_until datetime picker
+- [X] T124 [P] Add dismiss button to reminder cards calling POST /api/reminders/:id/dismiss
+- [X] T125 [P] Create EditReminderModal component with form for reminder_text, reminder_date, status fields
+- [X] T126 [P] Wire EditReminderModal to PUT /api/reminders/:id endpoint with validation
 
 ### Package Tracking Management (User Story 5 Enhancement)
 
-- [ ] T127 [P] Add "Track Package" button/form to TrackingPage calling POST /api/tracking/package with trackingNumber input
-- [ ] T128 [P] Add "Detect Tracking" button on DumpCard calling POST /api/tracking/detect with dumpId (when tracking entities likely present)
-- [ ] T129 [P] Create TrackingStatusModal component for updating package status with status text, notes, location fields
-- [ ] T130 [P] Wire TrackingStatusModal to PUT /api/tracking/:id/status endpoint
-- [ ] T131 [P] Add "Mark Delivered" button to tracking cards calling PUT /api/tracking/:id/complete
+- [X] T127 [P] Add "Track Package" button/form to TrackingPage calling POST /api/tracking/package with trackingNumber input
+- [X] T128 [P] Add "Detect Tracking" button on DumpCard calling POST /api/tracking/detect with dumpId (when tracking entities likely present)
+- [X] T129 [P] Create TrackingStatusModal component for updating package status with status text, notes, location fields
+- [X] T130 [P] Wire TrackingStatusModal to PUT /api/tracking/:id/status endpoint
+- [X] T131 [P] Add "Mark Delivered" button to tracking cards calling PUT /api/tracking/:id/complete
 
 ### Search Enhancements
 
-- [ ] T132 [P] Implement search suggestions in SearchBar component calling GET /api/search/suggestions on input focus
-- [ ] T133 [P] Add debounced suggestion fetching (200ms) with keyboard navigation (arrow keys, enter) in SearchBar
-- [ ] T134 [P] Add search result relevance feedback with thumbs up/down icons on search result cards calling POST /api/search/feedback
+- [X] T132 [P] Implement search suggestions in SearchBar component calling GET /api/search/suggestions on input focus
+- [X] T133 [P] Add debounced suggestion fetching (200ms) with keyboard navigation (arrow keys, enter) in SearchBar
+- [X] T134 [P] Add search result relevance feedback with thumbs up/down icons on search result cards calling POST /api/search/feedback
 
 ### Dump Management Features
 
-- [ ] T135 [P] Create "New Dump" button in Dashboard header opening NewDumpModal
-- [ ] T136 [P] Create NewDumpModal with text input mode calling POST /api/dumps/enhanced with userId, raw_content, content_type fields
-- [ ] T137 [P] Add file upload input to NewDumpModal calling POST /api/dumps/upload (multipart/form-data) with file, userId, caption
-- [ ] T138 Add "Delete Forever" button to DumpDetailModal with confirmation modal calling DELETE /api/dumps/:id (permanent deletion vs reject status change)
+- [X] T135 [P] Create "New Dump" button in Dashboard header opening NewDumpModal
+- [X] T136 [P] Create NewDumpModal with text input mode calling POST /api/dumps/enhanced with userId, raw_content, content_type fields
+- [X] T137 [P] Add file upload input to NewDumpModal calling POST /api/dumps/upload (multipart/form-data) with file, userId, caption
+- [X] T138 Add "Delete Forever" button to DumpDetailModal with confirmation modal calling DELETE /api/dumps/:id (permanent deletion vs reject status change)
 
 ### Security & UX Improvements
 
-- [ ] T139 Add URL access control verification for ?dumpId= query param - verify dump belongs to authenticated user, show "Access Denied" modal if mismatch, redirect to dashboard on unauthorized access
-- [ ] T140 [P] Add content truncation to DumpCard limiting rawContent to 200 characters with "Read More" link expanding to full modal
-- [ ] T141 Add upvote capability to MyFeedbackList calling POST /api/feedback/:feedbackId/upvote with upvote count display
+- [X] T139 Add URL access control verification for ?dumpId= query param - verify dump belongs to authenticated user, show "Access Denied" modal if mismatch, redirect to dashboard on unauthorized access
+- [X] T140 [P] Add content truncation to DumpCard limiting rawContent to 200 characters with "Read More" link expanding to full modal
+- [X] T141 Add upvote capability to MyFeedbackList calling POST /api/feedback/:feedbackId/upvote with upvote count display
 
 **Checkpoint**: Critical security issue resolved, profile management functional, enhanced reminder/tracking management, complete dump lifecycle management.
 

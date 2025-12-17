@@ -26,6 +26,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
     { path: '/search', label: 'Search', icon: '🔍' },
     { path: '/tracking', label: 'Tracking', icon: '📦' },
     { path: '/feedback', label: 'Feedback', icon: '💬' },
+    { path: '/profile', label: 'Profile', icon: '⚙️' },
   ];
 
   return (

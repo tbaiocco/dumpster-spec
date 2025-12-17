@@ -15,6 +15,7 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ de
 const SearchPage = lazy(() => import('./pages/SearchPage').then(m => ({ default: m.SearchPage })));
 const TrackingPage = lazy(() => import('./pages/TrackingPage').then(m => ({ default: m.TrackingPage })));
 const FeedbackPage = lazy(() => import('./pages/FeedbackPage').then(m => ({ default: m.FeedbackPage })));
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
 
 /**
  * App Component
@@ -46,6 +47,7 @@ function App() {
                     <Route path="/search" element={<SearchPage />} />
                     <Route path="/tracking" element={<TrackingPage />} />
                     <Route path="/feedback" element={<FeedbackPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
                   </Route>
                 </Route>
 

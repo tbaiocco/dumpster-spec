@@ -58,11 +58,10 @@ export interface SearchResults {
  */
 export interface SearchRequest {
   query: string;                 // Natural language query
+  userId: string;              // User identifier
   filters?: SearchFilters;       // Optional filters
-  pagination?: {
-    page: number;                // Page number (default: 1)
-    pageSize: number;            // Items per page (default: 20, max: 100)
-  };
+  limit?: number;                  // Items per page
+  offset?: number;                 // Offset for pagination
 }
 
 /**

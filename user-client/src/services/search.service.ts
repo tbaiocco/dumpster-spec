@@ -12,17 +12,17 @@ import type { SearchFilters, SearchResults, SearchRequest } from '../types/searc
  */
 export const searchDumps = async (
   query: string,
+  userId: string,
   filters: SearchFilters,
-  page: number = 1,
-  pageSize: number = 20
+  offset: number = 0,
+  limit: number = 20
 ): Promise<SearchResults> => {
   const request: SearchRequest = {
     query,
+    userId,
     filters,
-    pagination: {
-      page,
-      pageSize,
-    },
+    limit,
+    offset,
   };
 
   const response = await apiService.post<SearchResults>('/search', request);
@@ -56,6 +56,7 @@ let cancelTokenSource: AbortController | null = null;
 
 export const searchDumpsWithCancellation = async (
   query: string,
+  userId: string,
   filters: SearchFilters,
   page: number = 1,
   pageSize: number = 20
@@ -68,13 +69,15 @@ export const searchDumpsWithCancellation = async (
   // Create new cancel token
   cancelTokenSource = new AbortController();
 
+  // Calculate offset from page number
+  const offset = (page - 1) * pageSize;
+
   const request: SearchRequest = {
     query,
+    userId,
     filters,
-    pagination: {
-      page,
-      pageSize,
-    },
+    limit: pageSize,
+    offset,
   };
 
   try {
