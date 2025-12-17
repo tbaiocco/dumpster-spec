@@ -192,17 +192,19 @@
 
 ### State Management for User Story 4
 
-- [ ] T067 [US4] Add rejectDump(id, reason) action to DumpsContext with validation (reason min 10 chars) and optimistic update flow
+- [x] T067 [US4] Add rejectDump(id, reason) action to DumpsContext with validation (reason min 10 chars) and optimistic update flow
 
 ### UI Components for User Story 4
 
-- [ ] T068 [US4] Add "Reject" button to DumpDetailModal opening rejection reason textarea + submit flow
-- [ ] T069 [US4] Add rejection form validation: reason required min 10 chars, show validation errors blocking API call
-- [ ] T070 [US4] Wire DumpCard "Reject" button (when showActions=true) to open modal with reject mode active
-- [ ] T071 [US4] Implement optimistic UI for reject: status updates immediately, on failure show error toast + revert + keep modal open + retry button
-- [ ] T072 [US4] Add success state: show success toast, close modal, remove item from dashboard view without page reload
+- [x] T068 [US4] Add "Reject" button to DumpDetailModal opening rejection reason textarea + submit flow
+- [x] T069 [US4] Add rejection form validation: reason required min 10 chars, show validation errors blocking API call
+- [x] T070 [US4] Wire DumpCard "Reject" button (when showActions=true) to open modal with reject mode active
+- [x] T071 [US4] Implement optimistic UI for reject: status updates immediately, on failure show error toast + revert + keep modal open + retry button
+- [x] T072 [US4] Add success state: show success toast, close modal, remove item from dashboard view without page reload
 
 **Checkpoint**: At this point, User Stories 1-4 should all work independently. Users can accept and reject items.
+
+**Phase 6 Status**: ✅ COMPLETE - Reject workflow implemented with optimistic updates and validation
 
 ---
 

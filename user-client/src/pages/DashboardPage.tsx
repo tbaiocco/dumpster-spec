@@ -24,6 +24,7 @@ export const DashboardPage: React.FC = () => {
   const [showActions, setShowActions] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedDump, setSelectedDump] = useState<DumpDerived | null>(null);
+  const [modalMode, setModalMode] = useState<'view' | 'reject'>('view');
 
   // Fetch dumps on mount
   useEffect(() => {
@@ -51,17 +52,24 @@ export const DashboardPage: React.FC = () => {
   };
 
   // Handle dump card click - open modal with URL routing
-  const handleDumpClick = (dump: DumpDerived) => {
+  const handleDumpClick = (dump: DumpDerived, mode: 'view' | 'reject' = 'view') => {
+    setModalMode(mode);
     setSearchParams({ dumpId: dump.id });
   };
 
   // Handle modal close - clear URL param
   const handleModalClose = () => {
     setSearchParams({});
+    setModalMode('view');
   };
 
   // Handle successful accept - refetch data
   const handleAccept = () => {
+    refetchDumps();
+  };
+
+  // Handle successful reject - refetch data
+  const handleReject = () => {
     refetchDumps();
   };
 
@@ -199,6 +207,8 @@ export const DashboardPage: React.FC = () => {
         isOpen={!!selectedDump}
         onClose={handleModalClose}
         onAccept={handleAccept}
+        onReject={handleReject}
+        initialMode={modalMode}
       />
 
       {/* Loading Overlay (refetching) */}

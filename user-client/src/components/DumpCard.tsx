@@ -5,66 +5,33 @@
  * reminder/tracking icons, and optional Accept/Reject buttons
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
 import type { DumpDerived } from '../types/dump.types';
 import { formatDisplayDate, truncateText, formatCategory } from '../utils/formatting';
 import { cn } from '../lib/utils';
-import * as dumpsService from '../services/dumps.service';
-import { useToast } from './Toast';
 
 export interface DumpCardProps {
   dump: DumpDerived;
   showActions?: boolean;
   onUpdate?: (dumpId: string, updates: Partial<DumpDerived>) => void;
-  onClick?: (dump: DumpDerived) => void;
+  onClick?: (dump: DumpDerived, mode?: 'view' | 'reject') => void;
 }
 
 /**
  * DumpCard Component
  */
-export const DumpCard: React.FC<DumpCardProps> = ({ dump, showActions = false, onUpdate, onClick }) => {
-  const { addToast } = useToast();
-  const [isAccepting, setIsAccepting] = useState(false);
-  const [isRejecting, setIsRejecting] = useState(false);
+export const DumpCard: React.FC<DumpCardProps> = ({ dump, showActions = false, onClick }) => {
 
-  const handleAccept = async () => {
-    setIsAccepting(true);
-
-    try {
-      const response = await dumpsService.acceptDump(dump.id);
-
-      if (response.success && response.data) {
-        addToast('success', 'Dump accepted successfully');
-        onUpdate?.(dump.id, { status: 'Approved' });
-      } else {
-        addToast('error', response.error?.message || 'Failed to accept dump');
-      }
-    } catch (err: any) {
-      addToast('error', err?.message || 'An unexpected error occurred');
-    } finally {
-      setIsAccepting(false);
-    }
+  const handleAccept = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
+    onClick?.(dump, 'view'); // Open in view mode for accept
   };
 
-  const handleReject = async () => {
-    setIsRejecting(true);
-
-    try {
-      const response = await dumpsService.rejectDump(dump.id);
-
-      if (response.success && response.data) {
-        addToast('success', 'Dump rejected');
-        onUpdate?.(dump.id, { status: 'Rejected' });
-      } else {
-        addToast('error', response.error?.message || 'Failed to reject dump');
-      }
-    } catch (err: any) {
-      addToast('error', err?.message || 'An unexpected error occurred');
-    } finally {
-      setIsRejecting(false);
-    }
+  const handleReject = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
+    onClick?.(dump, 'reject');
   };
 
   // Status badge variant mapping
@@ -155,8 +122,6 @@ export const DumpCard: React.FC<DumpCardProps> = ({ dump, showActions = false, o
               size="sm"
               variant="success"
               onClick={handleAccept}
-              loading={isAccepting}
-              disabled={isRejecting}
             >
               ✓ Accept
             </Button>
@@ -164,8 +129,6 @@ export const DumpCard: React.FC<DumpCardProps> = ({ dump, showActions = false, o
               size="sm"
               variant="destructive"
               onClick={handleReject}
-              loading={isRejecting}
-              disabled={isAccepting}
             >
               ✗ Reject
             </Button>

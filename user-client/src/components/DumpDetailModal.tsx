@@ -20,6 +20,8 @@ export interface DumpDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAccept?: (dumpId: string) => void;
+  onReject?: (dumpId: string) => void;
+  initialMode?: 'view' | 'reject';
 }
 
 /**
@@ -30,23 +32,29 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
   isOpen,
   onClose,
   onAccept,
+  onReject,
+  initialMode = 'view',
 }) => {
-  const { acceptDumpWithOptimism } = useDumps();
+  const { acceptDumpWithOptimism, rejectDumpWithOptimism } = useDumps();
   const { addToast } = useToast();
   
   const [category, setCategory] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
 
-  // Reset form when dump changes
+  // Reset form when dump changes or modal opens
   useEffect(() => {
     if (dump) {
       setCategory(dump.categoryName || dump.category?.name || '');
       setNotes(dump.notes || '');
+      setRejectReason('');
       setValidationError(null);
+      setShowRejectForm(initialMode === 'reject');
     }
-  }, [dump]);
+  }, [dump, initialMode]);
 
   if (!dump) return null;
 
@@ -95,7 +103,55 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
 
   // Handle retry after failure
   const handleRetry = () => {
-    handleAccept();
+    if (showRejectForm) {
+      handleReject();
+    } else {
+      handleAccept();
+    }
+  };
+
+  // Handle reject
+  const handleReject = async () => {
+    // Validation: reason must be at least 10 chars
+    if (!rejectReason.trim() || rejectReason.trim().length < 10) {
+      setValidationError('Rejection reason must be at least 10 characters');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setValidationError(null);
+
+    try {
+      const result = await rejectDumpWithOptimism(dump.id, rejectReason.trim());
+
+      if (result.success) {
+        addToast('success', 'Dump rejected successfully');
+        if (onReject) {
+          onReject(dump.id);
+        }
+        onClose();
+      } else {
+        // Keep modal open on failure, preserve edits
+        addToast('error', result.error || 'Failed to reject dump');
+      }
+    } catch (err: any) {
+      addToast('error', err?.message || 'An unexpected error occurred');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Toggle reject form
+  const handleShowRejectForm = () => {
+    setShowRejectForm(true);
+    setValidationError(null);
+  };
+
+  // Cancel reject
+  const handleCancelReject = () => {
+    setShowRejectForm(false);
+    setRejectReason('');
+    setValidationError(null);
   };
 
   return (
@@ -199,25 +255,63 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
           </div>
         )}
 
+        {/* Reject Form */}
+        {showRejectForm && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+            <label className="block text-sm font-medium text-red-900 mb-2">
+              Rejection Reason *
+            </label>
+            <TextArea
+              value={rejectReason}
+              onChange={e => setRejectReason(e.target.value)}
+              placeholder="Please provide a reason for rejecting this dump (minimum 10 characters)..."
+              error={validationError?.includes('Rejection') ? validationError : undefined}
+              rows={3}
+              helperText={`${rejectReason.length} characters (minimum 10 required)`}
+            />
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
           <Button
-            onClick={onClose}
+            onClick={showRejectForm ? handleCancelReject : onClose}
             variant="outline"
             disabled={isSubmitting}
           >
-            Cancel
+            {showRejectForm ? 'Back' : 'Cancel'}
           </Button>
-          {dump.status === 'Pending' && (
+          
+          {dump.status === 'Pending' && !showRejectForm && (
+            <>
+              <Button
+                onClick={handleShowRejectForm}
+                variant="destructive"
+                disabled={isSubmitting}
+              >
+                Reject
+              </Button>
+              <Button
+                onClick={handleAccept}
+                variant="success"
+                loading={isSubmitting}
+              >
+                Accept & Approve
+              </Button>
+            </>
+          )}
+
+          {dump.status === 'Pending' && showRejectForm && (
             <Button
-              onClick={handleAccept}
-              variant="success"
+              onClick={handleReject}
+              variant="destructive"
               loading={isSubmitting}
             >
-              Accept & Approve
+              Confirm Reject
             </Button>
           )}
-          {validationError && !validationError.includes('Category') && !validationError.includes('Notes') && (
+          
+          {validationError && !validationError.includes('Category') && !validationError.includes('Notes') && !validationError.includes('Rejection') && (
             <Button
               onClick={handleRetry}
               variant="default"

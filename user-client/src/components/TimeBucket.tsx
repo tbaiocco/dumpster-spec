@@ -15,7 +15,7 @@ export interface TimeBucketProps {
   timeBucket: TimeBucketGroup;
   showActions?: boolean;
   onDumpUpdate?: (dumpId: string, updates: Partial<DumpDerived>) => void;
-  onDumpClick?: (dump: DumpDerived) => void;
+  onDumpClick?: (dump: DumpDerived, mode?: 'view' | 'reject') => void;
 }
 
 /**
