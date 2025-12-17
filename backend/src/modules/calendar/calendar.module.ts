@@ -6,14 +6,12 @@ import { CalendarService } from './calendar.service';
 
 /**
  * Module for calendar functionality
- * 
+ *
  * Provides:
  * - CalendarService: .ics generation, event parsing, calendar integration
  */
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Dump, Reminder]),
-  ],
+  imports: [TypeOrmModule.forFeature([Dump, Reminder])],
   providers: [CalendarService],
   exports: [CalendarService],
 })

@@ -3,11 +3,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, Brackets } from 'typeorm';
 import { Dump } from '../../entities/dump.entity';
 import { VectorService } from './vector.service';
-import { QueryEnhancementService, QueryEnhancementResponse } from './query-enhancement.service';
+import {
+  QueryEnhancementService,
+  QueryEnhancementResponse,
+} from './query-enhancement.service';
 import { SemanticSearchService } from './semantic-search.service';
 import { RankingService, EnhancedQuery } from './ranking.service';
 import { FuzzyMatchService } from './fuzzy-match.service';
 import { FiltersService } from './filters.service';
+import { MetricsService } from '../metrics/metrics.service';
 
 export interface SearchRequest {
   query: string;
@@ -76,47 +80,67 @@ export class SearchService {
     private readonly rankingService: RankingService,
     private readonly fuzzyMatchService: FuzzyMatchService,
     private readonly filtersService: FiltersService,
+    private readonly metricsService: MetricsService,
   ) {}
 
   /**
    * Convert QueryEnhancementResponse to EnhancedQuery format
    */
-  private convertToEnhancedQuery(response: QueryEnhancementResponse): EnhancedQuery {
+  private convertToEnhancedQuery(
+    response: QueryEnhancementResponse,
+  ): EnhancedQuery {
     return {
       original: response.original,
       enhanced: response.enhanced,
       intent: response.extractedIntents?.[0] || 'general',
       entities: {
-        dates: response.suggestedFilters?.dateRange ? 
-          [response.suggestedFilters.dateRange.from, response.suggestedFilters.dateRange.to].filter((date): date is string => date !== undefined) : [],
+        dates: response.suggestedFilters?.dateRange
+          ? [
+              response.suggestedFilters.dateRange.from,
+              response.suggestedFilters.dateRange.to,
+            ].filter((date): date is string => date !== undefined)
+          : [],
         people: [], // Would need to extract from enhanced query
         locations: [], // Would need to extract from enhanced query
         categories: response.suggestedFilters?.categories || [],
         urgency: 'normal', // Would need to extract from enhanced query
       },
-      complexity: response.confidence > 0.8 ? 'simple' : response.confidence > 0.5 ? 'moderate' : 'complex',
+      complexity:
+        response.confidence > 0.8
+          ? 'simple'
+          : response.confidence > 0.5
+            ? 'moderate'
+            : 'complex',
     };
   }
-
   /**
    * Main search entry point with natural language processing
    */
   async search(request: SearchRequest): Promise<SearchResponse> {
-    const startTime = Date.now();
-    
-    this.logger.log(`Search request: "${request.query}" for user ${request.userId}`);
+    const startTime = performance.now(); // Use high-precision timer
+
+    this.logger.log(
+      `Search request: "${request.query}" for user ${request.userId}`,
+    );
+
+    let resultsCount = 0;
+    let searchType: 'vector' | 'fuzzy' | 'exact' | 'hybrid' = 'hybrid';
+    let success = true;
 
     try {
       // Step 1: Enhance query using AI
-      const enhancementResponse = await this.queryEnhancementService.enhanceQuery({
-        originalQuery: request.query,
-        userId: request.userId,
-        context: await this.getUserSearchContext(request.userId),
-      });
+      const enhancementResponse =
+        await this.queryEnhancementService.enhanceQuery({
+          originalQuery: request.query,
+          userId: request.userId,
+          context: await this.getUserSearchContext(request.userId),
+        });
 
       const enhancedQuery = this.convertToEnhancedQuery(enhancementResponse);
 
-      this.logger.debug(`Query enhanced: "${request.query}" → "${enhancedQuery.enhanced}"`);
+      this.logger.debug(
+        `Query enhanced: "${request.query}" → "${enhancedQuery.enhanced}"`,
+      );
 
       // Step 2: Apply base filters
       const baseQuery = this.dumpRepository
@@ -125,17 +149,38 @@ export class SearchService {
         .leftJoinAndSelect('dump.user', 'user')
         .where('dump.user_id = :userId', { userId: request.userId });
 
-      const filteredQuery = this.filtersService.applyFilters(baseQuery, request.filters || {});
+      const filteredQuery = this.filtersService.applyFilters(
+        baseQuery,
+        request.filters || {},
+      );
 
       // Step 3: Perform different types of search in parallel
       const [semanticResults, fuzzyResults, exactResults] = await Promise.all([
-        this.performSemanticSearch(enhancedQuery.enhanced, filteredQuery, request.limit, request.userId),
-        this.performFuzzySearch(enhancedQuery.enhanced, filteredQuery, request.limit, request.userId),
-        this.performExactSearchSafe(enhancedQuery.enhanced, request.userId, request.limit),
+        this.performSemanticSearch(
+          enhancedQuery.enhanced,
+          filteredQuery,
+          request.limit,
+          request.userId,
+        ),
+        this.performFuzzySearch(
+          enhancedQuery.enhanced,
+          filteredQuery,
+          request.limit,
+          request.userId,
+        ),
+        this.performExactSearchSafe(
+          enhancedQuery.enhanced,
+          request.userId,
+          request.limit,
+        ),
       ]);
 
       // Step 4: Combine and rank results
-      const combinedResults = this.combineResults(semanticResults, fuzzyResults, exactResults);
+      const combinedResults = this.combineResults(
+        semanticResults,
+        fuzzyResults,
+        exactResults,
+      );
       const rankedResults = await this.rankingService.rankResults(
         combinedResults,
         enhancedQuery,
@@ -143,12 +188,22 @@ export class SearchService {
       );
 
       // Step 5: Apply pagination
-      const paginatedResults = this.applyPagination(rankedResults, request.offset || 0, request.limit || 20);
+      const paginatedResults = this.applyPagination(
+        rankedResults,
+        request.offset || 0,
+        request.limit || 20,
+      );
 
-      const processingTime = Date.now() - startTime;
+      resultsCount = rankedResults.length;
+      searchType = this.determineSearchType(
+        semanticResults,
+        fuzzyResults,
+        exactResults,
+      );
 
-      // Get vector health metrics for monitoring
-      const vectorHealth = await this.getVectorHealthMetrics();
+      // Calculate processing time and get vector health
+      const processingTime = Math.round(performance.now() - startTime);
+      const vectorHealthCheck = await this.checkVectorHealth();
 
       const response: SearchResponse = {
         results: paginatedResults,
@@ -162,18 +217,63 @@ export class SearchService {
           semanticResults: semanticResults.length,
           fuzzyResults: fuzzyResults.length,
           exactResults: exactResults.length,
-          vectorHealth,
+          vectorHealth: vectorHealthCheck.metrics,
           filters: request.filters || {},
         },
       };
 
-      this.logger.log(`Search completed: ${response.total} results in ${processingTime}ms`);
+      this.logger.log(
+        `Search completed: ${response.total} results in ${processingTime}ms`,
+      );
       return response;
-
     } catch (error) {
+      success = false;
       this.logger.error('Search failed:', error);
       throw new Error(`Search failed: ${error.message}`);
+    } finally {
+      // ASYNC METRIC TRACKING (Fire-and-Forget)
+      const latencyMs = performance.now() - startTime;
+      this.metricsService.fireAndForget(() =>
+        this.metricsService.trackSearch({
+          queryText: request.query,
+          queryLength: request.query.length,
+          resultsCount,
+          latencyMs,
+          searchType,
+          userId: request.userId,
+          success,
+          metadata: {
+            filters: request.filters,
+          },
+        }),
+      );
     }
+  }
+
+  /**
+   * Determine the predominant search type based on results
+   */
+  private determineSearchType(
+    semanticResults: SearchResult[],
+    fuzzyResults: SearchResult[],
+    exactResults: SearchResult[],
+  ): 'vector' | 'fuzzy' | 'exact' | 'hybrid' {
+    const counts = {
+      semantic: semanticResults.length,
+      fuzzy: fuzzyResults.length,
+      exact: exactResults.length,
+    };
+
+    // If we have results from multiple sources, it's hybrid
+    const nonZero = Object.values(counts).filter((c) => c > 0).length;
+    if (nonZero > 1) return 'hybrid';
+
+    // Otherwise, return the dominant type
+    if (counts.semantic > 0) return 'vector';
+    if (counts.fuzzy > 0) return 'fuzzy';
+    if (counts.exact > 0) return 'exact';
+
+    return 'hybrid';
   }
 
   /**
@@ -193,7 +293,7 @@ export class SearchService {
         minSimilarity: 0.3, // Lower threshold for better semantic matching
       });
 
-      return semanticResults.map(result => ({
+      return semanticResults.map((result) => ({
         dump: result.dump,
         relevanceScore: result.similarity,
         matchType: 'semantic' as const,
@@ -223,7 +323,7 @@ export class SearchService {
         limit: limit || 30,
       });
 
-      return fuzzyResults.map(result => ({
+      return fuzzyResults.map((result) => ({
         dump: result.dump,
         relevanceScore: result.score,
         matchType: 'fuzzy' as const,
@@ -247,52 +347,62 @@ export class SearchService {
   ): Promise<SearchResult[]> {
     try {
       const exactQuery = baseQuery.clone();
-      
+
       // Use original query terms (not enhanced) for exact matching to avoid false positives
       const originalQuery = query.split(' ').slice(0, 2).join(' '); // Take first 2 words of enhanced query
-      const queryTerms = originalQuery.toLowerCase().split(/\s+/).filter(term => term.length > 2);
-      
+      const queryTerms = originalQuery
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((term) => term.length > 2);
+
       if (queryTerms.length === 0) return [];
 
       // For exact search, require at least one core term to match
       // Use phrase-like matching for better precision
       const corePhrase = queryTerms.join(' ');
-      
+
       exactQuery.andWhere(
-        new Brackets(qb => {
+        new Brackets((qb) => {
           // Look for the full phrase first
-          qb.where(`LOWER(dump.raw_content) LIKE :fullPhrase`, { fullPhrase: `%${corePhrase}%` })
-            .orWhere(`LOWER(dump.ai_summary) LIKE :fullPhraseSum`, { fullPhraseSum: `%${corePhrase}%` });
-          
+          qb.where(`LOWER(dump.raw_content) LIKE :fullPhrase`, {
+            fullPhrase: `%${corePhrase}%`,
+          }).orWhere(`LOWER(dump.ai_summary) LIKE :fullPhraseSum`, {
+            fullPhraseSum: `%${corePhrase}%`,
+          });
+
           // If multiple terms, also allow individual term matches but require at least 2
           if (queryTerms.length > 1) {
             for (let i = 0; i < queryTerms.length; i++) {
               const term = queryTerms[i];
-              qb.orWhere(`LOWER(dump.raw_content) LIKE :term${i}`, { [`term${i}`]: `%${term}%` })
-                .orWhere(`LOWER(dump.ai_summary) LIKE :termSummary${i}`, { [`termSummary${i}`]: `%${term}%` });
+              qb.orWhere(`LOWER(dump.raw_content) LIKE :term${i}`, {
+                [`term${i}`]: `%${term}%`,
+              }).orWhere(`LOWER(dump.ai_summary) LIKE :termSummary${i}`, {
+                [`termSummary${i}`]: `%${term}%`,
+              });
             }
           }
-        })
+        }),
       );
 
-      const results = await exactQuery
-        .take(limit || 20)
-        .getMany();
+      const results = await exactQuery.take(limit || 20).getMany();
 
       // Filter results to ensure they have meaningful matches
-      const filteredResults = results.filter(dump => {
+      const filteredResults = results.filter((dump) => {
         const matchScore = this.calculateExactMatchScore(dump, queryTerms);
         return matchScore > 0.3; // Minimum relevance threshold
       });
 
-      return filteredResults.map(dump => {
+      return filteredResults.map((dump) => {
         const matchedFields = this.findMatchedFields(dump, queryTerms);
         return {
           dump,
           relevanceScore: this.calculateExactMatchScore(dump, queryTerms),
           matchType: 'exact' as const,
           matchedFields,
-          highlightedContent: this.highlightMatches(dump.raw_content || dump.ai_summary, queryTerms),
+          highlightedContent: this.highlightMatches(
+            dump.raw_content || dump.ai_summary,
+            queryTerms,
+          ),
           explanation: `Exact matches in: ${matchedFields.join(', ')}`,
         };
       });
@@ -320,36 +430,40 @@ export class SearchService {
 
       // Use original query terms (not enhanced) for exact matching
       const originalQuery = query.split(' ').slice(0, 2).join(' '); // Take first 2 words
-      const queryTerms = originalQuery.toLowerCase().split(/\s+/).filter(term => term.length > 2);
-      
+      const queryTerms = originalQuery
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((term) => term.length > 2);
+
       if (queryTerms.length === 0) return [];
 
       // Simple exact matching without complex Brackets
       const corePhrase = queryTerms.join(' ');
-      
+
       queryBuilder.andWhere(
         '(LOWER(dump.raw_content) LIKE :fullPhrase OR LOWER(dump.ai_summary) LIKE :fullPhrase)',
-        { fullPhrase: `%${corePhrase}%` }
+        { fullPhrase: `%${corePhrase}%` },
       );
 
-      const results = await queryBuilder
-        .take(limit || 20)
-        .getMany();
+      const results = await queryBuilder.take(limit || 20).getMany();
 
       // Filter results to ensure relevance
-      const filteredResults = results.filter(dump => {
+      const filteredResults = results.filter((dump) => {
         const matchScore = this.calculateExactMatchScore(dump, queryTerms);
         return matchScore > 0.3;
       });
 
-      return filteredResults.map(dump => {
+      return filteredResults.map((dump) => {
         const matchedFields = this.findMatchedFields(dump, queryTerms);
         return {
           dump,
           relevanceScore: this.calculateExactMatchScore(dump, queryTerms),
           matchType: 'exact' as const,
           matchedFields,
-          highlightedContent: this.highlightMatches(dump.raw_content || dump.ai_summary, queryTerms),
+          highlightedContent: this.highlightMatches(
+            dump.raw_content || dump.ai_summary,
+            queryTerms,
+          ),
           explanation: `Exact matches in: ${matchedFields.join(', ')}`,
         };
       });
@@ -379,10 +493,16 @@ export class SearchService {
       const existing = combined.get(result.dump.id);
       if (existing) {
         // Combine scores and match types
-        existing.relevanceScore = Math.max(existing.relevanceScore, result.relevanceScore);
+        existing.relevanceScore = Math.max(
+          existing.relevanceScore,
+          result.relevanceScore,
+        );
         existing.matchType = 'hybrid';
-        existing.matchedFields = [...new Set([...existing.matchedFields, ...result.matchedFields])];
-        existing.highlightedContent = result.highlightedContent || existing.highlightedContent;
+        existing.matchedFields = [
+          ...new Set([...existing.matchedFields, ...result.matchedFields]),
+        ];
+        existing.highlightedContent =
+          result.highlightedContent || existing.highlightedContent;
       } else {
         combined.set(result.dump.id, result);
       }
@@ -395,8 +515,11 @@ export class SearchService {
         // Boost score for exact matches
         existing.relevanceScore = Math.min(1, existing.relevanceScore + 0.2);
         existing.matchType = 'hybrid';
-        existing.matchedFields = [...new Set([...existing.matchedFields, ...result.matchedFields])];
-        existing.highlightedContent = result.highlightedContent || existing.highlightedContent;
+        existing.matchedFields = [
+          ...new Set([...existing.matchedFields, ...result.matchedFields]),
+        ];
+        existing.highlightedContent =
+          result.highlightedContent || existing.highlightedContent;
       } else {
         combined.set(result.dump.id, result);
       }
@@ -408,7 +531,11 @@ export class SearchService {
   /**
    * Apply pagination to results
    */
-  private applyPagination(results: SearchResult[], offset: number, limit: number): SearchResult[] {
+  private applyPagination(
+    results: SearchResult[],
+    offset: number,
+    limit: number,
+  ): SearchResult[] {
     return results.slice(offset, offset + limit);
   }
 
@@ -426,12 +553,14 @@ export class SearchService {
         .take(10)
         .getMany();
 
-      const categories = [...new Set(recentDumps.map(d => d.category?.name).filter(Boolean))];
-      
+      const categories = [
+        ...new Set(recentDumps.map((d) => d.category?.name).filter(Boolean)),
+      ];
+
       return {
         recentCategories: categories,
         recentDumpCount: recentDumps.length,
-        userTimezone: await this.getUserTimezone(userId)
+        userTimezone: await this.getUserTimezone(userId),
       };
     } catch (error) {
       this.logger.error('Failed to get user search context:', error);
@@ -446,13 +575,17 @@ export class SearchService {
     const matched: string[] = [];
     const content = (dump.raw_content || '').toLowerCase();
     const summary = (dump.ai_summary || '').toLowerCase();
-    
-    const hasContentMatch = queryTerms.some(term => content.includes(term.toLowerCase()));
-    const hasSummaryMatch = queryTerms.some(term => summary.includes(term.toLowerCase()));
-    
+
+    const hasContentMatch = queryTerms.some((term) =>
+      content.includes(term.toLowerCase()),
+    );
+    const hasSummaryMatch = queryTerms.some((term) =>
+      summary.includes(term.toLowerCase()),
+    );
+
     if (hasContentMatch) matched.push('raw_content');
     if (hasSummaryMatch) matched.push('ai_summary');
-    
+
     return matched;
   }
 
@@ -462,14 +595,14 @@ export class SearchService {
   private calculateExactMatchScore(dump: Dump, queryTerms: string[]): number {
     const content = (dump.raw_content || '').toLowerCase();
     const summary = (dump.ai_summary || '').toLowerCase();
-    
+
     let matches = 0;
     for (const term of queryTerms) {
       const termLower = term.toLowerCase();
       if (content.includes(termLower)) matches += 1;
       if (summary.includes(termLower)) matches += 0.8; // Summary matches slightly less weight
     }
-    
+
     return Math.min(1, matches / queryTerms.length);
   }
 
@@ -478,26 +611,33 @@ export class SearchService {
    */
   private highlightMatches(content: string, queryTerms: string[]): string {
     if (!content) return '';
-    
+
     let highlighted = content;
     for (const term of queryTerms) {
-      const escapedTerm = term.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+      const escapedTerm = term.replaceAll(
+        /[.*+?^${}()|[\]\\]/g,
+        String.raw`\$&`,
+      );
       const regex = new RegExp(`(${escapedTerm})`, 'gi');
       highlighted = highlighted.replace(regex, '**$1**'); // Markdown bold for highlighting
     }
-    
+
     // Truncate to reasonable length
     if (highlighted.length > 300) {
       highlighted = highlighted.substring(0, 300) + '...';
     }
-    
+
     return highlighted;
   }
 
   /**
    * Quick search for auto-complete and suggestions
    */
-  async quickSearch(query: string, userId: string, limit: number = 5): Promise<SearchResult[]> {
+  async quickSearch(
+    query: string,
+    userId: string,
+    limit: number = 5,
+  ): Promise<SearchResult[]> {
     if (query.length < 2) return [];
 
     try {
@@ -507,18 +647,21 @@ export class SearchService {
         .where('dump.user_id = :userId', { userId })
         .andWhere(
           '(LOWER(dump.raw_content) LIKE :query OR LOWER(dump.ai_summary) LIKE :query)',
-          { query: `%${query.toLowerCase()}%` }
+          { query: `%${query.toLowerCase()}%` },
         )
         .orderBy('dump.created_at', 'DESC')
         .take(limit)
         .getMany();
 
-      return results.map(dump => ({
+      return results.map((dump) => ({
         dump,
         relevanceScore: 0.8,
         matchType: 'exact' as const,
         matchedFields: ['raw_content'],
-        highlightedContent: this.highlightMatches(dump.ai_summary || dump.raw_content, [query]),
+        highlightedContent: this.highlightMatches(
+          dump.ai_summary || dump.raw_content,
+          [query],
+        ),
       }));
     } catch (error) {
       this.logger.error('Quick search failed:', error);
@@ -529,10 +672,14 @@ export class SearchService {
   /**
    * Get search suggestions based on user history
    */
-  async getSearchSuggestions(userId: string, limit: number = 10): Promise<string[]> {
+  async getSearchSuggestions(
+    userId: string,
+    limit: number = 10,
+  ): Promise<string[]> {
     try {
       // Get common terms from user's dumps
-      const results = await this.dataSource.query(`
+      const results = await this.dataSource.query(
+        `
         SELECT 
           UNNEST(string_to_array(LOWER(REGEXP_REPLACE(raw_content, '[^a-zA-Z0-9\\s]', ' ', 'g')), ' ')) as word,
           COUNT(*) as frequency
@@ -544,12 +691,59 @@ export class SearchService {
         HAVING LENGTH(TRIM(word)) > 3 AND COUNT(*) > 1
         ORDER BY frequency DESC, word
         LIMIT $2
-      `, [userId, limit]);
-
-      return results.map(r => r.word).filter(word => 
-        // Filter out common words
-        !['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'its', 'may', 'new', 'now', 'old', 'see', 'two', 'who', 'boy', 'did', 'man', 'end', 'few', 'got', 'let', 'put', 'say', 'she', 'too', 'use'].includes(word)
+      `,
+        [userId, limit],
       );
+
+      return results
+        .map((r) => r.word)
+        .filter(
+          (word) =>
+            // Filter out common words
+            ![
+              'the',
+              'and',
+              'for',
+              'are',
+              'but',
+              'not',
+              'you',
+              'all',
+              'can',
+              'had',
+              'her',
+              'was',
+              'one',
+              'our',
+              'out',
+              'day',
+              'get',
+              'has',
+              'him',
+              'his',
+              'how',
+              'its',
+              'may',
+              'new',
+              'now',
+              'old',
+              'see',
+              'two',
+              'who',
+              'boy',
+              'did',
+              'man',
+              'end',
+              'few',
+              'got',
+              'let',
+              'put',
+              'say',
+              'she',
+              'too',
+              'use',
+            ].includes(word),
+        );
     } catch (error) {
       this.logger.error('Failed to get search suggestions:', error);
       return [];
@@ -582,13 +776,11 @@ export class SearchService {
     try {
       // This would typically come from user preferences
       // For MVP, default to UTC
-      const user = await this.dataSource
-        .getRepository('User')
-        .findOne({ 
-          where: { id: userId },
-          select: ['timezone'] 
-        });
-      
+      const user = await this.dataSource.getRepository('User').findOne({
+        where: { id: userId },
+        select: ['timezone'],
+      });
+
       return user?.timezone || 'UTC';
     } catch (error) {
       this.logger.warn(`Failed to get timezone for user ${userId}:`, error);
@@ -606,13 +798,18 @@ export class SearchService {
 
       // Get vector statistics
       const [totalResult, vectoredResult] = await Promise.all([
-        this.dataSource.query("SELECT COUNT(*) as count FROM dumps WHERE processing_status = 'completed'"),
-        this.dataSource.query("SELECT COUNT(*) as count FROM dumps WHERE content_vector IS NOT NULL"),
+        this.dataSource.query(
+          "SELECT COUNT(*) as count FROM dumps WHERE processing_status = 'completed'",
+        ),
+        this.dataSource.query(
+          'SELECT COUNT(*) as count FROM dumps WHERE content_vector IS NOT NULL',
+        ),
       ]);
 
       const totalDumps = Number.parseInt(totalResult[0].count);
       const dumpsWithVectors = Number.parseInt(vectoredResult[0].count);
-      const vectorCoverage = totalDumps > 0 ? (dumpsWithVectors / totalDumps) * 100 : 0;
+      const vectorCoverage =
+        totalDumps > 0 ? (dumpsWithVectors / totalDumps) * 100 : 0;
 
       // Measure query performance
       const queryTime = Date.now() - startTime;
@@ -625,7 +822,7 @@ export class SearchService {
           WHERE tablename = 'dumps' 
           AND indexname = 'idx_dumps_content_vector'
         `);
-        
+
         if (indexExistsResult.length > 0) {
           const indexSizeResult = await this.dataSource.query(`
             SELECT pg_size_pretty(pg_total_relation_size('idx_dumps_content_vector')) as size
@@ -655,22 +852,26 @@ export class SearchService {
    * Check if vector infrastructure is healthy
    * Part of T049D: Health monitoring implementation
    */
-  async checkVectorHealth(): Promise<{ 
-    healthy: boolean; 
-    issues: string[]; 
-    metrics: VectorHealthMetrics 
+  async checkVectorHealth(): Promise<{
+    healthy: boolean;
+    issues: string[];
+    metrics: VectorHealthMetrics;
   }> {
     const issues: string[] = [];
     const metrics = await this.getVectorHealthMetrics();
 
     // Check coverage threshold
     if (metrics.vectorCoverage < 95) {
-      issues.push(`Low vector coverage: ${metrics.vectorCoverage}% (expected: >95%)`);
+      issues.push(
+        `Low vector coverage: ${metrics.vectorCoverage}% (expected: >95%)`,
+      );
     }
 
     // Check query performance
     if (metrics.avgQueryTime > 100) {
-      issues.push(`Slow query performance: ${metrics.avgQueryTime}ms (expected: <100ms)`);
+      issues.push(
+        `Slow query performance: ${metrics.avgQueryTime}ms (expected: <100ms)`,
+      );
     }
 
     // Check if we have any vectors at all
@@ -680,11 +881,14 @@ export class SearchService {
 
     const healthy = issues.length === 0;
 
-    this.logger.log(`Vector health check: ${healthy ? 'HEALTHY' : 'ISSUES FOUND'}`, {
-      coverage: `${metrics.vectorCoverage}%`,
-      queryTime: `${metrics.avgQueryTime}ms`,
-      issues: issues.length,
-    });
+    this.logger.log(
+      `Vector health check: ${healthy ? 'HEALTHY' : 'ISSUES FOUND'}`,
+      {
+        coverage: `${metrics.vectorCoverage}%`,
+        queryTime: `${metrics.avgQueryTime}ms`,
+        issues: issues.length,
+      },
+    );
 
     return { healthy, issues, metrics };
   }

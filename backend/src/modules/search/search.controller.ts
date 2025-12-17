@@ -15,7 +15,17 @@ import { GetUser } from '../auth/decorators/get-user.decorator';
 import { User } from '../../entities/user.entity';
 import { SearchService, SearchRequest, SearchResponse } from './search.service';
 import { VectorService } from './vector.service';
-import { IsString, IsOptional, IsArray, IsDateString, IsNumber, Min, Max } from 'class-validator';
+import { MetricsService } from '../metrics/metrics.service';
+import { FeatureType } from '../../entities/feature-usage.entity';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsDateString,
+  IsNumber,
+  Min,
+  Max,
+} from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import type { ApiResponse } from '../../common/interfaces/api-response.interface';
 
@@ -93,6 +103,7 @@ export class SearchController {
   constructor(
     private readonly searchService: SearchService,
     private readonly vectorService: VectorService,
+    private readonly metricsService: MetricsService,
   ) {}
 
   @Post()
@@ -100,6 +111,18 @@ export class SearchController {
   async search(
     @Body(ValidationPipe) searchDto: SearchQueryDto,
   ): Promise<ApiResponse<SearchResponse>> {
+    // TRACK SEARCH FEATURE (Fire-and-Forget)
+    this.metricsService.fireAndForget(() =>
+      this.metricsService.trackFeature({
+        featureType: FeatureType.SEARCH_PERFORMED,
+        detail: 'api_search',
+        userId: searchDto.userId,
+        metadata: {
+          hasFilters: !!(searchDto.contentTypes || searchDto.categories || searchDto.dateFrom),
+        },
+      }),
+    );
+
     const request: SearchRequest = {
       query: searchDto.query,
       userId: searchDto.userId,
@@ -130,6 +153,16 @@ export class SearchController {
     @Query(ValidationPipe) quickSearchDto: QuickSearchDto,
     @GetUser() user: User,
   ): Promise<ApiResponse<any[]>> {
+    // TRACK SEARCH FEATURE (Fire-and-Forget)
+    this.metricsService.fireAndForget(() =>
+      this.metricsService.trackFeature({
+        featureType: FeatureType.SEARCH_PERFORMED,
+        detail: 'quick_search',
+        userId: user.id,
+        metadata: {},
+      }),
+    );
+
     const results = await this.searchService.quickSearch(
       quickSearchDto.q,
       user.id,
@@ -148,6 +181,16 @@ export class SearchController {
     @GetUser() user: User,
     @Query('limit') limit?: number,
   ): Promise<ApiResponse<string[]>> {
+    // TRACK SEARCH FEATURE (Fire-and-Forget)
+    this.metricsService.fireAndForget(() =>
+      this.metricsService.trackFeature({
+        featureType: FeatureType.SEARCH_PERFORMED,
+        detail: 'suggestions',
+        userId: user.id,
+        metadata: {},
+      }),
+    );
+
     const suggestions = await this.searchService.getSearchSuggestions(
       user.id,
       limit ? Number(limit) : 10,
@@ -161,9 +204,7 @@ export class SearchController {
   }
 
   @Get('analytics')
-  async getSearchAnalytics(
-    @GetUser() user: User,
-  ): Promise<ApiResponse<any>> {
+  async getSearchAnalytics(@GetUser() user: User): Promise<ApiResponse<any>> {
     const analytics = await this.searchService.getSearchAnalytics(user.id);
 
     return {
@@ -175,19 +216,17 @@ export class SearchController {
 
   @Post('reindex')
   @HttpCode(HttpStatus.OK)
-  async reindexUserContent(
-    @GetUser() user: User,
-  ): Promise<ApiResponse<any>> {
+  async reindexUserContent(@GetUser() user: User): Promise<ApiResponse<any>> {
     // This would typically be an admin-only operation
     // but for MVP, users can trigger their own reindexing
-    
+
     try {
       // Get user's dumps that need vector indexing
       const stats = await this.vectorService.getEmbeddingStats();
-      
+
       // Trigger migration for existing dumps without vectors
       await this.vectorService.migrateExistingDumps(50);
-      
+
       const updatedStats = await this.vectorService.getEmbeddingStats();
 
       return {
@@ -274,7 +313,8 @@ export class SearchController {
   @Post('feedback')
   @HttpCode(HttpStatus.OK)
   async submitSearchFeedback(
-    @Body() feedback: {
+    @Body()
+    feedback: {
       query: string;
       resultId?: string;
       rating: 1 | 2 | 3 | 4 | 5;
@@ -284,7 +324,7 @@ export class SearchController {
   ): Promise<ApiResponse<any>> {
     // Log search feedback for improving search quality
     // This would typically go to a search_feedback table
-    
+
     return {
       success: true,
       data: { received: true },

@@ -73,7 +73,8 @@ describe('PackageTrackingService', () => {
 
   describe('extractTrackingNumbers', () => {
     it('should extract tracking numbers from text', () => {
-      const text = 'Your package 1Z999AA10123456784 will arrive soon. Also tracking 9400111899561514751456.';
+      const text =
+        'Your package 1Z999AA10123456784 will arrive soon. Also tracking 9400111899561514751456.';
 
       const numbers = service.extractTrackingNumbers(text);
 

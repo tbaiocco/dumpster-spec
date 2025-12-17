@@ -67,6 +67,19 @@ export class AdminController {
   }
 
   /**
+   * Get feature usage statistics (NEW)
+   */
+  @Get('analytics/features')
+  async getFeatureStats() {
+    const stats = await this.adminService.getFeatureStats();
+
+    return {
+      success: true,
+      data: stats,
+    };
+  }
+
+  /**
    * Get all dumps for admin overview
    * Used by: DumpsPage (T082)
    */
@@ -79,11 +92,29 @@ export class AdminController {
     const pageNum = Number.parseInt(page, 10);
     const limitNum = Number.parseInt(limit, 10);
 
-    const result = await this.adminService.getAllDumps(pageNum, limitNum, search);
+    const result = await this.adminService.getAllDumps(
+      pageNum,
+      limitNum,
+      search,
+    );
 
     return {
       success: true,
       data: result,
+    };
+  }
+
+  /**
+   * Get all categories
+   * Used by: ReviewPage for category selection
+   */
+  @Get('categories')
+  async getAllCategories() {
+    const categories = await this.adminService.getAllCategories();
+
+    return {
+      success: true,
+      data: categories,
     };
   }
 }

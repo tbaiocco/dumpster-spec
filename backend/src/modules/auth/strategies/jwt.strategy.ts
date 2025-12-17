@@ -18,9 +18,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {
-    const secret = process.env.JWT_SECRET || 'default-secret-change-in-production';
-    console.log('[JwtStrategy] Initializing with secret:', secret.substring(0, 10) + '...');
-    
+    const secret =
+      process.env.JWT_SECRET || 'default-secret-change-in-production';
+    console.log(
+      '[JwtStrategy] Initializing with secret:',
+      secret.substring(0, 10) + '...',
+    );
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -42,7 +46,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Invalid token');
     }
 
-    console.log('[JwtStrategy] User found:', { id: user.id, phone: user.phone_number, verified_at: user.verified_at });
+    console.log('[JwtStrategy] User found:', {
+      id: user.id,
+      phone: user.phone_number,
+      verified_at: user.verified_at,
+    });
 
     if (!user.verified_at) {
       console.log('[JwtStrategy] User phone number not verified');

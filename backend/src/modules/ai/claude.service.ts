@@ -5,7 +5,7 @@ export interface ContentAnalysisRequest {
   content: string;
   contentType: 'text' | 'transcription' | 'ocr_text';
   context?: {
-    source: 'telegram' | 'whatsapp';
+    source: 'telegram' | 'whatsapp' | 'email' | 'api';
     userId: string;
     timestamp: Date;
   };
@@ -88,7 +88,8 @@ export class ClaudeService {
 
     try {
       // Use custom system prompt if provided, otherwise use default
-      const systemPrompt = request.customSystemPrompt || this.buildSystemPrompt();
+      const systemPrompt =
+        request.customSystemPrompt || this.buildSystemPrompt();
       const userPrompt = this.buildUserPrompt(request);
 
       const response = await this.callClaude({
@@ -246,7 +247,9 @@ Return empty arrays for categories with no matches. Be conservative and only inc
    * Send a custom prompt to Claude and get raw response
    */
   async queryWithCustomPrompt(prompt: string): Promise<string> {
-    this.logger.log(`Sending custom prompt to Claude: ${prompt.substring(0, 100)}...`);
+    this.logger.log(
+      `Sending custom prompt to Claude: ${prompt.substring(0, 100)}...`,
+    );
 
     try {
       const response = await this.callClaude({

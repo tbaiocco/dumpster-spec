@@ -6,11 +6,23 @@ import { AdminService } from './admin.service';
 import { Dump } from '../../entities/dump.entity';
 import { User } from '../../entities/user.entity';
 import { Reminder } from '../../entities/reminder.entity';
+import { Category } from '../../entities/category.entity';
+import { SearchMetric } from '../../entities/search-metric.entity';
+import { AIMetric } from '../../entities/ai-metric.entity';
+import { FeatureUsage } from '../../entities/feature-usage.entity';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Dump, User, Reminder]),
+    TypeOrmModule.forFeature([
+      Dump,
+      User,
+      Reminder,
+      Category,
+      SearchMetric,
+      AIMetric,
+      FeatureUsage,
+    ]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     AuthModule, // Import AuthModule to use JwtAuthGuard and JwtStrategy
   ],

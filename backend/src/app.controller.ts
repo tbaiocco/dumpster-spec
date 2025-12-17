@@ -54,14 +54,14 @@ export class AppController {
     try {
       // Delete all dumps (this will also remove vectors)
       const result = await this.dataSource.query('DELETE FROM dumps');
-      
+
       // Get health status after cleaning
       const health = await this.databaseInitService.getVectorHealthStatus();
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         message: `Deleted all dumps successfully. Removed ${result[1]} records.`,
-        health: health 
+        health: health,
       };
     } catch (error) {
       return { success: false, message: error.message };
@@ -83,17 +83,18 @@ export class AppController {
   }
 
   @Get('admin/env-check')
-  async checkEnvironment() {
+  checkEnvironment() {
     return {
       success: true,
       data: {
         NODE_ENV: process.env.NODE_ENV,
         CLAUDE_API_KEY_EXISTS: !!process.env.CLAUDE_API_KEY,
         CLAUDE_API_KEY_LENGTH: process.env.CLAUDE_API_KEY?.length || 0,
-        CLAUDE_API_KEY_PREFIX: process.env.CLAUDE_API_KEY?.substring(0, 10) || 'NOT_SET',
+        CLAUDE_API_KEY_PREFIX:
+          process.env.CLAUDE_API_KEY?.substring(0, 10) || 'NOT_SET',
         DATABASE_HOST: process.env.DATABASE_HOST || 'NOT_SET',
         PWD: process.env.PWD,
-      }
+      },
     };
   }
 }

@@ -18,7 +18,7 @@ export interface CategorizationRequest {
   userId?: string;
   contentType?: 'text' | 'voice' | 'image' | 'document';
   context?: {
-    source: 'telegram' | 'whatsapp';
+    source: 'telegram' | 'whatsapp' | 'email' | 'api';
     timestamp: Date;
     previousCategories?: string[];
   };
@@ -59,52 +59,135 @@ export class CategorizationService {
   private readonly systemCategories = [
     {
       name: 'work',
-      keywords: ['meeting', 'project', 'deadline', 'task', 'office', 'client', 'business', 'email'],
+      keywords: [
+        'meeting',
+        'project',
+        'deadline',
+        'task',
+        'office',
+        'client',
+        'business',
+        'email',
+      ],
       description: 'Work-related content and professional activities',
     },
     {
       name: 'personal',
-      keywords: ['family', 'friend', 'hobby', 'vacation', 'health', 'exercise', 'shopping'],
+      keywords: [
+        'family',
+        'friend',
+        'hobby',
+        'vacation',
+        'health',
+        'exercise',
+        'shopping',
+      ],
       description: 'Personal activities and relationships',
     },
     {
       name: 'finance',
-      keywords: ['money', 'bank', 'payment', 'bill', 'budget', 'investment', 'expense', 'income'],
+      keywords: [
+        'money',
+        'bank',
+        'payment',
+        'bill',
+        'budget',
+        'investment',
+        'expense',
+        'income',
+      ],
       description: 'Financial transactions and planning',
     },
     {
       name: 'health',
-      keywords: ['doctor', 'medicine', 'appointment', 'symptoms', 'exercise', 'diet', 'wellness'],
+      keywords: [
+        'doctor',
+        'medicine',
+        'appointment',
+        'symptoms',
+        'exercise',
+        'diet',
+        'wellness',
+      ],
       description: 'Health and medical information',
     },
     {
       name: 'travel',
-      keywords: ['flight', 'hotel', 'vacation', 'trip', 'destination', 'booking', 'passport'],
+      keywords: [
+        'flight',
+        'hotel',
+        'vacation',
+        'trip',
+        'destination',
+        'booking',
+        'passport',
+      ],
       description: 'Travel plans and experiences',
     },
     {
       name: 'education',
-      keywords: ['study', 'course', 'exam', 'school', 'university', 'learning', 'research'],
+      keywords: [
+        'study',
+        'course',
+        'exam',
+        'school',
+        'university',
+        'learning',
+        'research',
+      ],
       description: 'Educational content and learning',
     },
     {
       name: 'entertainment',
-      keywords: ['movie', 'book', 'music', 'game', 'show', 'concert', 'sport', 'fun'],
+      keywords: [
+        'movie',
+        'book',
+        'music',
+        'game',
+        'show',
+        'concert',
+        'sport',
+        'fun',
+      ],
       description: 'Entertainment and leisure activities',
     },
     {
       name: 'food',
-      keywords: ['recipe', 'restaurant', 'cooking', 'meal', 'ingredient', 'diet', 'nutrition'],
+      keywords: [
+        'recipe',
+        'restaurant',
+        'cooking',
+        'meal',
+        'ingredient',
+        'diet',
+        'nutrition',
+      ],
       description: 'Food-related content and dining',
     },
     {
       name: 'home',
-      keywords: ['house', 'apartment', 'furniture', 'repair', 'cleaning', 'decoration', 'utility'],
+      keywords: [
+        'house',
+        'apartment',
+        'furniture',
+        'repair',
+        'cleaning',
+        'decoration',
+        'utility',
+      ],
       description: 'Home and living arrangements',
     },
     {
       name: 'ideas',
-      keywords: ['note', 'thought', 'idea', 'inspiration', 'brainstorm', 'concept', 'plan'],
+      keywords: [
+        'note',
+        'thought',
+        'idea',
+        'inspiration',
+        'brainstorm',
+        'concept',
+        'plan',
+      ],
       description: 'Ideas, thoughts, and creative content',
     },
   ];
@@ -117,38 +200,52 @@ export class CategorizationService {
     private readonly claudeService: ClaudeService,
   ) {}
 
-  async categorizeContent(request: CategorizationRequest): Promise<CategorizationResult> {
-    this.logger.log(`Categorizing content: ${request.content.substring(0, 100)}...`);
+  async categorizeContent(
+    request: CategorizationRequest,
+  ): Promise<CategorizationResult> {
+    this.logger.log(
+      `Categorizing content: ${request.content.substring(0, 100)}...`,
+    );
 
     try {
       // Get existing categories for user context
       const existingCategories = await this.getUserCategories(request.userId);
-      
+
       // Get AI-powered categorization
-      const aiCategorization = await this.getAiCategorization(request, existingCategories);
-      
+      const aiCategorization = await this.getAiCategorization(
+        request,
+        existingCategories,
+      );
+
       // Apply rule-based enhancements
-      const enhancedResults = await this.enhanceWithRules(request, aiCategorization);
-      
+      const enhancedResults = await this.enhanceWithRules(
+        request,
+        aiCategorization,
+      );
+
       // Check for auto-application based on confidence
       const autoApplied = enhancedResults.primaryCategory.confidence >= 0.8;
-      
-      this.logger.log(`Categorization complete. Primary: ${enhancedResults.primaryCategory.name} (${enhancedResults.primaryCategory.confidence})`);
-      
+
+      this.logger.log(
+        `Categorization complete. Primary: ${enhancedResults.primaryCategory.name} (${enhancedResults.primaryCategory.confidence})`,
+      );
+
       return {
         ...enhancedResults,
         autoApplied,
       };
-      
     } catch (error) {
       this.logger.error('Error in categorization:', error);
-      
+
       // Fallback to simple keyword-based categorization
       return this.getFallbackCategorization(request);
     }
   }
 
-  async findOrCreateCategory(categoryName: string, userId?: string): Promise<Category> {
+  async findOrCreateCategory(
+    categoryName: string,
+    userId?: string,
+  ): Promise<Category> {
     // Try to find existing category (case-insensitive)
     let category = await this.categoryRepository.findOne({
       where: { name: categoryName.toLowerCase() },
@@ -157,7 +254,7 @@ export class CategorizationService {
     if (!category) {
       // Create new category with smart defaults
       const defaults = this.getCategoryDefaults(categoryName);
-      
+
       category = this.categoryRepository.create({
         name: categoryName.toLowerCase(),
         description: defaults.description,
@@ -166,7 +263,7 @@ export class CategorizationService {
         is_active: true,
         sort_order: await this.getNextSortOrder(),
       });
-      
+
       category = await this.categoryRepository.save(category);
       this.logger.log(`Created new category: ${category.name}`);
     }
@@ -175,7 +272,8 @@ export class CategorizationService {
   }
 
   async getCategoryAnalytics(userId?: string): Promise<CategoryAnalytics> {
-    const queryBuilder = this.dumpRepository.createQueryBuilder('dump')
+    const queryBuilder = this.dumpRepository
+      .createQueryBuilder('dump')
       .leftJoinAndSelect('dump.category', 'category')
       .where('dump.category_id IS NOT NULL');
 
@@ -184,13 +282,16 @@ export class CategorizationService {
     }
 
     const dumps = await queryBuilder.getMany();
-    
+
     // Calculate top categories
-    const categoryStats = new Map<string, {
-      category: Category;
-      count: number;
-      totalConfidence: number;
-    }>();
+    const categoryStats = new Map<
+      string,
+      {
+        category: Category;
+        count: number;
+        totalConfidence: number;
+      }
+    >();
 
     for (const dump of dumps) {
       if (dump.category) {
@@ -210,7 +311,7 @@ export class CategorizationService {
 
     const totalDumps = dumps.length;
     const topCategories = Array.from(categoryStats.values())
-      .map(stats => ({
+      .map((stats) => ({
         category: stats.category,
         dumpCount: stats.count,
         percentage: (stats.count / totalDumps) * 100,
@@ -220,7 +321,7 @@ export class CategorizationService {
       .slice(0, 10);
 
     // Calculate recent trends (simplified - would need time-based analysis in production)
-    const recentTrends = topCategories.slice(0, 5).map(cat => ({
+    const recentTrends = topCategories.slice(0, 5).map((cat) => ({
       category: cat.category.name,
       growth: Math.random() * 20 - 10, // Placeholder - would calculate actual growth
       period: 'week' as const,
@@ -236,13 +337,19 @@ export class CategorizationService {
     };
   }
 
-  async suggestCategories(content: string, limit = 3): Promise<CategorySuggestion[]> {
+  async suggestCategories(
+    content: string,
+    limit = 3,
+  ): Promise<CategorySuggestion[]> {
     const keywords = this.extractKeywords(content.toLowerCase());
     const suggestions: CategorySuggestion[] = [];
 
     // Check system categories
     for (const sysCategory of this.systemCategories) {
-      const matchScore = this.calculateKeywordMatch(keywords, sysCategory.keywords);
+      const matchScore = this.calculateKeywordMatch(
+        keywords,
+        sysCategory.keywords,
+      );
       if (matchScore > 0) {
         const existingCategory = await this.categoryRepository.findOne({
           where: { name: sysCategory.name },
@@ -251,7 +358,7 @@ export class CategorizationService {
         suggestions.push({
           name: sysCategory.name,
           confidence: matchScore,
-          reasoning: `Matched keywords: ${keywords.filter(k => sysCategory.keywords.includes(k)).join(', ')}`,
+          reasoning: `Matched keywords: ${keywords.filter((k) => sysCategory.keywords.includes(k)).join(', ')}`,
           isExisting: !!existingCategory,
           existingCategory: existingCategory || undefined,
         });
@@ -289,11 +396,11 @@ export class CategorizationService {
     request: CategorizationRequest,
     existingCategories: Category[],
   ): Promise<Omit<CategorizationResult, 'autoApplied'>> {
-    const categoryNames = existingCategories.map(c => c.name);
-    
+    const categoryNames = existingCategories.map((c) => c.name);
+
     // Create enhanced prompt for AI categorization
     const prompt = this.buildCategorizationPrompt(request, categoryNames);
-    
+
     const analysis = await this.claudeService.analyzeContent({
       content: prompt,
       contentType: 'text',
@@ -305,8 +412,15 @@ export class CategorizationService {
     });
 
     // Parse AI response and create suggestions
-    const primaryCategory = await this.parseAiCategory(analysis.category, existingCategories);
-    const alternativeCategories = await this.generateAlternatives(request, existingCategories, primaryCategory.name);
+    const primaryCategory = await this.parseAiCategory(
+      analysis.category,
+      existingCategories,
+    );
+    const alternativeCategories = await this.generateAlternatives(
+      request,
+      existingCategories,
+      primaryCategory.name,
+    );
 
     return {
       primaryCategory,
@@ -322,7 +436,7 @@ export class CategorizationService {
   ): Promise<Omit<CategorizationResult, 'autoApplied'>> {
     // Apply business rules to enhance AI categorization
     const keywordSuggestions = await this.suggestCategories(request.content);
-    
+
     // If keyword matching has high confidence, boost or override AI suggestion
     const topKeywordMatch = keywordSuggestions[0];
     if (topKeywordMatch && topKeywordMatch.confidence > 0.7) {
@@ -330,7 +444,10 @@ export class CategorizationService {
         // Override with keyword-based suggestion
         return {
           primaryCategory: topKeywordMatch,
-          alternativeCategories: [aiResult.primaryCategory, ...aiResult.alternativeCategories],
+          alternativeCategories: [
+            aiResult.primaryCategory,
+            ...aiResult.alternativeCategories,
+          ],
           confidence: Math.max(topKeywordMatch.confidence, aiResult.confidence),
           reasoning: `Keyword-based override: ${topKeywordMatch.reasoning}`,
         };
@@ -340,10 +457,12 @@ export class CategorizationService {
     return aiResult;
   }
 
-  private getFallbackCategorization(request: CategorizationRequest): CategorizationResult {
+  private getFallbackCategorization(
+    request: CategorizationRequest,
+  ): CategorizationResult {
     // Note: In a real implementation, we'd await this, but for fallback we use sync keyword matching
     const syncSuggestions = this.getSystemCategorySuggestions(request.content);
-    
+
     const primary = syncSuggestions[0] || {
       name: 'uncategorized',
       confidence: 0.3,
@@ -366,12 +485,15 @@ export class CategorizationService {
 
     // Check system categories synchronously
     for (const sysCategory of this.systemCategories) {
-      const matchScore = this.calculateKeywordMatch(keywords, sysCategory.keywords);
+      const matchScore = this.calculateKeywordMatch(
+        keywords,
+        sysCategory.keywords,
+      );
       if (matchScore > 0) {
         suggestions.push({
           name: sysCategory.name,
           confidence: matchScore,
-          reasoning: `Matched keywords: ${keywords.filter(k => sysCategory.keywords.includes(k)).join(', ')}`,
+          reasoning: `Matched keywords: ${keywords.filter((k) => sysCategory.keywords.includes(k)).join(', ')}`,
           isExisting: false, // We don't check DB in fallback mode
         });
       }
@@ -381,7 +503,10 @@ export class CategorizationService {
     return suggestions.slice(0, 3);
   }
 
-  private buildCategorizationPrompt(request: CategorizationRequest, existingCategories: string[]): string {
+  private buildCategorizationPrompt(
+    request: CategorizationRequest,
+    existingCategories: string[],
+  ): string {
     return `
       Content to categorize: "${request.content}"
       Content type: ${request.contentType || 'unknown'}
@@ -395,9 +520,12 @@ export class CategorizationService {
     `;
   }
 
-  private async parseAiCategory(categoryName: string, existingCategories: Category[]): Promise<CategorySuggestion> {
-    const existing = existingCategories.find(c => 
-      c.name.toLowerCase() === categoryName.toLowerCase()
+  private async parseAiCategory(
+    categoryName: string,
+    existingCategories: Category[],
+  ): Promise<CategorySuggestion> {
+    const existing = existingCategories.find(
+      (c) => c.name.toLowerCase() === categoryName.toLowerCase(),
     );
 
     return {
@@ -415,9 +543,9 @@ export class CategorizationService {
     primaryCategoryName: string,
   ): Promise<CategorySuggestion[]> {
     const keywordSuggestions = await this.suggestCategories(request.content, 5);
-    
+
     return keywordSuggestions
-      .filter(s => s.name !== primaryCategoryName)
+      .filter((s) => s.name !== primaryCategoryName)
       .slice(0, 3);
   }
 
@@ -427,25 +555,76 @@ export class CategorizationService {
       .toLowerCase()
       .replaceAll(/[^\w\s]/g, ' ')
       .split(/\s+/)
-      .filter(word => word.length > 2)
-      .filter(word => !['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'man', 'new', 'now', 'old', 'see', 'two', 'way', 'who', 'boy', 'did', 'its', 'let', 'put', 'say', 'she', 'too', 'use'].includes(word));
+      .filter((word) => word.length > 2)
+      .filter(
+        (word) =>
+          ![
+            'the',
+            'and',
+            'for',
+            'are',
+            'but',
+            'not',
+            'you',
+            'all',
+            'can',
+            'had',
+            'her',
+            'was',
+            'one',
+            'our',
+            'out',
+            'day',
+            'get',
+            'has',
+            'him',
+            'his',
+            'how',
+            'man',
+            'new',
+            'now',
+            'old',
+            'see',
+            'two',
+            'way',
+            'who',
+            'boy',
+            'did',
+            'its',
+            'let',
+            'put',
+            'say',
+            'she',
+            'too',
+            'use',
+          ].includes(word),
+      );
   }
 
-  private calculateKeywordMatch(contentKeywords: string[], categoryKeywords: string[]): number {
-    const matches = contentKeywords.filter(word => 
-      categoryKeywords.some(catWord => 
-        word.includes(catWord) || catWord.includes(word)
-      )
+  private calculateKeywordMatch(
+    contentKeywords: string[],
+    categoryKeywords: string[],
+  ): number {
+    const matches = contentKeywords.filter((word) =>
+      categoryKeywords.some(
+        (catWord) => word.includes(catWord) || catWord.includes(word),
+      ),
     );
-    
+
     if (matches.length === 0) return 0;
-    
-    return Math.min(matches.length / contentKeywords.length * 2, 1);
+
+    return Math.min((matches.length / contentKeywords.length) * 2, 1);
   }
 
-  private getCategoryDefaults(categoryName: string): { description: string; color: string; icon: string } {
-    const sysCategory = this.systemCategories.find(c => c.name === categoryName.toLowerCase());
-    
+  private getCategoryDefaults(categoryName: string): {
+    description: string;
+    color: string;
+    icon: string;
+  } {
+    const sysCategory = this.systemCategories.find(
+      (c) => c.name === categoryName.toLowerCase(),
+    );
+
     if (sysCategory) {
       return {
         description: sysCategory.description,
@@ -496,7 +675,15 @@ export class CategorizationService {
   }
 
   private generateRandomColor(): string {
-    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8'];
+    const colors = [
+      '#FF6B6B',
+      '#4ECDC4',
+      '#45B7D1',
+      '#96CEB4',
+      '#FFEAA7',
+      '#DDA0DD',
+      '#98D8C8',
+    ];
     return colors[Math.floor(Math.random() * colors.length)];
   }
 
@@ -505,15 +692,17 @@ export class CategorizationService {
       .createQueryBuilder('category')
       .select('MAX(category.sort_order)', 'maxOrder')
       .getRawOne();
-    
+
     return (result?.maxOrder || 0) + 1;
   }
 
-  private async generateCategorySuggestions(userId?: string): Promise<Array<{
-    suggestedName: string;
-    frequency: number;
-    similarContent: string[];
-  }>> {
+  private async generateCategorySuggestions(userId?: string): Promise<
+    Array<{
+      suggestedName: string;
+      frequency: number;
+      similarContent: string[];
+    }>
+  > {
     // This would analyze uncategorized content and suggest new categories
     // For now, return empty array - would be implemented based on content analysis
     return [];

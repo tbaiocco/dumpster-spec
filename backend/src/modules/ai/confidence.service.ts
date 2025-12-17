@@ -4,9 +4,9 @@ import { Repository } from 'typeorm';
 import { Dump } from '../../entities/dump.entity';
 
 export interface ConfidenceThresholds {
-  minimum: number;  // Below this triggers automatic review
-  warning: number;  // Below this shows warning to user
-  good: number;     // Above this is considered reliable
+  minimum: number; // Below this triggers automatic review
+  warning: number; // Below this shows warning to user
+  good: number; // Above this is considered reliable
 }
 
 export interface ConfidenceScores {
@@ -33,9 +33,9 @@ export class ConfidenceService {
 
   // Default confidence thresholds
   private readonly defaultThresholds: ConfidenceThresholds = {
-    minimum: 0.4,  // 40% - anything below this needs review
-    warning: 0.6,  // 60% - show warning to user
-    good: 0.8,     // 80% - reliable results
+    minimum: 0.4, // 40% - anything below this needs review
+    warning: 0.6, // 60% - show warning to user
+    good: 0.8, // 80% - reliable results
   };
 
   constructor(
@@ -61,10 +61,11 @@ export class ConfidenceService {
       const overallScore = this.calculateOverallScore(scores);
       const analysis = this.generateAnalysis(dumpId, scores, overallScore);
 
-      this.logger.log(`Confidence analysis for dump ${dumpId}: ${analysis.confidence} (${Math.round(overallScore * 100)}%)`);
+      this.logger.log(
+        `Confidence analysis for dump ${dumpId}: ${analysis.confidence} (${Math.round(overallScore * 100)}%)`,
+      );
 
       return analysis;
-
     } catch (error) {
       this.logger.error('Error analyzing confidence:', error);
       throw error;
@@ -75,8 +76,8 @@ export class ConfidenceService {
    * Check if a dump meets confidence thresholds
    */
   isConfidentResult(
-    overallScore: number, 
-    thresholds?: Partial<ConfidenceThresholds>
+    overallScore: number,
+    thresholds?: Partial<ConfidenceThresholds>,
   ): boolean {
     const thresholdConfig = { ...this.defaultThresholds, ...thresholds };
     return overallScore >= thresholdConfig.good;
@@ -87,7 +88,7 @@ export class ConfidenceService {
    */
   needsReview(
     overallScore: number,
-    thresholds?: Partial<ConfidenceThresholds>
+    thresholds?: Partial<ConfidenceThresholds>,
   ): boolean {
     const thresholdConfig = { ...this.defaultThresholds, ...thresholds };
     return overallScore < thresholdConfig.minimum;
@@ -96,7 +97,9 @@ export class ConfidenceService {
   /**
    * Batch analyze confidence for multiple dumps
    */
-  async batchAnalyzeConfidence(dumpIds: string[]): Promise<ConfidenceAnalysis[]> {
+  async batchAnalyzeConfidence(
+    dumpIds: string[],
+  ): Promise<ConfidenceAnalysis[]> {
     const analyses: ConfidenceAnalysis[] = [];
 
     for (const dumpId of dumpIds) {
@@ -104,7 +107,10 @@ export class ConfidenceService {
         const analysis = await this.analyzeConfidence(dumpId);
         analyses.push(analysis);
       } catch (error) {
-        this.logger.error(`Error analyzing confidence for dump ${dumpId}:`, error);
+        this.logger.error(
+          `Error analyzing confidence for dump ${dumpId}:`,
+          error,
+        );
         // Continue with other dumps
       }
     }
@@ -167,7 +173,6 @@ export class ConfidenceService {
       stats.averageScore = scoredDumps > 0 ? totalScore / scoredDumps : 0;
 
       return stats;
-
     } catch (error) {
       this.logger.error('Error getting user confidence stats:', error);
       throw error;
@@ -178,18 +183,19 @@ export class ConfidenceService {
    * Update confidence score for a dump
    */
   async updateConfidenceScore(
-    dumpId: string, 
-    scores: ConfidenceScores
+    dumpId: string,
+    scores: ConfidenceScores,
   ): Promise<void> {
     try {
       const overallScore = this.calculateOverallScore(scores);
-      
+
       await this.dumpRepository.update(dumpId, {
         ai_confidence: overallScore,
       });
 
-      this.logger.log(`Updated confidence score for dump ${dumpId}: ${Math.round(overallScore * 100)}%`);
-
+      this.logger.log(
+        `Updated confidence score for dump ${dumpId}: ${Math.round(overallScore * 100)}%`,
+      );
     } catch (error) {
       this.logger.error('Error updating confidence score:', error);
       throw error;
@@ -202,30 +208,51 @@ export class ConfidenceService {
   getConfidenceRecommendations(analysis: ConfidenceAnalysis): string[] {
     const recommendations: string[] = [];
 
-    if (analysis.scores.categorization && analysis.scores.categorization < 0.6) {
-      recommendations.push('Consider reviewing category assignment - low categorization confidence');
+    if (
+      analysis.scores.categorization &&
+      analysis.scores.categorization < 0.6
+    ) {
+      recommendations.push(
+        'Consider reviewing category assignment - low categorization confidence',
+      );
     }
 
     if (analysis.scores.summarization && analysis.scores.summarization < 0.6) {
-      recommendations.push('AI summary may be inaccurate - consider manual review');
+      recommendations.push(
+        'AI summary may be inaccurate - consider manual review',
+      );
     }
 
-    if (analysis.scores.entityExtraction && analysis.scores.entityExtraction < 0.6) {
-      recommendations.push('Entity extraction may have missed important information');
+    if (
+      analysis.scores.entityExtraction &&
+      analysis.scores.entityExtraction < 0.6
+    ) {
+      recommendations.push(
+        'Entity extraction may have missed important information',
+      );
     }
 
-    if (analysis.scores.urgencyDetection && analysis.scores.urgencyDetection < 0.6) {
+    if (
+      analysis.scores.urgencyDetection &&
+      analysis.scores.urgencyDetection < 0.6
+    ) {
       recommendations.push('Urgency level detection may be incorrect');
     }
 
     if (analysis.overallScore < 0.4) {
-      recommendations.push('Low overall confidence - manual review strongly recommended');
+      recommendations.push(
+        'Low overall confidence - manual review strongly recommended',
+      );
     } else if (analysis.overallScore < 0.6) {
-      recommendations.push('Medium confidence - consider spot-checking results');
+      recommendations.push(
+        'Medium confidence - consider spot-checking results',
+      );
     }
 
     if (recommendations.length === 0) {
-      recommendations.push('Confidence levels look good - no immediate action needed');
+      recommendations.push(
+        'Confidence levels look good - no immediate action needed',
+      );
     }
 
     return recommendations;
@@ -258,29 +285,29 @@ export class ConfidenceService {
 
     const summaryLength = dump.ai_summary.length;
     const contentLength = dump.raw_content.length;
-    
+
     if (summaryLength > 10 && summaryLength < contentLength) {
       return 0.85; // Good summary
     } else if (summaryLength > 0) {
       return 0.6; // Basic summary
     }
-    
+
     return 0.2;
   }
 
   private calculateEntityExtractionScore(dump: Dump): number {
-    const entityCount = dump.extracted_entities && 
-      typeof dump.extracted_entities === 'object' 
-      ? Object.keys(dump.extracted_entities).length 
-      : 0;
-    
+    const entityCount =
+      dump.extracted_entities && typeof dump.extracted_entities === 'object'
+        ? Object.keys(dump.extracted_entities).length
+        : 0;
+
     if (entityCount > 3) return 0.9;
     if (entityCount > 0) return 0.7;
     return 0.4;
   }
 
   private calculateUrgencyDetectionScore(dump: Dump): number {
-    return (dump.urgency_level !== null && dump.urgency_level > 0) ? 0.75 : 0.5;
+    return dump.urgency_level !== null && dump.urgency_level > 0 ? 0.75 : 0.5;
   }
 
   private calculateOverallScore(scores: ConfidenceScores): number {
@@ -312,9 +339,9 @@ export class ConfidenceService {
   }
 
   private generateAnalysis(
-    dumpId: string, 
-    scores: ConfidenceScores, 
-    overallScore: number
+    dumpId: string,
+    scores: ConfidenceScores,
+    overallScore: number,
   ): ConfidenceAnalysis {
     const reasons: string[] = [];
     let recommendation: 'accept' | 'review' | 'reject';
@@ -331,7 +358,8 @@ export class ConfidenceService {
       reasons.push('Medium confidence - spot check recommended');
     } else {
       confidence = 'low';
-      recommendation = overallScore < this.defaultThresholds.minimum ? 'reject' : 'review';
+      recommendation =
+        overallScore < this.defaultThresholds.minimum ? 'reject' : 'review';
       reasons.push('Low confidence - manual review required');
     }
 

@@ -8,8 +8,8 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { TelegramService } from '../../bots/telegram.service';
-import { UserService } from '../../users/user.service';
+import { TelegramService } from './telegram.service';
+import { UserService } from '../users/user.service';
 
 interface TelegramWebhookMessage {
   message_id: number;
@@ -85,13 +85,15 @@ export class TelegramWebhookController {
 
   @Post()
   @HttpCode(HttpStatus.OK)
-  async handleWebhook(@Body() body: TelegramWebhookRequest): Promise<{ ok: boolean }> {
+  async handleWebhook(
+    @Body() body: TelegramWebhookRequest,
+  ): Promise<{ ok: boolean }> {
     this.logger.log('Received Telegram webhook', JSON.stringify(body, null, 2));
 
     try {
       // Handle both single update and batch updates
       const updates: TelegramWebhookUpdate[] = [];
-      
+
       if (body.updates && Array.isArray(body.updates)) {
         updates.push(...body.updates);
       } else if (body.update_id && (body.message || body.edited_message)) {
@@ -121,7 +123,7 @@ export class TelegramWebhookController {
 
   private async processUpdate(update: TelegramWebhookUpdate): Promise<void> {
     const message = update.message || update.edited_message;
-    
+
     if (!message) {
       this.logger.debug(`Skipping update ${update.update_id} - no message`);
       return;
@@ -129,29 +131,35 @@ export class TelegramWebhookController {
 
     try {
       // Find user by chat ID
-      const user = await this.userService.findByChatId(message.chat.id.toString(), 'telegram');
+      const user = await this.userService.findByChatId(
+        message.chat.id.toString(),
+        'telegram',
+      );
       if (!user) {
-        this.logger.warn(`No user found for Telegram chat ID: ${message.chat.id}`);
-        
-        // Try to handle phone number registration if it's a text message
+        this.logger.warn(
+          `No user found for Telegram chat ID: ${message.chat.id}`,
+        );
+
+        // Try to link account by phone number
         if (message.text) {
-          const registrationHandled = await this.telegramService.handlePhoneNumberRegistration({
-            message_id: message.message_id,
-            from: message.from,
-            chat: message.chat,
-            date: message.date,
-            text: message.text,
-          });
-          
+          const registrationHandled =
+            await this.telegramService.handlePhoneNumberRegistration({
+              message_id: message.message_id,
+              from: message.from,
+              chat: message.chat,
+              date: message.date,
+              text: message.text,
+            });
+
           if (registrationHandled) {
-            return; // Registration was processed
+            return; // Phone number was processed (either linked or rejected)
           }
         }
-        
-        // Send registration prompt
+
+        // Send prompt to provide phone number for account linking
         await this.telegramService.sendMessage({
           chat_id: message.chat.id,
-          text: '👋 Welcome! Please register first by providing your phone number to start using this service.\n\nExample: +351999888777',
+          text: '👋 Welcome to Clutter.AI!\n\nPlease send your registered phone number to link your account.\n\nExample: +351999888777\n\nNot registered yet? Visit https://theclutter.app',
         });
         return;
       }
@@ -173,11 +181,15 @@ export class TelegramWebhookController {
         },
       });
 
-      this.logger.log(`Successfully processed message ${message.message_id} from chat ${message.chat.id}`);
-
+      this.logger.log(
+        `Successfully processed message ${message.message_id} from chat ${message.chat.id}`,
+      );
     } catch (error) {
-      this.logger.error(`Error processing message ${message.message_id}:`, error);
-      
+      this.logger.error(
+        `Error processing message ${message.message_id}:`,
+        error,
+      );
+
       // Send error message to user
       try {
         await this.telegramService.sendMessage({
@@ -189,6 +201,4 @@ export class TelegramWebhookController {
       }
     }
   }
-
-
 }

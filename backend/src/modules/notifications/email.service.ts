@@ -17,28 +17,28 @@ export interface EmailResult {
 
 /**
  * Email service for sending notifications via email
- * 
+ *
  * Supports multiple providers:
  * - SendGrid (recommended for production)
  * - Resend (modern alternative)
  * - Gmail SMTP (for development/testing)
  * - Custom SMTP
- * 
+ *
  * Configuration via environment variables:
  * - EMAIL_PROVIDER: 'sendgrid' | 'resend' | 'gmail' | 'smtp'
  * - EMAIL_FROM: Sender email address (e.g., noreply@dumpster.app)
  * - EMAIL_FROM_NAME: Sender name (e.g., "Dumpster Notifications")
- * 
+ *
  * For SendGrid:
  * - SENDGRID_API_KEY
- * 
+ *
  * For Resend:
  * - RESEND_API_KEY
- * 
+ *
  * For Gmail:
  * - GMAIL_USER: Your Gmail address
  * - GMAIL_APP_PASSWORD: App-specific password (not your regular password)
- * 
+ *
  * For Custom SMTP:
  * - SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS
  */
@@ -54,7 +54,7 @@ export class EmailService {
     this.provider = this.configService.get<string>('EMAIL_PROVIDER', 'gmail');
     this.fromEmail = this.configService.get<string>(
       'EMAIL_FROM',
-      'clutterai.noreply@gmail.com',
+      'no-reply@theclutter.app',
     );
     this.fromName = this.configService.get<string>(
       'EMAIL_FROM_NAME',
@@ -89,7 +89,9 @@ export class EmailService {
           this.transporter = this.createGmailTransporter();
       }
 
-      this.logger.log(`Email service initialized with provider: ${this.provider}`);
+      this.logger.log(
+        `Email service initialized with provider: ${this.provider}`,
+      );
     } catch (error) {
       this.logger.error('Failed to initialize email transporter', error);
       this.transporter = null;
@@ -189,6 +191,16 @@ export class EmailService {
    * Send an email
    */
   async sendEmail(options: EmailOptions): Promise<EmailResult> {
+    // Use HTTP API for SendGrid and Resend to avoid SMTP port blocking
+    if (this.provider === 'sendgrid') {
+      return this.sendViaSendGridAPI(options);
+    }
+
+    if (this.provider === 'resend') {
+      return this.sendViaResendAPI(options);
+    }
+
+    // Fall back to SMTP for other providers
     if (!this.transporter) {
       this.logger.error('Email transporter not initialized');
       return {
@@ -221,6 +233,151 @@ export class EmailService {
     } catch (error) {
       this.logger.error(`Failed to send email to ${options.to}`, error);
 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Send email via SendGrid HTTP API
+   */
+  private async sendViaSendGridAPI(
+    options: EmailOptions,
+  ): Promise<EmailResult> {
+    const apiKey = this.configService.get<string>('SENDGRID_API_KEY');
+
+    if (!apiKey) {
+      return {
+        success: false,
+        error: 'SENDGRID_API_KEY not configured',
+      };
+    }
+
+    try {
+      this.logger.debug(`Sending email via SendGrid API to ${options.to}`);
+
+      const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          personalizations: [
+            {
+              to: [{ email: options.to }],
+            },
+          ],
+          from: {
+            email: this.fromEmail,
+            name: this.fromName,
+          },
+          subject: options.subject,
+          content: [
+            {
+              type: 'text/plain',
+              value: options.text,
+            },
+            {
+              type: 'text/html',
+              value: options.html || this.convertTextToHtml(options.text),
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.logger.error(
+          `SendGrid API error: ${response.status} ${errorText}`,
+        );
+        return {
+          success: false,
+          error: `SendGrid API error: ${response.status}`,
+        };
+      }
+
+      const messageId = response.headers.get('x-message-id') || 'unknown';
+
+      this.logger.log(
+        `Email sent via SendGrid API to ${options.to} (messageId: ${messageId})`,
+      );
+
+      return {
+        success: true,
+        messageId,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to send email via SendGrid API to ${options.to}`,
+        error,
+      );
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Send email via Resend HTTP API
+   */
+  private async sendViaResendAPI(options: EmailOptions): Promise<EmailResult> {
+    const apiKey = this.configService.get<string>('RESEND_API_KEY');
+
+    if (!apiKey) {
+      return {
+        success: false,
+        error: 'RESEND_API_KEY not configured',
+      };
+    }
+
+    try {
+      this.logger.debug(`Sending email via Resend API to ${options.to}`);
+
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          from: `${this.fromName} <${this.fromEmail}>`,
+          to: [options.to],
+          subject: options.subject,
+          text: options.text,
+          html: options.html || this.convertTextToHtml(options.text),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        this.logger.error(
+          `Resend API error: ${response.status} ${JSON.stringify(errorData)}`,
+        );
+        return {
+          success: false,
+          error: `Resend API error: ${response.status}`,
+        };
+      }
+
+      const data = (await response.json()) as { id: string };
+
+      this.logger.log(
+        `Email sent via Resend API to ${options.to} (messageId: ${data.id})`,
+      );
+
+      return {
+        success: true,
+        messageId: data.id,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to send email via Resend API to ${options.to}`,
+        error,
+      );
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

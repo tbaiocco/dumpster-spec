@@ -17,8 +17,13 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
-        const secret = configService.get<string>('JWT_SECRET') || 'default-secret-change-in-production';
-        console.log('[JwtModule] Configuring with secret:', secret.substring(0, 10) + '...');
+        const secret =
+          configService.get<string>('JWT_SECRET') ||
+          'default-secret-change-in-production';
+        console.log(
+          '[JwtModule] Configuring with secret:',
+          secret.substring(0, 10) + '...',
+        );
         return {
           secret,
           signOptions: {

@@ -9,6 +9,11 @@ import {
 import { Dump } from './dump.entity';
 import { Reminder } from './reminder.entity';
 
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  USER = 'USER',
+}
+
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
@@ -34,6 +39,13 @@ export class User {
 
   @Column({ type: 'varchar', length: 10, default: 'en' })
   language: string;
+
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+    default: UserRole.USER,
+  })
+  role: UserRole;
 
   @Column({ type: 'time', default: '09:00' })
   digest_time: string;

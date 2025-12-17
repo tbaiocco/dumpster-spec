@@ -52,13 +52,13 @@ export const LoginPage: React.FC = () => {
       if (response.success && response.data) {
         console.log('Access token:', response.data.access_token);
         
-        // Store authentication tokens
+        // Store authentication tokens and user data
         apiService.setTokens({
           accessToken: response.data.access_token,
           refreshToken: response.data.refresh_token,
-        });
+        }, response.data.user);
 
-        console.log('Tokens stored, navigating to dashboard...');
+        console.log('Tokens and user data stored, navigating to dashboard...');
         
         // Redirect to dashboard
         navigate('/dashboard');

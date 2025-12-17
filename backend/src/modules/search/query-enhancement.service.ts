@@ -32,7 +32,9 @@ export class QueryEnhancementService {
   /**
    * Enhance search query using Claude AI to understand intent and context
    */
-  async enhanceQuery(request: QueryEnhancementRequest): Promise<QueryEnhancementResponse> {
+  async enhanceQuery(
+    request: QueryEnhancementRequest,
+  ): Promise<QueryEnhancementResponse> {
     this.logger.debug(`Enhancing query: "${request.originalQuery}"`);
 
     try {
@@ -63,7 +65,9 @@ export class QueryEnhancementService {
     // Use AI for most queries now that Claude is working properly
     const words = query.trim().split(/\s+/);
     // Only use simple enhancement for very basic single-word queries
-    return words.length === 1 && query.length <= 4 && !this.hasComplexPatterns(query);
+    return (
+      words.length === 1 && query.length <= 4 && !this.hasComplexPatterns(query)
+    );
   }
 
   /**
@@ -78,17 +82,19 @@ export class QueryEnhancementService {
       /\b(meeting|appointment|call|email)\b/i, // Common entity types
     ];
 
-    return complexPatterns.some(pattern => pattern.test(query));
+    return complexPatterns.some((pattern) => pattern.test(query));
   }
 
   /**
    * Enhance simple queries without AI (for very basic cases only)
    */
-  private enhanceSimpleQuery(request: QueryEnhancementRequest): QueryEnhancementResponse {
+  private enhanceSimpleQuery(
+    request: QueryEnhancementRequest,
+  ): QueryEnhancementResponse {
     const query = request.originalQuery.toLowerCase().trim();
-    
+
     // Add basic multilingual synonyms as fallback when AI fails
-    let enhanced = this.addBasicMultilingualSynonyms(request.originalQuery);
+    const enhanced = this.addBasicMultilingualSynonyms(request.originalQuery);
     const extractedIntents: string[] = [];
     const suggestedFilters: any = {};
 
@@ -120,13 +126,17 @@ export class QueryEnhancementService {
   /**
    * Enhance query using Claude AI for complex understanding
    */
-  private async enhanceWithAI(request: QueryEnhancementRequest): Promise<QueryEnhancementResponse> {
-    const contextInfo = request.context ? `
+  private async enhanceWithAI(
+    request: QueryEnhancementRequest,
+  ): Promise<QueryEnhancementResponse> {
+    const contextInfo = request.context
+      ? `
 User Context:
 - Recent categories: ${request.context.recentCategories?.join(', ') || 'none'}
 - Recent dump count: ${request.context.recentDumpCount || 0}
 - Timezone: ${request.context.userTimezone || 'UTC'}
-` : '';
+`
+      : '';
 
     const prompt = `You are enhancing search queries for a multilingual personal life inbox system. Users store content in multiple languages (English, Portuguese, Spanish, French, etc.).
 
@@ -162,19 +172,24 @@ Respond in JSON format:
 Keep the enhanced query concise but comprehensive for better semantic search performance.`;
 
     try {
-      this.logger.log(`Sending custom prompt to Claude for query: "${request.originalQuery}"`);
-      const rawResponse = await this.claudeService.queryWithCustomPrompt(prompt);
+      this.logger.log(
+        `Sending custom prompt to Claude for query: "${request.originalQuery}"`,
+      );
+      const rawResponse =
+        await this.claudeService.queryWithCustomPrompt(prompt);
 
       this.logger.log(`Claude raw response: ${rawResponse}`);
 
       // Parse Claude's response
       const aiResponse = this.parseAIResponse(rawResponse);
-      
+
       // Validate enhanced query
       const enhancedQuery = aiResponse.enhanced || request.originalQuery;
-      const validEnhanced = enhancedQuery.length > 2 && !enhancedQuery.includes('{') ? 
-        enhancedQuery : request.originalQuery;
-      
+      const validEnhanced =
+        enhancedQuery.length > 2 && !enhancedQuery.includes('{')
+          ? enhancedQuery
+          : request.originalQuery;
+
       return {
         original: request.originalQuery,
         enhanced: validEnhanced,
@@ -184,7 +199,7 @@ Keep the enhanced query concise but comprehensive for better semantic search per
       };
     } catch (error) {
       this.logger.error('AI enhancement failed:', error);
-      
+
       // Fallback to simple enhancement
       return this.enhanceSimpleQuery(request);
     }
@@ -198,7 +213,7 @@ Keep the enhanced query concise but comprehensive for better semantic search per
       this.logger.log(`=== CLAUDE RESPONSE ANALYSIS ===`);
       this.logger.log(`Raw response length: ${response?.length || 0} chars`);
       this.logger.log(`Raw response: "${response}"`);
-      
+
       // Try to extract JSON from response
       const jsonRegex = /\{[\s\S]*\}/;
       const jsonMatch = jsonRegex.exec(response);
@@ -206,10 +221,12 @@ Keep the enhanced query concise but comprehensive for better semantic search per
         const jsonStr = jsonMatch[0];
         this.logger.log(`Extracted JSON string: "${jsonStr}"`);
         const parsed = JSON.parse(jsonStr);
-        this.logger.log(`Successfully parsed JSON: ${JSON.stringify(parsed, null, 2)}`);
+        this.logger.log(
+          `Successfully parsed JSON: ${JSON.stringify(parsed, null, 2)}`,
+        );
         return parsed;
       }
-      
+
       // Fallback parsing
       this.logger.warn(`❌ NO JSON FOUND in Claude response!`);
       this.logger.warn(`Will use fallback parsing with first line`);
@@ -241,33 +258,59 @@ Keep the enhanced query concise but comprehensive for better semantic search per
    */
   private isDateQuery(query: string): boolean {
     const dateKeywords = [
-      'today', 'yesterday', 'tomorrow',
-      'last week', 'this week', 'next week',
-      'last month', 'this month', 'next month',
-      'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
-      'january', 'february', 'march', 'april', 'may', 'june',
-      'july', 'august', 'september', 'october', 'november', 'december',
+      'today',
+      'yesterday',
+      'tomorrow',
+      'last week',
+      'this week',
+      'next week',
+      'last month',
+      'this month',
+      'next month',
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday',
+      'january',
+      'february',
+      'march',
+      'april',
+      'may',
+      'june',
+      'july',
+      'august',
+      'september',
+      'october',
+      'november',
+      'december',
     ];
 
-    return dateKeywords.some(keyword => query.includes(keyword));
+    return dateKeywords.some((keyword) => query.includes(keyword));
   }
 
   /**
    * Extract date filters from query
    */
-  private extractDateFilters(query: string): { from?: string; to?: string } | null {
+  private extractDateFilters(
+    query: string,
+  ): { from?: string; to?: string } | null {
     const now = new Date();
-    
+
     if (query.includes('today')) {
       const today = now.toISOString().split('T')[0];
       return { from: today, to: today };
     }
-    
+
     if (query.includes('yesterday')) {
-      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
       return { from: yesterday, to: yesterday };
     }
-    
+
     if (query.includes('last week')) {
       const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const weekAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
@@ -276,7 +319,7 @@ Keep the enhanced query concise but comprehensive for better semantic search per
         to: lastWeek.toISOString().split('T')[0],
       };
     }
-    
+
     if (query.includes('this week')) {
       const startOfWeek = new Date(now);
       startOfWeek.setDate(now.getDate() - now.getDay());
@@ -285,7 +328,7 @@ Keep the enhanced query concise but comprehensive for better semantic search per
         to: now.toISOString().split('T')[0],
       };
     }
-    
+
     return null;
   }
 
@@ -301,7 +344,7 @@ Keep the enhanced query concise but comprehensive for better semantic search per
     };
 
     for (const [type, keywords] of Object.entries(contentTypeKeywords)) {
-      if (keywords.some(keyword => query.includes(keyword))) {
+      if (keywords.some((keyword) => query.includes(keyword))) {
         return type;
       }
     }
@@ -323,9 +366,12 @@ Keep the enhanced query concise but comprehensive for better semantic search per
       ['money', ['money', 'payment', 'finance', 'budget', 'cost']],
       ['health', ['health', 'medical', 'doctor', 'appointment']],
       ['bill', ['bill', 'invoice', 'receipt', 'payment', 'charge']],
-      ['electricity', ['electricity', 'electric', 'power', 'energy', 'utility']],
+      [
+        'electricity',
+        ['electricity', 'electric', 'power', 'energy', 'utility'],
+      ],
       ['utility', ['utility', 'bill', 'service', 'electric', 'power']],
-      
+
       // Portuguese synonyms
       ['conta', ['conta', 'fatura', 'boleto', 'cobrança', 'bill']],
       ['luz', ['luz', 'energia', 'eletricidade', 'electricity', 'power']],
@@ -334,23 +380,25 @@ Keep the enhanced query concise but comprehensive for better semantic search per
       ['eletricidade', ['eletricidade', 'energia', 'luz', 'electricity']],
       ['fatura', ['fatura', 'conta', 'boleto', 'invoice', 'bill']],
       ['boleto', ['boleto', 'conta', 'fatura', 'cobrança', 'bill']],
-      
+
       // Spanish synonyms
       ['factura', ['factura', 'recibo', 'cuenta', 'invoice', 'bill']],
       ['electricidad', ['electricidad', 'energía', 'luz', 'electricity']],
       ['recibo', ['recibo', 'factura', 'cuenta', 'receipt', 'bill']],
-      
+
       // French synonyms
       ['facture', ['facture', 'note', 'compte', 'invoice', 'bill']],
       ['électricité', ['électricité', 'énergie', 'courant', 'electricity']],
     ]);
 
     let expanded = query;
-    
+
     for (const [key, synonyms] of synonymMap) {
       if (query.toLowerCase().includes(key)) {
         // Add synonyms to expand search
-        const additionalTerms = synonyms.filter(s => s !== key && !query.toLowerCase().includes(s));
+        const additionalTerms = synonyms.filter(
+          (s) => s !== key && !query.toLowerCase().includes(s),
+        );
         if (additionalTerms.length > 0) {
           expanded += ' ' + additionalTerms.slice(0, 2).join(' '); // Limit to avoid over-expansion
         }
@@ -363,22 +411,25 @@ Keep the enhanced query concise but comprehensive for better semantic search per
   /**
    * Generate search suggestions based on query
    */
-  async generateSuggestions(partialQuery: string, userId: string): Promise<string[]> {
+  async generateSuggestions(
+    partialQuery: string,
+    userId: string,
+  ): Promise<string[]> {
     if (partialQuery.length < 2) return [];
 
     const suggestions = [
       // Time-based suggestions
       'today',
-      'yesterday', 
+      'yesterday',
       'last week',
       'this month',
-      
+
       // Content type suggestions
       'voice messages',
       'images',
       'emails',
       'notes',
-      
+
       // Common search patterns
       'meetings',
       'appointments',
@@ -389,7 +440,9 @@ Keep the enhanced query concise but comprehensive for better semantic search per
     ];
 
     return suggestions
-      .filter(suggestion => suggestion.toLowerCase().includes(partialQuery.toLowerCase()))
+      .filter((suggestion) =>
+        suggestion.toLowerCase().includes(partialQuery.toLowerCase()),
+      )
       .slice(0, 5);
   }
 
@@ -399,38 +452,56 @@ Keep the enhanced query concise but comprehensive for better semantic search per
   private addBasicMultilingualSynonyms(query: string): string {
     const translations = new Map([
       // Portuguese → English
-      ['contas de luz', 'contas de luz conta fatura boleto electricity bill power'],
+      [
+        'contas de luz',
+        'contas de luz conta fatura boleto electricity bill power',
+      ],
       ['conta de luz', 'conta de luz fatura boleto electricity bill power'],
-      ['energia elétrica', 'energia elétrica eletricidade electricity power energy'],
-      ['fatura energia', 'fatura energia conta boleto electricity bill invoice'],
-      
-      // Spanish → English  
-      ['factura electricidad', 'factura electricidad recibo electricity bill power'],
+      [
+        'energia elétrica',
+        'energia elétrica eletricidade electricity power energy',
+      ],
+      [
+        'fatura energia',
+        'fatura energia conta boleto electricity bill invoice',
+      ],
+
+      // Spanish → English
+      [
+        'factura electricidad',
+        'factura electricidad recibo electricity bill power',
+      ],
       ['recibo luz', 'recibo luz factura cuenta electricity bill power'],
-      
+
       // French → English
-      ['facture électricité', 'facture électricité note electricity bill power'],
-      
+      [
+        'facture électricité',
+        'facture électricité note electricity bill power',
+      ],
+
       // English enhancements
-      ['electricity bill', 'electricity bill electric power energy utility invoice receipt'],
+      [
+        'electricity bill',
+        'electricity bill electric power energy utility invoice receipt',
+      ],
       ['power bill', 'power bill electricity electric energy utility invoice'],
       ['utility bill', 'utility bill electricity power energy service invoice'],
     ]);
 
     const lowerQuery = query.toLowerCase().trim();
-    
+
     // Check for exact matches first
     if (translations.has(lowerQuery)) {
       return translations.get(lowerQuery)!;
     }
-    
+
     // Check for partial matches
     for (const [key, value] of translations) {
       if (lowerQuery.includes(key) || key.includes(lowerQuery)) {
         return `${query} ${value}`;
       }
     }
-    
+
     return query; // No enhancement found
   }
 }

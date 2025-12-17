@@ -18,50 +18,52 @@ export class FiltersService {
 
     // Content type filter
     if (filters.contentTypes && filters.contentTypes.length > 0) {
-      const mappedTypes = filters.contentTypes.map(type => this.mapContentTypeToEnum(type));
-      query = query.andWhere('dump.content_type IN (:...contentTypes)', { 
-        contentTypes: mappedTypes 
+      const mappedTypes = filters.contentTypes.map((type) =>
+        this.mapContentTypeToEnum(type),
+      );
+      query = query.andWhere('dump.content_type IN (:...contentTypes)', {
+        contentTypes: mappedTypes,
       });
     }
 
     // Category filter
     if (filters.categories && filters.categories.length > 0) {
-      query = query.andWhere('category.name IN (:...categories)', { 
-        categories: filters.categories 
+      query = query.andWhere('category.name IN (:...categories)', {
+        categories: filters.categories,
       });
     }
 
     // Date range filter
     if (filters.dateFrom) {
-      query = query.andWhere('dump.created_at >= :dateFrom', { 
-        dateFrom: filters.dateFrom 
+      query = query.andWhere('dump.created_at >= :dateFrom', {
+        dateFrom: filters.dateFrom,
       });
     }
 
     if (filters.dateTo) {
-      query = query.andWhere('dump.created_at <= :dateTo', { 
-        dateTo: filters.dateTo 
+      query = query.andWhere('dump.created_at <= :dateTo', {
+        dateTo: filters.dateTo,
       });
     }
 
     // AI confidence filter
     if (filters.minConfidence !== undefined) {
-      query = query.andWhere('dump.ai_confidence >= :minConfidence', { 
-        minConfidence: filters.minConfidence 
+      query = query.andWhere('dump.ai_confidence >= :minConfidence', {
+        minConfidence: filters.minConfidence,
       });
     }
 
     // Urgency levels filter
     if (filters.urgencyLevels && filters.urgencyLevels.length > 0) {
-      query = query.andWhere('dump.urgency_level IN (:...urgencyLevels)', { 
-        urgencyLevels: filters.urgencyLevels 
+      query = query.andWhere('dump.urgency_level IN (:...urgencyLevels)', {
+        urgencyLevels: filters.urgencyLevels,
       });
     }
 
     // Include processing status filter
     if (filters.includeProcessing === false) {
-      query = query.andWhere('dump.processing_status = :status', { 
-        status: 'completed' 
+      query = query.andWhere('dump.processing_status = :status', {
+        status: 'completed',
       });
     } else if (filters.includeProcessing === true) {
       // Include all processing statuses (no additional filter needed)
@@ -78,7 +80,12 @@ export class FiltersService {
     filters: SearchFilters & {
       hasReminders?: boolean;
       hasMediaUrl?: boolean;
-      processingStatusFilter?: ('received' | 'processing' | 'completed' | 'failed')[];
+      processingStatusFilter?: (
+        | 'received'
+        | 'processing'
+        | 'completed'
+        | 'failed'
+      )[];
       entityTypes?: string[];
       confidenceRange?: { min: number; max: number };
       wordCountRange?: { min: number; max: number };
@@ -91,7 +98,8 @@ export class FiltersService {
       if (filters.hasReminders) {
         query = query.innerJoin('dump.reminders', 'reminder');
       } else {
-        query = query.leftJoin('dump.reminders', 'reminder')
+        query = query
+          .leftJoin('dump.reminders', 'reminder')
           .andWhere('reminder.id IS NULL');
       }
     }
@@ -99,30 +107,44 @@ export class FiltersService {
     // Has media URL filter
     if (filters.hasMediaUrl !== undefined) {
       if (filters.hasMediaUrl) {
-        query = query.andWhere('dump.media_url IS NOT NULL AND dump.media_url != \'\'');
+        query = query.andWhere(
+          "dump.media_url IS NOT NULL AND dump.media_url != ''",
+        );
       } else {
-        query = query.andWhere('(dump.media_url IS NULL OR dump.media_url = \'\')');
+        query = query.andWhere(
+          "(dump.media_url IS NULL OR dump.media_url = '')",
+        );
       }
     }
 
     // Processing status filter
-    if (filters.processingStatusFilter && filters.processingStatusFilter.length > 0) {
-      query = query.andWhere('dump.processing_status IN (:...processingStatuses)', { 
-        processingStatuses: filters.processingStatusFilter 
-      });
+    if (
+      filters.processingStatusFilter &&
+      filters.processingStatusFilter.length > 0
+    ) {
+      query = query.andWhere(
+        'dump.processing_status IN (:...processingStatuses)',
+        {
+          processingStatuses: filters.processingStatusFilter,
+        },
+      );
     }
 
     // Entity types filter (search in extracted_entities JSONB)
     if (filters.entityTypes && filters.entityTypes.length > 0) {
-      const entityConditions = filters.entityTypes.map((entityType, index) => 
-        `dump.extracted_entities ? :entityType${index}`
+      const entityConditions = filters.entityTypes.map(
+        (entityType, index) => `dump.extracted_entities ? :entityType${index}`,
       );
-      
+
       if (entityConditions.length > 0) {
-        query = query.andWhere(`(${entityConditions.join(' OR ')})`, 
-          Object.fromEntries(filters.entityTypes.map((type, index) => 
-            [`entityType${index}`, type]
-          ))
+        query = query.andWhere(
+          `(${entityConditions.join(' OR ')})`,
+          Object.fromEntries(
+            filters.entityTypes.map((type, index) => [
+              `entityType${index}`,
+              type,
+            ]),
+          ),
         );
       }
     }
@@ -130,13 +152,13 @@ export class FiltersService {
     // Confidence range filter
     if (filters.confidenceRange) {
       if (filters.confidenceRange.min !== undefined) {
-        query = query.andWhere('dump.ai_confidence >= :minConf', { 
-          minConf: filters.confidenceRange.min 
+        query = query.andWhere('dump.ai_confidence >= :minConf', {
+          minConf: filters.confidenceRange.min,
         });
       }
       if (filters.confidenceRange.max !== undefined) {
-        query = query.andWhere('dump.ai_confidence <= :maxConf', { 
-          maxConf: filters.confidenceRange.max 
+        query = query.andWhere('dump.ai_confidence <= :maxConf', {
+          maxConf: filters.confidenceRange.max,
         });
       }
     }
@@ -144,13 +166,13 @@ export class FiltersService {
     // Word count range filter (approximate using LENGTH)
     if (filters.wordCountRange) {
       if (filters.wordCountRange.min !== undefined) {
-        query = query.andWhere('LENGTH(dump.raw_content) >= :minWords', { 
-          minWords: filters.wordCountRange.min * 5 // Rough approximation: 5 chars per word
+        query = query.andWhere('LENGTH(dump.raw_content) >= :minWords', {
+          minWords: filters.wordCountRange.min * 5, // Rough approximation: 5 chars per word
         });
       }
       if (filters.wordCountRange.max !== undefined) {
-        query = query.andWhere('LENGTH(dump.raw_content) <= :maxWords', { 
-          maxWords: filters.wordCountRange.max * 5 
+        query = query.andWhere('LENGTH(dump.raw_content) <= :maxWords', {
+          maxWords: filters.wordCountRange.max * 5,
         });
       }
     }
@@ -161,7 +183,10 @@ export class FiltersService {
   /**
    * Create filter suggestions based on user's data
    */
-  async generateFilterSuggestions(userId: string, queryBuilder: SelectQueryBuilder<Dump>): Promise<{
+  async generateFilterSuggestions(
+    userId: string,
+    queryBuilder: SelectQueryBuilder<Dump>,
+  ): Promise<{
     categories: string[];
     contentTypes: string[];
     urgencyLevels: number[];
@@ -227,7 +252,10 @@ export class FiltersService {
 
       const entityTypeSet = new Set<string>();
       for (const dump of entityTypesResult) {
-        if (dump.extracted_entities && typeof dump.extracted_entities === 'object') {
+        if (
+          dump.extracted_entities &&
+          typeof dump.extracted_entities === 'object'
+        ) {
           for (const key of Object.keys(dump.extracted_entities)) {
             entityTypeSet.add(key);
           }
@@ -235,13 +263,12 @@ export class FiltersService {
       }
 
       return {
-        categories: categories.map(c => c.category).filter(Boolean),
-        contentTypes: contentTypes.map(c => c.contentType).filter(Boolean),
-        urgencyLevels: urgencyLevels.map(u => u.urgencyLevel).filter(Boolean),
+        categories: categories.map((c) => c.category).filter(Boolean),
+        contentTypes: contentTypes.map((c) => c.contentType).filter(Boolean),
+        urgencyLevels: urgencyLevels.map((u) => u.urgencyLevel).filter(Boolean),
         dateRanges,
         entityTypes: Array.from(entityTypeSet).slice(0, 10), // Limit to top 10
       };
-
     } catch (error) {
       this.logger.error('Failed to generate filter suggestions:', error);
       return {
@@ -257,7 +284,10 @@ export class FiltersService {
   /**
    * Validate filter values
    */
-  validateFilters(filters: SearchFilters): { valid: boolean; errors: string[] } {
+  validateFilters(filters: SearchFilters): {
+    valid: boolean;
+    errors: string[];
+  } {
     const errors: string[] = [];
 
     // Validate content types
@@ -288,7 +318,9 @@ export class FiltersService {
     if (filters.urgencyLevels) {
       for (const level of filters.urgencyLevels) {
         if (level < 1 || level > 5) {
-          errors.push(`Invalid urgency level: ${level}. Must be between 1 and 5`);
+          errors.push(
+            `Invalid urgency level: ${level}. Must be between 1 and 5`,
+          );
         }
       }
     }
@@ -307,16 +339,18 @@ export class FiltersService {
 
     // Content types
     if (queryParams.contentTypes) {
-      const types = Array.isArray(queryParams.contentTypes) 
-        ? queryParams.contentTypes 
+      const types = Array.isArray(queryParams.contentTypes)
+        ? queryParams.contentTypes
         : [queryParams.contentTypes];
-      filters.contentTypes = types.filter(t => ['text', 'voice', 'image', 'email'].includes(t));
+      filters.contentTypes = types.filter((t) =>
+        ['text', 'voice', 'image', 'email'].includes(t),
+      );
     }
 
     // Categories
     if (queryParams.categories) {
-      const cats = Array.isArray(queryParams.categories) 
-        ? queryParams.categories 
+      const cats = Array.isArray(queryParams.categories)
+        ? queryParams.categories
         : [queryParams.categories];
       filters.categories = cats.filter(Boolean);
     }
@@ -348,12 +382,12 @@ export class FiltersService {
 
     // Urgency levels
     if (queryParams.urgencyLevels) {
-      const levels = Array.isArray(queryParams.urgencyLevels) 
-        ? queryParams.urgencyLevels 
+      const levels = Array.isArray(queryParams.urgencyLevels)
+        ? queryParams.urgencyLevels
         : [queryParams.urgencyLevels];
       filters.urgencyLevels = levels
-        .map(l => Number.parseInt(l, 10))
-        .filter(l => !Number.isNaN(l) && l >= 1 && l <= 5);
+        .map((l) => Number.parseInt(l, 10))
+        .filter((l) => !Number.isNaN(l) && l >= 1 && l <= 5);
     }
 
     // Include processing
@@ -385,7 +419,10 @@ export class FiltersService {
   /**
    * Get filter statistics for analytics
    */
-  async getFilterStats(userId: string, queryBuilder: SelectQueryBuilder<Dump>): Promise<{
+  async getFilterStats(
+    userId: string,
+    queryBuilder: SelectQueryBuilder<Dump>,
+  ): Promise<{
     totalDumps: number;
     contentTypeBreakdown: Record<string, number>;
     categoryBreakdown: Record<string, number>;
@@ -446,22 +483,36 @@ export class FiltersService {
       return {
         totalDumps,
         contentTypeBreakdown: Object.fromEntries(
-          contentTypeStats.map(s => [s.dump_content_type, Number.parseInt(s.count, 10)])
+          contentTypeStats.map((s) => [
+            s.dump_content_type,
+            Number.parseInt(s.count, 10),
+          ]),
         ),
         categoryBreakdown: Object.fromEntries(
-          categoryStats.map(s => [s.category_name, Number.parseInt(s.count, 10)])
+          categoryStats.map((s) => [
+            s.category_name,
+            Number.parseInt(s.count, 10),
+          ]),
         ),
         urgencyBreakdown: Object.fromEntries(
-          urgencyStats.map(s => [s.dump_urgency_level, Number.parseInt(s.count, 10)])
+          urgencyStats.map((s) => [
+            s.dump_urgency_level,
+            Number.parseInt(s.count, 10),
+          ]),
         ),
         confidenceBreakdown: Object.fromEntries(
-          confidenceStats.map(s => [s.dump_ai_confidence, Number.parseInt(s.count, 10)])
+          confidenceStats.map((s) => [
+            s.dump_ai_confidence,
+            Number.parseInt(s.count, 10),
+          ]),
         ),
         processingStatusBreakdown: Object.fromEntries(
-          statusStats.map(s => [s.dump_processing_status, Number.parseInt(s.count, 10)])
+          statusStats.map((s) => [
+            s.dump_processing_status,
+            Number.parseInt(s.count, 10),
+          ]),
         ),
       };
-
     } catch (error) {
       this.logger.error('Failed to get filter statistics:', error);
       return {

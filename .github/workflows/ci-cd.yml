@@ -7,6 +7,8 @@ on:
       - main
       - develop
       - '001-universal-life-inbox-implementation-*'
+      - '002-universal-life-inbox-implementation-*'
+      - '003-universal-life-inbox-implementation-*'
   pull_request:
     branches:
       - main
@@ -30,6 +32,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Debug npm config & lockfile
+        working-directory: backend
+        run: |
+          echo "=== where am I ==="
+          pwd
+          echo "=== npm config ==="
+          npm config list
+          echo "=== repo root .npmrc ==="
+          [ -f .npmrc ] && sed -n '1,200p' .npmrc || echo "(no repo .npmrc)"
+          echo "=== ../.npmrc ==="
+          [ -f ../.npmrc ] && sed -n '1,200p' ../.npmrc || echo "(no ../.npmrc)"
+          echo "=== package.json dependencies ==="
+          jq '.dependencies + .devDependencies' package.json || true
+          echo "=== package-lock resolved entries (first 80 lines with 'resolved' or 'registry') ==="
+          grep -nE '"resolved":|"registry"' package-lock.json | head -n 80 || true
+        shell: bash
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -37,9 +56,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
-      - name: npm login
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-  
       - name: Install dependencies
         working-directory: backend
         run: npm ci
@@ -92,9 +108,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
-      - name: npm login
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-  
       - name: Install dependencies
         working-directory: backend
         run: npm ci
@@ -123,6 +136,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -133,9 +147,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: admin-dashboard/package-lock.json
 
-      - name: npm login
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-  
       - name: Install dependencies
         working-directory: admin-dashboard
         run: npm ci

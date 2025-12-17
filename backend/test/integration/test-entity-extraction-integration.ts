@@ -1,6 +1,6 @@
 /**
  * Integration Test: Entity Extraction and Categorization Services
- * 
+ *
  * This test verifies that EntityExtractionService and CategorizationService
  * are properly integrated into the DumpService workflow and that data is
  * correctly saved to the database.
@@ -25,23 +25,33 @@ describe('Entity Extraction and Categorization Integration', () => {
   beforeAll(async () => {
     // This test requires the full DumpModule with all dependencies
     // For now, this is a template showing what should be tested
-    console.log('✅ Entity Extraction and Categorization Integration Test Template');
+    console.log(
+      '✅ Entity Extraction and Categorization Integration Test Template',
+    );
     console.log('');
     console.log('What this test should verify:');
     console.log('1. EntityExtractionService is called during dump creation');
     console.log('2. CategorizationService is called during dump creation');
     console.log('3. extracted_entities field contains:');
-    console.log('   - entities: { dates, times, locations, people, organizations, amounts, contacts }');
+    console.log(
+      '   - entities: { dates, times, locations, people, organizations, amounts, contacts }',
+    );
     console.log('   - entityDetails: Array of entities with confidence scores');
-    console.log('   - entitySummary: { totalEntities, entitiesByType, averageConfidence }');
+    console.log(
+      '   - entitySummary: { totalEntities, entitiesByType, averageConfidence }',
+    );
     console.log('   - categoryConfidence: Number from CategorizationService');
     console.log('   - categoryReasoning: String explaining category choice');
-    console.log('   - alternativeCategories: Array of alternative category names');
+    console.log(
+      '   - alternativeCategories: Array of alternative category names',
+    );
     console.log('   - autoApplied: Boolean indicating auto-categorization');
     console.log('4. Data is persisted correctly to PostgreSQL JSONB column');
     console.log('');
     console.log('Sample test data to use:');
-    console.log('Content: "Meeting with John at 3pm on Friday to discuss Q4 budget of $50,000"');
+    console.log(
+      'Content: "Meeting with John at 3pm on Friday to discuss Q4 budget of $50,000"',
+    );
     console.log('');
     console.log('Expected extraction:');
     console.log('- people: ["John"]');

@@ -6,18 +6,38 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e',
-          950: '#082f49',
+        // Clutter.AI Brand Colors
+        primary: '#B929EB',      // Electric Purple
+        secondary: '#2DD9F6',    // Bright Cyan
+        background: '#FAFAF9',   // Warm clean stone
+        surface: '#FFFFFF',      // White surfaces
+        text: '#1E293B',         // Main text (slate-800)
+        muted: '#64748B',        // Muted text (slate-500)
+        
+        // Extended palette for gradients and states
+        purple: {
+          50: '#faf5ff',
+          100: '#f3e8ff',
+          200: '#e9d5ff',
+          300: '#d8b4fe',
+          400: '#c084fc',
+          500: '#B929EB',  // Primary
+          600: '#9333ea',
+          700: '#7e22ce',
+          800: '#6b21a8',
+          900: '#581c87',
+        },
+        cyan: {
+          50: '#ecfeff',
+          100: '#cffafe',
+          200: '#a5f3fc',
+          300: '#67e8f9',
+          400: '#22d3ee',
+          500: '#2DD9F6',  // Secondary
+          600: '#0891b2',
+          700: '#0e7490',
+          800: '#155e75',
+          900: '#164e63',
         },
         slate: {
           50: '#f8fafc',
@@ -34,13 +54,20 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ['Inter var', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['Lexend', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        heading: ['Outfit', 'system-ui', '-apple-system', 'sans-serif'],
+      },
+      borderRadius: {
+        'xl': '1rem',
+        '2xl': '1.5rem',
       },
       boxShadow: {
-        'glow-sm': '0 0 15px rgba(14, 165, 233, 0.15)',
-        'glow': '0 0 30px rgba(14, 165, 233, 0.2)',
-        'glow-lg': '0 0 45px rgba(14, 165, 233, 0.25)',
+        'purple': '0 10px 40px -10px rgba(185, 41, 235, 0.2)',
+        'purple-lg': '0 20px 60px -15px rgba(185, 41, 235, 0.3)',
+        'cyan': '0 10px 40px -10px rgba(45, 217, 246, 0.2)',
+        'cyan-lg': '0 20px 60px -15px rgba(45, 217, 246, 0.3)',
+        'soft': '0 2px 8px rgba(15, 23, 42, 0.08)',
+        'soft-lg': '0 8px 24px rgba(15, 23, 42, 0.12)',
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',

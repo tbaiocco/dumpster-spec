@@ -1,22 +1,21 @@
-- change the phoneNumberRegistration (telegram/whatsapp) to request if the new user wants to add his/her email to receive the digests and reminders.
+- Change Twilio by Meta API Cloud???
+    Example of 20 users, 12 msg/day average: Twilio 67.15 Meta 30
+    not now, complexity phone number issues.
+    Check also others Infobip, Wati, 360Dialog, Sinch
+    
+- send security code for frontend login via Telegram or WhatsApp (maybe email)
 
-- Feedbacks must be persisted, first in DATABASE
-    /home/baiocte/personal/dumpster/backend/src/modules/feedback/feedback.service.ts
+- ?Dump answers more cool and meaningfull?
 
-- Tracking feature is not used/connected to anything.
-    It must be used when receiving a new dump that is time-sensitive (package deliveries, applications, subscriptions, warranties, etc)
-    persist?
-    send specific section/reminder for these?
-    In the digest, a section like: Packages/deliveries arriving today
+- Cost tracking in admin-dashboard?
 
 - Dashboard for the users
     Should be able to search the dumps, simply, with natural lang
     Should enable users to update the dumps, not only accept/reject but enable corrections
     Should enable category creation, and use those in the categorization mechanism
     Should present a dashboard ordered by date and priority of the dumps, showing by day, week and month (like: actions for today, tomorrow, then dates). In day view the next days appear collapsed but with a button to show, same happens in week and month view, in order to load the next actions in time
-
-- E-mail dumps
-    The user can forward mails to create dumps from them, with images, docs, etc
+    Should also have views for Reminders and Tracking items, using same ordering idea of dumps (mainly by due-date, with day, week, month views)
+    Should have feedback management, to send, view and manage feedbacks of the app
 
 - Calendar integration?
     Checking calendar to detect possible conflicts, suggest changes
@@ -24,3 +23,32 @@
 
 - Agentic personas?
     Identify which agents are important, order them by priority to implement and when to introduce them
+
+
+- Metrics in the admin-dashboard: DONE    
+    Add the new endpoints of admin.controller and fix any of the others needed.
+
+- IMPORTANT: Metrics: DONE
+    Active users: at least 5 dumps
+    Total users
+    Dumps per user per day/week
+    Features/commands used by user
+
+- E-mail dumps: DONE
+    The user can forward mails to create dumps from them, with images, docs, etc
+    Existing webhook in email.controller.ts, missing the config GMAIL_API_SETUP.md for development and SENDGRID_WEBHOOK_SETUP.md for prod.
+
+- Tracking feature is not used/connected to anything: DONE
+    It must be used when receiving a new dump that is time-sensitive (package deliveries, applications, subscriptions, warranties, etc)
+    persist?
+    send specific section/reminder for these?
+    In the digest, a section like: Packages/deliveries arriving today
+
+- change the phoneNumberRegistration (telegram/whatsapp): DONE
+    Registration is the website, DON'T create users when sending message via bot Telegram/WhatsApp
+    NOT NEEDED: to request if the new user wants to add his/her email to receive the digests and reminders.
+
+- Feedbacks must be persisted: DONE
+    /home/baiocte/personal/dumpster/backend/src/modules/feedback/feedback.service.ts
+    Should be presented in the admin-dashboard, as a list with possibility of detailed pop-up with full content of the record
+    Should be able to change the feedback status

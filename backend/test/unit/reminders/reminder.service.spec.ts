@@ -1,7 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ReminderService } from '../../../src/modules/reminders/reminder.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Reminder, ReminderType, ReminderStatus } from '../../../src/entities/reminder.entity';
+import {
+  Reminder,
+  ReminderType,
+  ReminderStatus,
+} from '../../../src/entities/reminder.entity';
 import { Repository } from 'typeorm';
 
 describe('ReminderService', () => {
@@ -166,7 +170,10 @@ describe('ReminderService', () => {
       const result = await service.snoozeReminder('reminder-123', 30);
 
       const expectedTime = new Date(originalTime.getTime() + 30 * 60 * 1000);
-      expect(result.scheduled_for.getTime()).toBeCloseTo(expectedTime.getTime(), -3);
+      expect(result.scheduled_for.getTime()).toBeCloseTo(
+        expectedTime.getTime(),
+        -3,
+      );
       expect(result.status).toBe(ReminderStatus.SNOOZED);
     });
   });
@@ -215,7 +222,10 @@ describe('ReminderService', () => {
       const currentDate = new Date('2025-12-01T10:00:00Z');
       const pattern = { frequency: 'daily', interval: 1 };
 
-      const nextDate = (service as any).calculateNextRecurrence(currentDate, pattern);
+      const nextDate = (service as any).calculateNextRecurrence(
+        currentDate,
+        pattern,
+      );
 
       expect(nextDate.getDate()).toBe(2);
       expect(nextDate.getMonth()).toBe(11); // December (0-indexed)
@@ -225,7 +235,10 @@ describe('ReminderService', () => {
       const currentDate = new Date('2025-12-01T10:00:00Z');
       const pattern = { frequency: 'weekly', interval: 1 };
 
-      const nextDate = (service as any).calculateNextRecurrence(currentDate, pattern);
+      const nextDate = (service as any).calculateNextRecurrence(
+        currentDate,
+        pattern,
+      );
 
       expect(nextDate.getDate()).toBe(8);
     });
@@ -234,7 +247,10 @@ describe('ReminderService', () => {
       const currentDate = new Date('2025-12-01T10:00:00Z');
       const pattern = { frequency: 'daily', interval: 3 };
 
-      const nextDate = (service as any).calculateNextRecurrence(currentDate, pattern);
+      const nextDate = (service as any).calculateNextRecurrence(
+        currentDate,
+        pattern,
+      );
 
       expect(nextDate.getDate()).toBe(4);
     });
@@ -271,8 +287,12 @@ describe('ReminderService', () => {
         getMany: jest.fn().mockResolvedValue(mockReminders),
       };
 
-      (reminderRepository.createQueryBuilder as jest.Mock).mockReturnValue(mockQueryBuilder);
-      reminderRepository.find.mockResolvedValue(mockReminders.filter(r => r.status === ReminderStatus.PENDING) as any);
+      (reminderRepository.createQueryBuilder as jest.Mock).mockReturnValue(
+        mockQueryBuilder,
+      );
+      reminderRepository.find.mockResolvedValue(
+        mockReminders.filter((r) => r.status === ReminderStatus.PENDING) as any,
+      );
 
       const result = await service.getReminderStats('user-123');
 

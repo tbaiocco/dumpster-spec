@@ -67,11 +67,14 @@ export class DigestService {
     // Get pending reminders for today
     const todayEnd = new Date(now);
     todayEnd.setHours(23, 59, 59, 999);
-    const pendingReminders = await this.reminderService.getUserReminders(userId, {
-      status: ReminderStatus.PENDING,
-      startDate: now,
-      endDate: todayEnd,
-    });
+    const pendingReminders = await this.reminderService.getUserReminders(
+      userId,
+      {
+        status: ReminderStatus.PENDING,
+        startDate: now,
+        endDate: todayEnd,
+      },
+    );
 
     // Get upcoming reminders (next 24 hours)
     const upcomingReminders = await this.reminderService.getUpcomingReminders(
@@ -83,7 +86,10 @@ export class DigestService {
     const sections: DigestSection[] = [];
 
     // Section 1: Urgent items (high urgency dumps and overdue reminders)
-    const urgentSection = this.buildUrgentSection(recentDumps, pendingReminders);
+    const urgentSection = this.buildUrgentSection(
+      recentDumps,
+      pendingReminders,
+    );
     if (urgentSection.items.length > 0) {
       sections.push(urgentSection);
     }
@@ -140,7 +146,7 @@ export class DigestService {
 
     // Add morning-specific recommendations
     digest.recommendations.unshift(
-      '☀️ Good morning! Here\'s what\'s on your plate today.',
+      "☀️ Good morning! Here's what's on your plate today.",
     );
 
     return digest;
@@ -196,7 +202,7 @@ export class DigestService {
 
     // Section 2: Tomorrow's reminders
     const tomorrowSection: DigestSection = {
-      title: '📅 Tomorrow\'s Schedule',
+      title: "📅 Tomorrow's Schedule",
       priority: 'high',
       items: tomorrowReminders.map((reminder) => ({
         id: reminder.id,
@@ -266,7 +272,9 @@ export class DigestService {
     ];
 
     if (digest.summary.urgentItems > 0) {
-      lines.push(`   • ⚠️ ${labels.urgentItems}: ${digest.summary.urgentItems}`);
+      lines.push(
+        `   • ⚠️ ${labels.urgentItems}: ${digest.summary.urgentItems}`,
+      );
     }
     lines.push('');
 
@@ -278,23 +286,26 @@ export class DigestService {
         targetLanguage: language,
         context: 'Digest section title',
       });
-      
+
       const emojiMatch = /^[^\s]+/.exec(section.title);
       const sectionEmoji = emojiMatch ? emojiMatch[0] : '';
-      lines.push(`${sectionEmoji} ${translatedTitle.translatedText}`, '─'.repeat(35));
+      lines.push(
+        `${sectionEmoji} ${translatedTitle.translatedText}`,
+        '─'.repeat(35),
+      );
 
       for (const item of section.items) {
         const priorityIcon = this.getPriorityIcon(section.priority);
-        
+
         // Translate item title and summary
         const translatedTitle = await this.translationService.translate({
           text: item.title,
           targetLanguage: language,
           context: 'Digest item title',
         });
-        
+
         lines.push(`${priorityIcon} ${translatedTitle.translatedText}`);
-        
+
         if (item.summary) {
           const translatedSummary = await this.translationService.translate({
             text: item.summary,
@@ -303,11 +314,13 @@ export class DigestService {
           });
           lines.push(`   ${translatedSummary.translatedText}`);
         }
-        
+
         if (item.dueDate) {
-          lines.push(`   ⏰ ${this.formatDateTime(item.dueDate, timezone, language)}`);
+          lines.push(
+            `   ⏰ ${this.formatDateTime(item.dueDate, timezone, language)}`,
+          );
         }
-        
+
         lines.push('');
       }
     }
@@ -315,13 +328,13 @@ export class DigestService {
     // Recommendations
     if (digest.recommendations.length > 0) {
       lines.push(`💡 ${labels.recommendations}:`);
-      
+
       // Translate recommendations in batch for efficiency
       const translatedRecs = await this.translationService.translateBatch(
         digest.recommendations,
         language,
       );
-      
+
       for (const rec of translatedRecs) {
         lines.push(`   • ${rec}`);
       }
@@ -401,7 +414,11 @@ export class DigestService {
   /**
    * Format date and time according to user's timezone and language
    */
-  private formatDateTime(date: Date, timezone: string, language: string): string {
+  private formatDateTime(
+    date: Date,
+    timezone: string,
+    language: string,
+  ): string {
     return new Intl.DateTimeFormat(language, {
       timeZone: timezone,
       dateStyle: 'medium',
@@ -413,14 +430,16 @@ export class DigestService {
    * Format digest as HTML
    */
   formatDigestAsHTML(digest: DigestContent): string {
-    let html = '<div style="font-family: Arial, sans-serif; max-width: 600px;">';
+    let html =
+      '<div style="font-family: Arial, sans-serif; max-width: 600px;">';
 
     // Header
     html += '<h2 style="color: #333;">📬 Daily Digest</h2>';
     html += `<p style="color: #666;">${digest.date.toLocaleDateString()}</p>`;
 
     // Summary
-    html += '<div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">';
+    html +=
+      '<div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">';
     html += '<h3 style="margin-top: 0;">Summary</h3>';
     html += '<ul style="list-style: none; padding: 0;">';
     html += `<li>📊 Total items: ${digest.summary.totalItems}</li>`;
@@ -444,7 +463,8 @@ export class DigestService {
       html += `<h3 style="color: ${borderColor};">${section.title}</h3>`;
 
       for (const item of section.items) {
-        html += '<div style="margin: 10px 0; padding: 10px; background: #fafafa; border-radius: 3px;">';
+        html +=
+          '<div style="margin: 10px 0; padding: 10px; background: #fafafa; border-radius: 3px;">';
         html += `<strong>${this.escapeHtml(item.title)}</strong>`;
         if (item.summary) {
           html += `<p style="margin: 5px 0; color: #666;">${this.escapeHtml(item.summary)}</p>`;
@@ -460,8 +480,10 @@ export class DigestService {
 
     // Recommendations
     if (digest.recommendations.length > 0) {
-      html += '<div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0;">';
-      html += '<h3 style="color: #1976d2; margin-top: 0;">💡 Recommendations</h3>';
+      html +=
+        '<div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0;">';
+      html +=
+        '<h3 style="color: #1976d2; margin-top: 0;">💡 Recommendations</h3>';
       html += '<ul>';
       for (const rec of digest.recommendations) {
         html += `<li>${this.escapeHtml(rec)}</li>`;
@@ -510,11 +532,10 @@ export class DigestService {
     });
   }
 
-  private buildUrgentSection(
-    dumps: Dump[],
-    reminders: any[],
-  ): DigestSection {
-    const urgentDumps = dumps.filter((d) => d.urgency_level && d.urgency_level >= 8);
+  private buildUrgentSection(dumps: Dump[], reminders: any[]): DigestSection {
+    const urgentDumps = dumps.filter(
+      (d) => d.urgency_level && d.urgency_level >= 8,
+    );
 
     const items: DigestItem[] = urgentDumps.map((dump) => ({
       id: dump.id,
@@ -544,7 +565,7 @@ export class DigestService {
     }));
 
     return {
-      title: '📅 Today\'s Reminders',
+      title: "📅 Today's Reminders",
       priority: 'high',
       items,
     };
@@ -582,11 +603,10 @@ export class DigestService {
     };
   }
 
-  private buildDigestSummary(
-    dumps: Dump[],
-    reminders: any[],
-  ): DigestSummary {
-    const urgentItems = dumps.filter((d) => d.urgency_level && d.urgency_level >= 8).length;
+  private buildDigestSummary(dumps: Dump[], reminders: any[]): DigestSummary {
+    const urgentItems = dumps.filter(
+      (d) => d.urgency_level && d.urgency_level >= 8,
+    ).length;
 
     return {
       totalItems: dumps.length + reminders.length,
@@ -607,10 +627,7 @@ export class DigestService {
     return breakdown;
   }
 
-  private generateRecommendations(
-    dumps: Dump[],
-    reminders: any[],
-  ): string[] {
+  private generateRecommendations(dumps: Dump[], reminders: any[]): string[] {
     const recommendations: string[] = [];
 
     // Recommend based on captured content
@@ -620,7 +637,7 @@ export class DigestService {
       );
     } else if (dumps.length > 20) {
       recommendations.push(
-        'You\'ve been very active! Consider reviewing and organizing your captures.',
+        "You've been very active! Consider reviewing and organizing your captures.",
       );
     }
 
@@ -629,7 +646,7 @@ export class DigestService {
       recommendations.push('No reminders scheduled. All clear!');
     } else if (reminders.length > 10) {
       recommendations.push(
-        'You have many reminders today. Prioritize what\'s most important.',
+        "You have many reminders today. Prioritize what's most important.",
       );
     }
 

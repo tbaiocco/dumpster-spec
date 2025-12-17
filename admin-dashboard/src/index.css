@@ -2,19 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Lexend:wght@400;500;600;700&display=swap');
+/* Clutter.AI Design System - Typography */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  body {
+    background-color: #FAFAF9;
+    color: #1E293B;
+    @apply font-sans antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
+}
 
 @layer utilities {
+  /* Clutter.AI Brand Gradients */
   .text-gradient {
-    @apply bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent;
   }
   
   .bg-gradient-primary {
-    @apply bg-gradient-to-br from-primary-600 via-primary-700 to-primary-900;
+    background: linear-gradient(135deg, #B929EB, #2DD9F6);
   }
   
-  .bg-gradient-dark {
-    @apply bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950;
+  .bg-gradient-brand {
+    background: linear-gradient(135deg, #B929EB, #2DD9F6);
+  }
+  
+  .shadow-brand {
+    box-shadow: 0 10px 40px -10px rgba(185, 41, 235, 0.3);
+  }
+  
+  .shadow-brand-lg {
+    box-shadow: 0 20px 60px -15px rgba(185, 41, 235, 0.4);
   }
   
   .animate-fade-in {

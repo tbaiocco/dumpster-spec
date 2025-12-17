@@ -8,7 +8,7 @@ jest.mock('@xenova/transformers', () => ({
   pipeline: jest.fn().mockResolvedValue(
     jest.fn().mockResolvedValue({
       data: new Array(384).fill(0).map(() => Math.random()), // Mock 384-dimensional vector
-    })
+    }),
   ),
   env: {
     allowLocalModels: false,
@@ -34,7 +34,8 @@ describe('VectorService', () => {
         {
           provide: DataSource,
           useValue: {
-            query: jest.fn()
+            query: jest
+              .fn()
               .mockResolvedValueOnce([{ exists: true }]) // pgvector extension check
               .mockResolvedValueOnce([]), // pgvector test query
             transaction: jest.fn(),
@@ -76,19 +77,19 @@ describe('VectorService', () => {
     });
 
     it('should handle model not loaded error', async () => {
-      // Create service without initializing (model not loaded)  
+      // Create service without initializing (model not loaded)
       const configService = module.get<ConfigService>(ConfigService);
       const uninitializedService = new VectorService(dataSource, configService);
 
       await expect(
-        uninitializedService.generateEmbedding({ text: 'test content' })
+        uninitializedService.generateEmbedding({ text: 'test content' }),
       ).rejects.toThrow('Embedding model not loaded');
     });
 
     it('should handle empty text input', async () => {
-      await expect(
-        service.generateEmbedding({ text: '' })
-      ).rejects.toThrow('Text content is required');
+      await expect(service.generateEmbedding({ text: '' })).rejects.toThrow(
+        'Text content is required',
+      );
     });
   });
 
@@ -96,7 +97,7 @@ describe('VectorService', () => {
     it('should calculate cosine similarity correctly', () => {
       const vector1 = [1, 0, 0];
       const vector2 = [0, 1, 0];
-      
+
       const similarity = service.calculateCosineSimilarity(vector1, vector2);
       expect(similarity).toBe(0); // Orthogonal vectors
     });
@@ -104,7 +105,7 @@ describe('VectorService', () => {
     it('should handle identical vectors', () => {
       const vector1 = [1, 2, 3];
       const vector2 = [1, 2, 3];
-      
+
       const similarity = service.calculateCosineSimilarity(vector1, vector2);
       expect(similarity).toBe(1); // Identical vectors
     });
@@ -112,7 +113,7 @@ describe('VectorService', () => {
     it('should handle zero vectors', () => {
       const vector1 = [0, 0, 0];
       const vector2 = [1, 2, 3];
-      
+
       const similarity = service.calculateCosineSimilarity(vector1, vector2);
       expect(similarity).toBe(0); // Zero vector similarity
     });
@@ -136,11 +137,13 @@ describe('VectorService', () => {
         .mockResolvedValue([]); // UPDATE queries
 
       // Mock transaction method
-      (dataSource.transaction as jest.Mock).mockImplementation(async (callback) => {
-        return callback({
-          query: jest.fn().mockResolvedValue([]),
-        });
-      });
+      (dataSource.transaction as jest.Mock).mockImplementation(
+        async (callback) => {
+          return callback({
+            query: jest.fn().mockResolvedValue([]),
+          });
+        },
+      );
 
       await service.migrateExistingDumps(10);
 
@@ -159,7 +162,9 @@ describe('VectorService', () => {
       // Mock pgvector extension check
       (dataSource.query as jest.Mock)
         .mockResolvedValueOnce([]) // pgvector test query
-        .mockResolvedValueOnce([{ total_dumps: '100', dumps_with_vectors: '80' }]); // stats query
+        .mockResolvedValueOnce([
+          { total_dumps: '100', dumps_with_vectors: '80' },
+        ]); // stats query
 
       const health = await service.getHealthStatus();
 

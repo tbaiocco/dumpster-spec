@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { resolve } from 'node:path';
+import { GoogleAuth } from 'google-auth-library';
 
 export interface SpeechTranscriptionRequest {
   audioBuffer: Buffer;
@@ -68,9 +70,11 @@ export class SpeechService {
 
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('GOOGLE_CLOUD_API_KEY') || '';
-    const keyFilePathRaw = this.configService.get<string>('GOOGLE_CLOUD_KEY_FILE') || '';
-    this.projectId = this.configService.get<string>('GOOGLE_CLOUD_PROJECT_ID') || '';
-    
+    const keyFilePathRaw =
+      this.configService.get<string>('GOOGLE_CLOUD_KEY_FILE') || '';
+    this.projectId =
+      this.configService.get<string>('GOOGLE_CLOUD_PROJECT_ID') || '';
+
     // Resolve key file path to absolute path
     if (keyFilePathRaw) {
       if (keyFilePathRaw.startsWith('/')) {
@@ -78,20 +82,23 @@ export class SpeechService {
         this.keyFilePath = keyFilePathRaw;
       } else {
         // Relative path - resolve from backend directory
-        const { resolve } = require('node:path');
         this.keyFilePath = resolve(process.cwd(), keyFilePathRaw);
       }
     } else {
       this.keyFilePath = '';
     }
-    
+
     // Prefer service account key file over API key
     this.useServiceAccount = !!this.keyFilePath && !!this.projectId;
 
     if (!this.useServiceAccount && !this.apiKey) {
-      this.logger.warn('Google Cloud API key or service account key file not configured');
+      this.logger.warn(
+        'Google Cloud API key or service account key file not configured',
+      );
     } else if (this.useServiceAccount) {
-      this.logger.log(`Using Google Cloud service account authentication with key file: ${this.keyFilePath}`);
+      this.logger.log(
+        `Using Google Cloud service account authentication with key file: ${this.keyFilePath}`,
+      );
     }
   }
 
@@ -111,16 +118,22 @@ export class SpeechService {
 
       // Convert audio buffer to base64
       const audioContent = request.audioBuffer.toString('base64');
-      
+
       // Debug: Log base64 audio content
-      this.logger.debug(`Audio buffer size: ${request.audioBuffer.length} bytes`);
-      this.logger.debug(`Base64 audio content length: ${audioContent.length} characters`);
+      this.logger.debug(
+        `Audio buffer size: ${request.audioBuffer.length} bytes`,
+      );
+      this.logger.debug(
+        `Base64 audio content length: ${audioContent.length} characters`,
+      );
 
       // Prepare the request with sample rate for Opus
       const languageCode = request.languageCode || 'en-US';
-      
-      this.logger.debug(`Configuring Speech-to-Text with language: ${languageCode}, encoding: ${encoding}`);
-      
+
+      this.logger.debug(
+        `Configuring Speech-to-Text with language: ${languageCode}, encoding: ${encoding}`,
+      );
+
       const config: any = {
         encoding,
         languageCode,
@@ -139,7 +152,7 @@ export class SpeechService {
         config.sampleRateHertz = 16000; // Standard MP3 sample rate for speech
         this.logger.debug('Using MP3 encoding with 16kHz sample rate');
       }
-      
+
       // Enhanced language configuration for better recognition
       // Note: phone_call model doesn't support alternativeLanguageCodes
       if (config.model !== 'phone_call') {
@@ -257,10 +270,10 @@ export class SpeechService {
   private async callGoogleSpeechAPI(
     request: GoogleSpeechRequest,
   ): Promise<GoogleSpeechResponse> {
-    let headers: Record<string, string> = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
-    
+
     let url = this.apiUrl;
 
     if (this.useServiceAccount) {
@@ -279,7 +292,7 @@ export class SpeechService {
       encoding: request.config.encoding,
       languageCode: request.config.languageCode,
       sampleRateHertz: request.config.sampleRateHertz,
-      audioSize: request.audio.content.length
+      audioSize: request.audio.content.length,
     });
 
     const response = await fetch(url, {
@@ -294,29 +307,35 @@ export class SpeechService {
         status: response.status,
         error,
         url,
-        headers: { ...headers, Authorization: headers.Authorization ? '[REDACTED]' : undefined }
+        headers: {
+          ...headers,
+          Authorization: headers.Authorization ? '[REDACTED]' : undefined,
+        },
       });
       throw new Error(`Google Speech API error: ${response.status} ${error}`);
     }
 
-    const result = await response.json() as GoogleSpeechResponse;
-    this.logger.debug('Google Speech API success, results count:', result.results?.length || 0);
-    
+    const result = (await response.json()) as GoogleSpeechResponse;
+    this.logger.debug(
+      'Google Speech API success, results count:',
+      result.results?.length || 0,
+    );
+
     return result;
   }
 
   private async getAccessToken(): Promise<string> {
     try {
-      const { GoogleAuth } = require('google-auth-library');
-      
-      this.logger.debug(`Attempting to authenticate with key file: ${this.keyFilePath}`);
+      this.logger.debug(
+        `Attempting to authenticate with key file: ${this.keyFilePath}`,
+      );
       this.logger.debug(`Project ID: ${this.projectId}`);
-      
+
       // Check if key file exists and is readable
       if (!this.keyFilePath) {
         throw new Error('GOOGLE_CLOUD_KEY_FILE environment variable not set');
       }
-      
+
       // Create Google Auth client
       const auth = new GoogleAuth({
         keyFile: this.keyFilePath,
@@ -324,15 +343,17 @@ export class SpeechService {
         scopes: ['https://www.googleapis.com/auth/cloud-platform'],
       });
 
-      this.logger.debug('Google Auth client created, requesting access token...');
-      
+      this.logger.debug(
+        'Google Auth client created, requesting access token...',
+      );
+
       // Get access token
       const accessToken = await auth.getAccessToken();
-      
+
       if (!accessToken) {
         throw new Error('No access token returned from Google Cloud');
       }
-      
+
       this.logger.debug('Access token obtained successfully');
       return accessToken;
     } catch (error) {
@@ -340,17 +361,22 @@ export class SpeechService {
         error: error.message,
         keyFilePath: this.keyFilePath,
         projectId: this.projectId,
-        stack: error.stack
+        stack: error.stack,
       });
-      throw new Error(`Failed to authenticate with Google Cloud service account: ${error.message}`);
+      throw new Error(
+        `Failed to authenticate with Google Cloud service account: ${error.message}`,
+      );
     }
   }
 
   private parseTranscriptionResponse(
     response: GoogleSpeechResponse,
   ): SpeechTranscriptionResponse {
-    this.logger.debug('Google Speech API response:', JSON.stringify(response, null, 2));
-    
+    this.logger.debug(
+      'Google Speech API response:',
+      JSON.stringify(response, null, 2),
+    );
+
     if (!response.results || response.results.length === 0) {
       this.logger.warn('No results returned from Google Speech API');
       return {
@@ -361,15 +387,16 @@ export class SpeechService {
     }
 
     // Log all alternatives to help debug Portuguese recognition
-    this.logger.debug('All transcription alternatives:', 
+    this.logger.debug(
+      'All transcription alternatives:',
       response.results.map((result, i) => ({
         resultIndex: i,
         alternatives: result.alternatives?.map((alt, j) => ({
           index: j,
           transcript: alt.transcript,
-          confidence: alt.confidence
-        }))
-      }))
+          confidence: alt.confidence,
+        })),
+      })),
     );
 
     const primaryResult = response.results[0];
@@ -386,16 +413,18 @@ export class SpeechService {
     // Intelligent alternative selection for Portuguese temporal expressions
     if (primaryResult.alternatives && primaryResult.alternatives.length > 1) {
       const temporalKeywords = ['amanhã', 'amanha', 'hoje', 'ontem'];
-      
+
       // Look for alternatives that contain temporal keywords
       for (const alternative of primaryResult.alternatives) {
         const transcript = alternative.transcript.toLowerCase();
-        const hasTemporalKeyword = temporalKeywords.some(keyword => 
-          transcript.includes(keyword)
+        const hasTemporalKeyword = temporalKeywords.some((keyword) =>
+          transcript.includes(keyword),
         );
-        
+
         if (hasTemporalKeyword && alternative.confidence > 0.5) {
-          this.logger.debug(`Selected alternative with temporal keyword: "${alternative.transcript}" (confidence: ${alternative.confidence})`);
+          this.logger.debug(
+            `Selected alternative with temporal keyword: "${alternative.transcript}" (confidence: ${alternative.confidence})`,
+          );
           selectedAlternative = alternative;
           break;
         }
@@ -518,6 +547,4 @@ export class SpeechService {
     const estimatedSeconds = audioBuffer.length / bytesPerSecond;
     return estimatedSeconds / 60; // Convert to minutes
   }
-
-
 }

@@ -1,5 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { FeedbackService, FeedbackType, FeedbackPriority, FeedbackStatus, FeedbackRequest } from '../feedback/feedback.service';
+import {
+  FeedbackService,
+  FeedbackType,
+  FeedbackPriority,
+  FeedbackStatus,
+  FeedbackRequest,
+} from '../feedback/feedback.service';
 
 describe('FeedbackService', () => {
   let service: FeedbackService;
@@ -19,7 +25,8 @@ describe('FeedbackService', () => {
         userId: 'test-user-id',
         type: FeedbackType.BUG_REPORT,
         title: 'App crashes when uploading image',
-        description: 'The application crashes consistently when trying to upload large images',
+        description:
+          'The application crashes consistently when trying to upload large images',
         priority: FeedbackPriority.HIGH,
         reproductionSteps: [
           'Open the app',
@@ -151,13 +158,15 @@ describe('FeedbackService', () => {
       expect(userFeedback[1].userId).toBe(userId);
       // Should be sorted by creation date (newest first)
       expect(userFeedback[0].createdAt.getTime()).toBeGreaterThanOrEqual(
-        userFeedback[1].createdAt.getTime()
+        userFeedback[1].createdAt.getTime(),
       );
     });
 
     it('should return empty array for user with no feedback', async () => {
       // Act
-      const userFeedback = await service.getUserFeedback('user-with-no-feedback');
+      const userFeedback = await service.getUserFeedback(
+        'user-with-no-feedback',
+      );
 
       // Assert
       expect(userFeedback).toHaveLength(0);
@@ -249,7 +258,12 @@ describe('FeedbackService', () => {
       const feedbackId = await service.submitFeedback(request);
 
       // Act
-      await service.updateFeedbackStatus(feedbackId, FeedbackStatus.IN_PROGRESS, 'Investigating the issue', 'admin-user');
+      await service.updateFeedbackStatus(
+        feedbackId,
+        FeedbackStatus.IN_PROGRESS,
+        'Investigating the issue',
+        'admin-user',
+      );
 
       // Assert
       const feedback = await service.getFeedback(feedbackId);
@@ -259,7 +273,12 @@ describe('FeedbackService', () => {
 
     it('should throw error for non-existent feedback', async () => {
       // Act & Assert
-      const result = await service.updateFeedbackStatus('non-existent-id', FeedbackStatus.RESOLVED, 'Fixed', 'admin-user');
+      const result = await service.updateFeedbackStatus(
+        'non-existent-id',
+        FeedbackStatus.RESOLVED,
+        'Fixed',
+        'admin-user',
+      );
       expect(result).toBe(false);
     });
   });
@@ -287,7 +306,7 @@ describe('FeedbackService', () => {
     it('should return false for non-existent feedback', async () => {
       // Act
       const result = await service.upvoteFeedback('non-existent-id');
-      
+
       // Assert
       expect(result).toBe(false);
     });

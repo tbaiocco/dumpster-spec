@@ -38,7 +38,9 @@ export class FuzzyMatchService {
    */
   async search(request: FuzzyMatchRequest): Promise<FuzzyMatchResult[]> {
     try {
-      this.logger.debug(`Fuzzy search for: "${request.query}" (user: ${request.userId})`);
+      this.logger.debug(
+        `Fuzzy search for: "${request.query}" (user: ${request.userId})`,
+      );
 
       // Normalize and tokenize query
       const queryTerms = this.normalizeQuery(request.query);
@@ -55,14 +57,14 @@ export class FuzzyMatchService {
 
       // Apply filters
       if (request.categoryFilter && request.categoryFilter.length > 0) {
-        query = query.andWhere('category.name IN (:...categories)', { 
-          categories: request.categoryFilter 
+        query = query.andWhere('category.name IN (:...categories)', {
+          categories: request.categoryFilter,
         });
       }
 
       if (request.contentTypeFilter && request.contentTypeFilter.length > 0) {
-        query = query.andWhere('dump.content_type IN (:...contentTypes)', { 
-          contentTypes: request.contentTypeFilter 
+        query = query.andWhere('dump.content_type IN (:...contentTypes)', {
+          contentTypes: request.contentTypeFilter,
         });
       }
 
@@ -81,7 +83,7 @@ export class FuzzyMatchService {
 
       for (const dump of dumps) {
         const matchResult = this.calculateFuzzyScore(dump, queryTerms);
-        
+
         if (matchResult.score >= minScore) {
           results.push({
             dump,
@@ -96,9 +98,10 @@ export class FuzzyMatchService {
       results.sort((a, b) => b.score - a.score);
       const limitedResults = results.slice(0, request.limit || 20);
 
-      this.logger.debug(`Fuzzy search completed: ${limitedResults.length} results`);
+      this.logger.debug(
+        `Fuzzy search completed: ${limitedResults.length} results`,
+      );
       return limitedResults;
-
     } catch (error) {
       this.logger.error('Fuzzy search failed:', error);
       throw new Error(`Fuzzy search failed: ${error.message}`);
@@ -108,7 +111,10 @@ export class FuzzyMatchService {
   /**
    * Calculate fuzzy matching score for a dump
    */
-  private calculateFuzzyScore(dump: Dump, queryTerms: string[]): {
+  private calculateFuzzyScore(
+    dump: Dump,
+    queryTerms: string[],
+  ): {
     score: number;
     matchedTerms: string[];
     matchDetails: FuzzyMatchResult['matchDetails'];
@@ -120,7 +126,7 @@ export class FuzzyMatchService {
     const matchDetails: FuzzyMatchResult['matchDetails'] = {};
     const matchedTerms: string[] = [];
     let totalScore = 0;
-    let maxPossibleScore = queryTerms.length;
+    const maxPossibleScore = queryTerms.length;
 
     for (const term of queryTerms) {
       let termScore = 0;
@@ -147,8 +153,13 @@ export class FuzzyMatchService {
 
       // Check fuzzy matches
       if (!termMatched) {
-        const fuzzyScore = this.calculateBestFuzzyMatch(term, [content, summary, categoryName]);
-        if (fuzzyScore > 0.6) { // Only consider reasonably close matches
+        const fuzzyScore = this.calculateBestFuzzyMatch(term, [
+          content,
+          summary,
+          categoryName,
+        ]);
+        if (fuzzyScore > 0.6) {
+          // Only consider reasonably close matches
           termScore = fuzzyScore * 0.8; // Penalty for fuzzy matches
           termMatched = true;
         }
@@ -162,7 +173,8 @@ export class FuzzyMatchService {
 
     // Normalize score based on query coverage
     const coverage = matchedTerms.length / queryTerms.length;
-    const averageScore = maxPossibleScore > 0 ? totalScore / maxPossibleScore : 0;
+    const averageScore =
+      maxPossibleScore > 0 ? totalScore / maxPossibleScore : 0;
     const finalScore = averageScore * coverage;
 
     return {
@@ -180,13 +192,13 @@ export class FuzzyMatchService {
 
     for (const text of texts) {
       const words = text.split(/\s+/);
-      
+
       for (const word of words) {
         if (word.length < 2) continue;
-        
+
         const similarity = this.calculateLevenshteinSimilarity(term, word);
         bestScore = Math.max(bestScore, similarity);
-        
+
         // Early exit for very good matches
         if (bestScore > 0.85) {
           return bestScore;
@@ -235,8 +247,8 @@ export class FuzzyMatchService {
         } else {
           matrix[i][j] = Math.min(
             matrix[i - 1][j - 1] + 1, // substitution
-            matrix[i][j - 1] + 1,     // insertion
-            matrix[i - 1][j] + 1      // deletion
+            matrix[i][j - 1] + 1, // insertion
+            matrix[i - 1][j] + 1, // deletion
           );
         }
       }
@@ -253,19 +265,21 @@ export class FuzzyMatchService {
       .toLowerCase()
       .trim()
       .split(/\s+/)
-      .filter(term => term.length > 1) // Filter out single characters
-      .map(term => term.replaceAll(/[^\w]/g, '')) // Remove special characters
-      .filter(term => term.length > 1); // Filter again after cleaning
+      .filter((term) => term.length > 1) // Filter out single characters
+      .map((term) => term.replaceAll(/[^\w]/g, '')) // Remove special characters
+      .filter((term) => term.length > 1); // Filter again after cleaning
   }
 
   /**
    * Advanced fuzzy search with phonetic matching
    */
-  async advancedFuzzySearch(request: FuzzyMatchRequest & {
-    usePhonetic?: boolean;
-    useNGrams?: boolean;
-    boostExactMatches?: boolean;
-  }): Promise<FuzzyMatchResult[]> {
+  async advancedFuzzySearch(
+    request: FuzzyMatchRequest & {
+      usePhonetic?: boolean;
+      useNGrams?: boolean;
+      boostExactMatches?: boolean;
+    },
+  ): Promise<FuzzyMatchResult[]> {
     const baseResults = await this.search(request);
 
     if (!request.usePhonetic && !request.useNGrams) {
@@ -276,7 +290,10 @@ export class FuzzyMatchService {
     let enhancedResults = [...baseResults];
 
     if (request.usePhonetic) {
-      enhancedResults = this.applyPhoneticMatching(enhancedResults, request.query);
+      enhancedResults = this.applyPhoneticMatching(
+        enhancedResults,
+        request.query,
+      );
     }
 
     if (request.useNGrams) {
@@ -296,19 +313,26 @@ export class FuzzyMatchService {
   /**
    * Apply phonetic matching using Soundex-like algorithm
    */
-  private applyPhoneticMatching(results: FuzzyMatchResult[], query: string): FuzzyMatchResult[] {
+  private applyPhoneticMatching(
+    results: FuzzyMatchResult[],
+    query: string,
+  ): FuzzyMatchResult[] {
     const queryPhonetic = this.generatePhoneticCode(query);
 
-    return results.map(result => {
-      const contentPhonetic = this.generatePhoneticCode(result.dump.raw_content || '');
-      const summaryPhonetic = this.generatePhoneticCode(result.dump.ai_summary || '');
+    return results.map((result) => {
+      const contentPhonetic = this.generatePhoneticCode(
+        result.dump.raw_content || '',
+      );
+      const summaryPhonetic = this.generatePhoneticCode(
+        result.dump.ai_summary || '',
+      );
 
       let phoneticBoost = 0;
-      
+
       if (this.comparePhoneticCodes(queryPhonetic, contentPhonetic)) {
         phoneticBoost += 0.1;
       }
-      
+
       if (this.comparePhoneticCodes(queryPhonetic, summaryPhonetic)) {
         phoneticBoost += 0.08;
       }
@@ -326,27 +350,30 @@ export class FuzzyMatchService {
   private generatePhoneticCode(text: string): string {
     const cleaned = text.toLowerCase().replaceAll(/[^a-z\s]/g, '');
     const words = cleaned.split(/\s+/);
-    
-    return words.map(word => {
-      if (word.length === 0) return '';
-      
-      let code = word[0];
-      for (let i = 1; i < word.length; i++) {
-        const char = word[i];
-        const prev = word[i - 1];
-        
-        // Group similar sounding consonants
-        if ('bfpv'.includes(char) && !'bfpv'.includes(prev)) code += '1';
-        else if ('cgjkqsxz'.includes(char) && !'cgjkqsxz'.includes(prev)) code += '2';
-        else if ('dt'.includes(char) && !'dt'.includes(prev)) code += '3';
-        else if ('l'.includes(char) && !'l'.includes(prev)) code += '4';
-        else if ('mn'.includes(char) && !'mn'.includes(prev)) code += '5';
-        else if ('r'.includes(char) && !'r'.includes(prev)) code += '6';
-        // Skip vowels and duplicate sounds
-      }
-      
-      return code.slice(0, 4).padEnd(4, '0');
-    }).join(' ');
+
+    return words
+      .map((word) => {
+        if (word.length === 0) return '';
+
+        let code = word[0];
+        for (let i = 1; i < word.length; i++) {
+          const char = word[i];
+          const prev = word[i - 1];
+
+          // Group similar sounding consonants
+          if ('bfpv'.includes(char) && !'bfpv'.includes(prev)) code += '1';
+          else if ('cgjkqsxz'.includes(char) && !'cgjkqsxz'.includes(prev))
+            code += '2';
+          else if ('dt'.includes(char) && !'dt'.includes(prev)) code += '3';
+          else if ('l'.includes(char) && !'l'.includes(prev)) code += '4';
+          else if ('mn'.includes(char) && !'mn'.includes(prev)) code += '5';
+          else if ('r'.includes(char) && !'r'.includes(prev)) code += '6';
+          // Skip vowels and duplicate sounds
+        }
+
+        return code.slice(0, 4).padEnd(4, '0');
+      })
+      .join(' ');
   }
 
   /**
@@ -355,7 +382,7 @@ export class FuzzyMatchService {
   private comparePhoneticCodes(code1: string, code2: string): boolean {
     const words1 = code1.split(' ');
     const words2 = code2.split(' ');
-    
+
     for (const word1 of words1) {
       for (const word2 of words2) {
         if (word1.length >= 3 && word2.length >= 3 && word1 === word2) {
@@ -363,23 +390,29 @@ export class FuzzyMatchService {
         }
       }
     }
-    
+
     return false;
   }
 
   /**
    * Apply N-gram matching for partial word matches
    */
-  private applyNGramMatching(results: FuzzyMatchResult[], query: string): FuzzyMatchResult[] {
+  private applyNGramMatching(
+    results: FuzzyMatchResult[],
+    query: string,
+  ): FuzzyMatchResult[] {
     const queryNGrams = this.generateNGrams(query, 3);
 
-    return results.map(result => {
+    return results.map((result) => {
       const content = result.dump.raw_content || '';
       const contentNGrams = this.generateNGrams(content, 3);
-      
-      const intersection = queryNGrams.filter(gram => contentNGrams.includes(gram));
-      const similarity = queryNGrams.length > 0 ? intersection.length / queryNGrams.length : 0;
-      
+
+      const intersection = queryNGrams.filter((gram) =>
+        contentNGrams.includes(gram),
+      );
+      const similarity =
+        queryNGrams.length > 0 ? intersection.length / queryNGrams.length : 0;
+
       const ngramBoost = similarity * 0.15;
 
       return {
@@ -395,26 +428,29 @@ export class FuzzyMatchService {
   private generateNGrams(text: string, n: number): string[] {
     const cleaned = text.toLowerCase().replaceAll(/[^a-z]/g, '');
     const ngrams: string[] = [];
-    
+
     for (let i = 0; i <= cleaned.length - n; i++) {
       ngrams.push(cleaned.slice(i, i + n));
     }
-    
+
     return ngrams;
   }
 
   /**
    * Boost results with exact word matches
    */
-  private boostExactMatches(results: FuzzyMatchResult[], query: string): FuzzyMatchResult[] {
+  private boostExactMatches(
+    results: FuzzyMatchResult[],
+    query: string,
+  ): FuzzyMatchResult[] {
     const queryWords = this.normalizeQuery(query);
 
-    return results.map(result => {
+    return results.map((result) => {
       const content = (result.dump.raw_content || '').toLowerCase();
       const summary = (result.dump.ai_summary || '').toLowerCase();
-      
+
       let exactMatchBoost = 0;
-      
+
       for (const word of queryWords) {
         if (content.includes(word)) {
           exactMatchBoost += 0.05;
@@ -450,7 +486,7 @@ export class FuzzyMatchService {
 
       for (const dump of dumps) {
         const content = `${dump.raw_content || ''} ${dump.ai_summary || ''}`;
-        const words = content.split(/\s+/).filter(w => w.length > 0);
+        const words = content.split(/\s+/).filter((w) => w.length > 0);
         totalWords += words.length;
       }
 

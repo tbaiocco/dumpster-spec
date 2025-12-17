@@ -2,91 +2,36 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Dump } from '../../entities/dump.entity';
-import { Reminder, ReminderType, ReminderStatus } from '../../entities/reminder.entity';
+import {
+  Reminder,
+  ReminderType,
+  ReminderStatus,
+} from '../../entities/reminder.entity';
+import {
+  TrackableItem,
+  TrackingStatus,
+  TrackingType,
+  TrackingCheckpoint,
+} from '../../entities/trackable-item.entity';
 import { ReminderService } from '../reminders/reminder.service';
 
-/**
- * Tracking status for items
- */
-export enum TrackingStatus {
-  PENDING = 'pending',
-  IN_PROGRESS = 'in_progress',
-  COMPLETED = 'completed',
-  EXPIRED = 'expired',
-  CANCELLED = 'cancelled',
-}
-
-/**
- * Type of trackable item
- */
-export enum TrackingType {
-  PACKAGE = 'package',
-  APPLICATION = 'application',
-  SUBSCRIPTION = 'subscription',
-  WARRANTY = 'warranty',
-  LOAN = 'loan',
-  INSURANCE = 'insurance',
-  OTHER = 'other',
-}
-
-/**
- * Trackable item interface
- */
-export interface TrackableItem {
-  id: string;
-  dumpId: string;
-  userId: string;
-  type: TrackingType;
-  title: string;
-  description?: string;
-  status: TrackingStatus;
-  startDate: Date;
-  expectedEndDate?: Date;
-  actualEndDate?: Date;
-  metadata: Record<string, any>;
-  checkpoints: TrackingCheckpoint[];
-  reminders: string[]; // Reminder IDs
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/**
- * Tracking checkpoint (status update)
- */
-export interface TrackingCheckpoint {
-  timestamp: Date;
-  status: string;
-  location?: string;
-  notes?: string;
-  source?: string;
-}
-
-/**
- * Service for tracking time-sensitive items
- * 
- * Handles package deliveries, applications, subscriptions, warranties, etc.
- */
 @Injectable()
 export class TrackingService {
   private readonly logger = new Logger(TrackingService.name);
-  
-  // In-memory storage for trackable items (would be in database in production)
-  private trackableItems: Map<string, TrackableItem> = new Map();
 
   constructor(
     @InjectRepository(Dump)
     private readonly dumpRepository: Repository<Dump>,
     @InjectRepository(Reminder)
     private readonly reminderRepository: Repository<Reminder>,
+    @InjectRepository(TrackableItem)
+    private readonly trackableItemRepository: Repository<TrackableItem>,
     private readonly reminderService: ReminderService,
   ) {}
 
-  /**
-   * Create a trackable item from a dump
-   */
   async createTrackableItem(
     userId: string,
-    dumpId: string,
+    dumpId: string | null,
     options: {
       type: TrackingType;
       title: string;
@@ -96,19 +41,17 @@ export class TrackingService {
       autoReminders?: boolean;
     },
   ): Promise<TrackableItem> {
-    const id = this.generateId();
     const now = new Date();
 
-    const trackableItem: TrackableItem = {
-      id,
-      dumpId,
-      userId,
+    const trackableItem = this.trackableItemRepository.create({
+      user_id: userId,
+      dump_id: dumpId || undefined,
       type: options.type,
       title: options.title,
       description: options.description,
       status: TrackingStatus.PENDING,
-      startDate: now,
-      expectedEndDate: options.expectedEndDate,
+      start_date: now,
+      expected_end_date: options.expectedEndDate,
       metadata: options.metadata || {},
       checkpoints: [
         {
@@ -117,32 +60,25 @@ export class TrackingService {
           notes: 'Item created for tracking',
         },
       ],
-      reminders: [],
-      createdAt: now,
-      updatedAt: now,
-    };
+      reminder_ids: [],
+    });
 
-    this.trackableItems.set(id, trackableItem);
-    this.logger.log(`Created trackable item ${id} for user ${userId}`);
+    const saved = await this.trackableItemRepository.save(trackableItem);
+    this.logger.log(`Created trackable item ${saved.id} for user ${userId}`);
 
-    // Auto-create reminders if requested
     if (options.autoReminders && options.expectedEndDate) {
-      await this.createAutoReminders(trackableItem);
+      await this.createAutoReminders(saved);
     }
 
-    return trackableItem;
+    return saved;
   }
 
-  /**
-   * Get trackable item by ID
-   */
   async getTrackableItem(itemId: string): Promise<TrackableItem | null> {
-    return this.trackableItems.get(itemId) || null;
+    return await this.trackableItemRepository.findOne({
+      where: { id: itemId },
+    });
   }
 
-  /**
-   * Get all trackable items for a user
-   */
   async getUserTrackableItems(
     userId: string,
     filters?: {
@@ -151,34 +87,32 @@ export class TrackingService {
       activeOnly?: boolean;
     },
   ): Promise<TrackableItem[]> {
-    let items = Array.from(this.trackableItems.values()).filter(
-      (item) => item.userId === userId,
-    );
+    const queryBuilder =
+      this.trackableItemRepository.createQueryBuilder('item');
+
+    queryBuilder.where('item.user_id = :userId', { userId });
 
     if (filters?.type) {
-      items = items.filter((item) => item.type === filters.type);
+      queryBuilder.andWhere('item.type = :type', { type: filters.type });
     }
 
     if (filters?.status) {
-      items = items.filter((item) => item.status === filters.status);
+      queryBuilder.andWhere('item.status = :status', {
+        status: filters.status,
+      });
     }
 
     if (filters?.activeOnly) {
-      items = items.filter(
-        (item) =>
-          item.status === TrackingStatus.PENDING ||
-          item.status === TrackingStatus.IN_PROGRESS,
-      );
+      queryBuilder.andWhere('item.status IN (:...statuses)', {
+        statuses: [TrackingStatus.PENDING, TrackingStatus.IN_PROGRESS],
+      });
     }
 
-    return items.sort(
-      (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
-    );
+    queryBuilder.orderBy('item.updated_at', 'DESC');
+
+    return await queryBuilder.getMany();
   }
 
-  /**
-   * Update tracking status
-   */
   async updateTrackingStatus(
     itemId: string,
     checkpoint: {
@@ -188,7 +122,10 @@ export class TrackingService {
       source?: string;
     },
   ): Promise<TrackableItem> {
-    const item = this.trackableItems.get(itemId);
+    const item = await this.trackableItemRepository.findOne({
+      where: { id: itemId },
+    });
+
     if (!item) {
       throw new Error(`Trackable item ${itemId} not found`);
     }
@@ -199,36 +136,35 @@ export class TrackingService {
     };
 
     item.checkpoints.push(newCheckpoint);
-    item.updatedAt = new Date();
 
-    // Update status based on checkpoint
     if (checkpoint.status.toLowerCase().includes('delivered')) {
       item.status = TrackingStatus.COMPLETED;
-      item.actualEndDate = newCheckpoint.timestamp;
+      item.actual_end_date = newCheckpoint.timestamp;
     } else if (checkpoint.status.toLowerCase().includes('cancelled')) {
       item.status = TrackingStatus.CANCELLED;
     } else {
       item.status = TrackingStatus.IN_PROGRESS;
     }
 
-    this.trackableItems.set(itemId, item);
-    this.logger.log(`Updated tracking for item ${itemId}: ${checkpoint.status}`);
+    const updated = await this.trackableItemRepository.save(item);
+    this.logger.log(
+      `Updated tracking for item ${itemId}: ${checkpoint.status}`,
+    );
 
-    return item;
+    return updated;
   }
 
-  /**
-   * Mark item as completed
-   */
   async completeTracking(itemId: string): Promise<TrackableItem> {
-    const item = this.trackableItems.get(itemId);
+    const item = await this.trackableItemRepository.findOne({
+      where: { id: itemId },
+    });
+
     if (!item) {
       throw new Error(`Trackable item ${itemId} not found`);
     }
 
     item.status = TrackingStatus.COMPLETED;
-    item.actualEndDate = new Date();
-    item.updatedAt = new Date();
+    item.actual_end_date = new Date();
 
     item.checkpoints.push({
       timestamp: new Date(),
@@ -236,42 +172,40 @@ export class TrackingService {
       notes: 'Item marked as completed',
     });
 
-    this.trackableItems.set(itemId, item);
+    const updated = await this.trackableItemRepository.save(item);
     this.logger.log(`Completed tracking for item ${itemId}`);
 
-    // Cancel any pending reminders
     await this.cancelPendingReminders(item);
 
-    return item;
+    return updated;
   }
 
-  /**
-   * Delete trackable item
-   */
   async deleteTrackableItem(itemId: string): Promise<void> {
-    const item = this.trackableItems.get(itemId);
+    const item = await this.trackableItemRepository.findOne({
+      where: { id: itemId },
+    });
+
     if (!item) {
       throw new Error(`Trackable item ${itemId} not found`);
     }
 
-    // Cancel any associated reminders
     await this.cancelPendingReminders(item);
 
-    this.trackableItems.delete(itemId);
+    await this.trackableItemRepository.delete(itemId);
     this.logger.log(`Deleted trackable item ${itemId}`);
   }
 
-  /**
-   * Auto-detect trackable items from dumps
-   */
-  async detectTrackableItems(userId: string, dumpId: string): Promise<{
+  async detectTrackableItems(
+    userId: string,
+    dumpId: string,
+  ): Promise<{
     detected: boolean;
     suggestions: Array<{
       type: TrackingType;
       title: string;
       description: string;
       confidence: number;
-      expectedDuration?: number; // days
+      expectedDuration?: number;
     }>;
   }> {
     const dump = await this.dumpRepository.findOne({
@@ -291,7 +225,6 @@ export class TrackingService {
       expectedDuration?: number;
     }> = [];
 
-    // Detect package tracking
     if (
       content.includes('tracking number') ||
       content.includes('shipment') ||
@@ -306,7 +239,6 @@ export class TrackingService {
       });
     }
 
-    // Detect application tracking
     if (
       content.includes('application') ||
       content.includes('submitted') ||
@@ -321,7 +253,6 @@ export class TrackingService {
       });
     }
 
-    // Detect subscription tracking
     if (
       content.includes('subscription') ||
       content.includes('renew') ||
@@ -336,7 +267,6 @@ export class TrackingService {
       });
     }
 
-    // Detect warranty tracking
     if (content.includes('warranty') || content.includes('guarantee')) {
       suggestions.push({
         type: TrackingType.WARRANTY,
@@ -353,19 +283,13 @@ export class TrackingService {
     };
   }
 
-  /**
-   * Create automatic reminders for a trackable item
-   */
-  private async createAutoReminders(
-    item: TrackableItem,
-  ): Promise<void> {
-    if (!item.expectedEndDate) {
+  private async createAutoReminders(item: TrackableItem): Promise<void> {
+    if (!item.expected_end_date) {
       return;
     }
 
     const reminders: Array<{ days: number; message: string }> = [];
 
-    // Different reminder schedules based on type
     switch (item.type) {
       case TrackingType.PACKAGE:
         reminders.push(
@@ -400,22 +324,23 @@ export class TrackingService {
     }
 
     for (const reminder of reminders) {
-      const reminderDate = new Date(item.expectedEndDate);
+      const reminderDate = new Date(item.expected_end_date);
       reminderDate.setDate(reminderDate.getDate() - reminder.days);
 
-      // Only create future reminders
       if (reminderDate > new Date()) {
         try {
           const created = await this.reminderService.createReminder({
-            userId: item.userId,
-            dumpId: item.dumpId,
+            userId: item.user_id,
+            dumpId: item.dump_id,
             message: `${item.title}: ${reminder.message}`,
             reminderType: ReminderType.DEADLINE,
             scheduledFor: reminderDate,
             aiConfidence: 75,
           });
 
-          item.reminders.push(created.id);
+          item.reminder_ids.push(created.id);
+          await this.trackableItemRepository.save(item);
+
           this.logger.log(
             `Created auto-reminder for ${item.id} at ${reminderDate.toISOString()}`,
           );
@@ -424,15 +349,10 @@ export class TrackingService {
         }
       }
     }
-
-    this.trackableItems.set(item.id, item);
   }
 
-  /**
-   * Cancel pending reminders for an item
-   */
   private async cancelPendingReminders(item: TrackableItem): Promise<void> {
-    for (const reminderId of item.reminders) {
+    for (const reminderId of item.reminder_ids) {
       try {
         const reminder = await this.reminderRepository.findOne({
           where: { id: reminderId },
@@ -441,7 +361,9 @@ export class TrackingService {
         if (reminder && reminder.status === ReminderStatus.PENDING) {
           reminder.status = ReminderStatus.DISMISSED;
           await this.reminderRepository.save(reminder);
-          this.logger.log(`Cancelled reminder ${reminderId} for item ${item.id}`);
+          this.logger.log(
+            `Cancelled reminder ${reminderId} for item ${item.id}`,
+          );
         }
       } catch (error) {
         this.logger.warn(
@@ -451,16 +373,6 @@ export class TrackingService {
     }
   }
 
-  /**
-   * Generate unique ID
-   */
-  private generateId(): string {
-    return `track_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-  }
-
-  /**
-   * Get tracking statistics for a user
-   */
   async getTrackingStats(userId: string): Promise<{
     total: number;
     active: number;
@@ -494,9 +406,6 @@ export class TrackingService {
     return stats;
   }
 
-  /**
-   * Check for overdue items and create alerts
-   */
   async checkOverdueItems(): Promise<{
     overdueCount: number;
     alertsCreated: number;
@@ -505,33 +414,36 @@ export class TrackingService {
     let overdueCount = 0;
     let alertsCreated = 0;
 
-    for (const item of this.trackableItems.values()) {
+    const items = await this.trackableItemRepository.find({
+      where: {
+        status: TrackingStatus.PENDING as any,
+      },
+    });
+
+    for (const item of items) {
       if (
-        item.expectedEndDate &&
-        item.expectedEndDate < now &&
+        item.expected_end_date &&
+        item.expected_end_date < now &&
         (item.status === TrackingStatus.PENDING ||
           item.status === TrackingStatus.IN_PROGRESS)
       ) {
         overdueCount++;
 
-        // Check if we already created an overdue alert
         const hasOverdueAlert = item.checkpoints.some(
           (cp) => cp.status === 'Overdue Alert',
         );
 
         if (!hasOverdueAlert) {
           try {
-            // Create overdue reminder
             await this.reminderService.createReminder({
-              userId: item.userId,
-              dumpId: item.dumpId,
+              userId: item.user_id,
+              dumpId: item.dump_id,
               message: `⚠️ ${item.title} is overdue!`,
               reminderType: ReminderType.DEADLINE,
               scheduledFor: now,
               aiConfidence: 100,
             });
 
-            // Add checkpoint
             item.checkpoints.push({
               timestamp: now,
               status: 'Overdue Alert',
@@ -539,8 +451,7 @@ export class TrackingService {
             });
 
             item.status = TrackingStatus.EXPIRED;
-            item.updatedAt = now;
-            this.trackableItems.set(item.id, item);
+            await this.trackableItemRepository.save(item);
 
             alertsCreated++;
             this.logger.log(`Created overdue alert for item ${item.id}`);

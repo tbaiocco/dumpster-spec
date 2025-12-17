@@ -24,6 +24,7 @@ export interface AuthResponse {
     chat_id_whatsapp: string | null;
     timezone: string;
     language: string;
+    role: string;
   };
 }
 
@@ -64,10 +65,13 @@ export class AuthService {
     };
 
     const access_token = this.jwtService.sign(payload);
-    
+
     console.log('[AuthService] Generated JWT token for user:', user.id);
     console.log('[AuthService] Token payload:', payload);
-    console.log('[AuthService] Token (first 50 chars):', access_token.substring(0, 50) + '...');
+    console.log(
+      '[AuthService] Token (first 50 chars):',
+      access_token.substring(0, 50) + '...',
+    );
 
     return {
       access_token,
@@ -79,6 +83,7 @@ export class AuthService {
         chat_id_whatsapp: user.chat_id_whatsapp,
         timezone: user.timezone,
         language: user.language,
+        role: user.role,
       },
     };
   }

@@ -52,7 +52,7 @@ export class ReviewController {
   @Get('flagged/:dumpId')
   async getFlaggedItem(@Param('dumpId') dumpId: string) {
     const flagged = await this.adminService.getFlaggedContent();
-    const item = flagged.find(f => f.id === dumpId);
+    const item = flagged.find((f) => f.id === dumpId);
 
     if (!item) {
       return {
@@ -72,13 +72,19 @@ export class ReviewController {
 
   /**
    * Approve a flagged dump
+   * Updates the dump with any corrections and sets ai_confidence to 100
    */
   @Post(':dumpId/approve')
   async approveDump(
     @Param('dumpId') dumpId: string,
-    @Body() body: { notes?: string },
+    @Body()
+    body: {
+      raw_content?: string;
+      category?: string;
+      notes?: string;
+    },
   ) {
-    const result = await this.adminService.approveDump(dumpId, body.notes);
+    const result = await this.adminService.approveDump(dumpId, body);
 
     return {
       success: true,

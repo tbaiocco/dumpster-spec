@@ -50,7 +50,7 @@ export class HealthController {
   @Get('detailed')
   async detailed() {
     const memoryUsage = process.memoryUsage();
-    
+
     let dbStatus: string;
     try {
       await this.dataSource.query('SELECT 1');
