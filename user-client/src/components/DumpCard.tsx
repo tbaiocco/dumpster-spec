@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import { Bell, Package } from 'lucide-react';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
 import type { DumpDerived } from '../types/dump.types';
@@ -48,7 +49,9 @@ export const DumpCard: React.FC<DumpCardProps> = ({ dump, showActions = false, o
       className={cn(
         'rounded-charming-lg bg-white border shadow-sm hover:shadow-glow transition-all p-4',
         dump.isOverdue && 'border-l-4 border-l-red-500 border-slate-200',
-        !dump.isOverdue && 'border-slate-200',
+        !dump.isOverdue && dump.hasReminder && 'border-l-4 border-l-orange-400 border-slate-200',
+        !dump.isOverdue && !dump.hasReminder && dump.hasTracking && 'border-l-4 border-l-cyan-400 border-slate-200',
+        !dump.isOverdue && !dump.hasReminder && !dump.hasTracking && 'border-slate-200',
         onClick && 'cursor-pointer'
       )}
     >
@@ -64,6 +67,18 @@ export const DumpCard: React.FC<DumpCardProps> = ({ dump, showActions = false, o
           {dump.isOverdue && (
             <Badge variant="overdue">
               OVERDUE
+            </Badge>
+          )}
+          {dump.hasReminder && (
+            <Badge variant="pending" className="bg-orange-100 text-orange-700 border-orange-300">
+              <Bell className="h-3 w-3 inline mr-1" />
+              Reminder
+            </Badge>
+          )}
+          {dump.hasTracking && (
+            <Badge variant="pending" className="bg-cyan-100 text-cyan-700 border-cyan-300">
+              <Package className="h-3 w-3 inline mr-1" />
+              Tracking
             </Badge>
           )}
         </div>
@@ -102,15 +117,15 @@ export const DumpCard: React.FC<DumpCardProps> = ({ dump, showActions = false, o
 
           {/* Reminder Icon */}
           {dump.hasReminder && (
-            <span className="flex items-center gap-1" title="Has reminder">
-              🔔
+            <span className="flex items-center gap-1 text-orange-600" title="Has reminder">
+              <Bell className="h-3.5 w-3.5" />
             </span>
           )}
 
           {/* Tracking Icon */}
           {dump.hasTracking && (
-            <span className="flex items-center gap-1" title="Has package tracking">
-              📦
+            <span className="flex items-center gap-1 text-cyan-600" title="Has package tracking">
+              <Package className="h-3.5 w-3.5" />
             </span>
           )}
         </div>
