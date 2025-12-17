@@ -19,10 +19,10 @@ const buttonVariants = cva(
         success: 'bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-lg focus-visible:ring-emerald-600',
       },
       size: {
-        default: 'h-10 px-4 py-2',
-        sm: 'h-8 rounded-charming px-3 text-xs',
+        default: 'h-11 px-4 py-2', // 44px height (iOS touch target guideline)
+        sm: 'h-11 rounded-charming px-3 text-xs', // 44px minimum for mobile
         lg: 'h-12 rounded-charming-lg px-8 text-base',
-        icon: 'h-10 w-10',
+        icon: 'h-11 w-11', // 44px minimum for mobile
       },
     },
     defaultVariants: {
