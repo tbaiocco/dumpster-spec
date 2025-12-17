@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { DumpsProvider } from './contexts/DumpsContext';
 import { SearchProvider } from './contexts/SearchContext';
@@ -78,13 +78,8 @@ const DashboardLayoutWrapper: React.FC = () => {
           </div>
         }
       >
-        {/* Outlet for nested routes */}
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/tracking" element={<TrackingPage />} />
-          <Route path="/feedback" element={<FeedbackPage />} />
-        </Routes>
+        {/* Outlet renders the matched child route */}
+        <Outlet />
       </Suspense>
     </DashboardLayout>
   );
