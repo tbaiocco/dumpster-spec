@@ -82,9 +82,9 @@ export const getUserTrackableItems = async (params?: {
   const response = await apiService.get<{ success: boolean; data: TrackableItem[]; count: number }>(
     `/api/tracking${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
   );
-  // Backend returns { success, data, count }, but apiService wraps it in another { success, data }
-  // So we need to access response.data.data (the data property from apiService wrapper, then backend's data array)
-  const backendResponse = response.data as any;
+  // Backend returns { success, data, count }, and handleSuccess returns it as-is (since it has 'success')
+  // So response IS the backend response, access data directly
+  const backendResponse = response as any;
   return Array.isArray(backendResponse?.data) ? backendResponse.data : [];
 };
 
