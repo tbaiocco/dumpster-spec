@@ -20,12 +20,18 @@ export const searchDumps = async (
   const request: SearchRequest = {
     query,
     userId,
-    filters,
+    contentTypes: filters.contentTypes,
+    categories: filters.categories,
+    dateFrom: filters.dateRange?.from,
+    dateTo: filters.dateRange?.to,
+    minConfidence: filters.minConfidence,
+    urgencyLevels: filters.urgencyLevels,
+    includeProcessing: filters.statuses?.includes('processing'),
     limit,
     offset,
   };
 
-  const response = await apiService.post<SearchResults>('/search', request);
+  const response = await apiService.post<SearchResults>('/api/search', request);
   return response.data!;
 };
 
@@ -92,13 +98,19 @@ export const searchDumpsWithCancellation = async (
   const request: SearchRequest = {
     query,
     userId,
-    filters,
+    contentTypes: filters.contentTypes,
+    categories: filters.categories,
+    dateFrom: filters.dateRange?.from,
+    dateTo: filters.dateRange?.to,
+    minConfidence: filters.minConfidence,
+    urgencyLevels: filters.urgencyLevels,
+    includeProcessing: filters.statuses?.includes('processing'),
     limit: pageSize,
     offset,
   };
 
   try {
-    const response = await apiService.post<SearchResults>('/search', request, {
+    const response = await apiService.post<SearchResults>('/api/search', request, {
       signal: cancelTokenSource.signal,
     });
     return response.data!;

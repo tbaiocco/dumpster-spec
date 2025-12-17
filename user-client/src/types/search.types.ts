@@ -55,13 +55,20 @@ export interface SearchResults {
 
 /**
  * Search request payload for POST /api/search
+ * Matches backend SearchQueryDto structure
  */
 export interface SearchRequest {
-  query: string;                 // Natural language query
-  userId: string;              // User identifier
-  filters?: SearchFilters;       // Optional filters
-  limit?: number;                  // Items per page
-  offset?: number;                 // Offset for pagination
+  query: string;                            // Natural language query
+  userId: string;                          // User identifier
+  contentTypes?: ContentType[];            // Selected content types
+  categories?: string[];                   // Selected category IDs
+  dateFrom?: string;                       // ISO 8601 date string
+  dateTo?: string;                         // ISO 8601 date string
+  minConfidence?: number;                  // Minimum confidence (1-5)
+  urgencyLevels?: number[];                // Selected urgency levels
+  includeProcessing?: boolean;             // Include processing status items
+  limit?: number;                          // Items per page (1-100)
+  offset?: number;                         // Offset for pagination (min 0)
 }
 
 /**
