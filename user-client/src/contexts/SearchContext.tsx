@@ -94,8 +94,11 @@ export const SearchProvider: React.FC<SearchProviderProps> = ({ children }) => {
    * Navigate to next page
    */
   const nextPage = useCallback(() => {
-    if (results && page < results.totalPages) {
-      setPage(page + 1);
+    if (results) {
+      const totalPages = Math.ceil(results.total / DEFAULT_PAGINATION.pageSize);
+      if (page < totalPages) {
+        setPage(page + 1);
+      }
     }
   }, [page, results]);
 

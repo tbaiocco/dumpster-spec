@@ -43,14 +43,23 @@ export const DEFAULT_SEARCH_FILTERS: SearchFilters = {
 
 /**
  * Paginated search results from backend API
+ * Matches backend SearchResponse structure
  */
 export interface SearchResults {
-  dumps: Dump[];                 // Matching dumps
-  totalResults: number;          // Total matches (for pagination)
-  totalPages: number;            // Total page count
-  page: number;                  // Current page number
-  pageSize: number;              // Items per page
-  searchTime?: number;           // Search execution time in ms
+  results: Dump[];               // Matching dumps (backend uses 'results' not 'dumps')
+  total: number;                 // Total matches
+  query: {
+    original: string;
+    enhanced: string;
+    processingTime: number;
+  };
+  metadata: {
+    semanticResults: number;
+    fuzzyResults: number;
+    exactResults: number;
+    vectorHealth?: any;
+    filters: Record<string, any>;
+  };
 }
 
 /**

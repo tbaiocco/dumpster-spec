@@ -9,6 +9,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useDebouncedSearch } from '../hooks/useSearch';
 import { getFilterEnums } from '../services/search.service';
+import { DEFAULT_PAGINATION } from '../types/search.types';
 import { SearchBar } from '../components/SearchBar';
 import { FilterPanel } from '../components/FilterPanel';
 import { DumpCard } from '../components/DumpCard';
@@ -45,9 +46,11 @@ export const SearchPage: React.FC = () => {
   // Enrich search results with derived properties
   const enrichedResults = useMemo(() => {
     if (!results) return null;
+    const totalPages = Math.ceil(results.total / DEFAULT_PAGINATION.pageSize);
     return {
       ...results,
-      dumps: results.dumps.map(enrichDump),
+      results: results.results.map(enrichDump),
+      totalPages,
     };
   }, [results]);
 
@@ -60,7 +63,7 @@ export const SearchPage: React.FC = () => {
   useEffect(() => {
     const dumpId = searchParams.get('dumpId');
     if (dumpId && enrichedResults) {
-      const dump = enrichedResults.dumps.find(d => d.id === dumpId);
+      const dump = enrichedResults.results.find(d => d.id === dumpId);
       if (dump) {
         setSelectedDump(dump);
       }
@@ -186,7 +189,7 @@ export const SearchPage: React.FC = () => {
         )}
 
         {/* Empty State - No Results */}
-        {query && enrichedResults && enrichedResults.dumps.length === 0 && !loading && !error && (
+        {query && enrichedResults && enrichedResults.results.length === 0 && !loading && !error && (
           <EmptyState
             title="No results found"
             message={`No dumps match "${query}". Try adjusting your search or filters.`}
@@ -209,19 +212,19 @@ export const SearchPage: React.FC = () => {
         )}
 
         {/* Results Grid */}
-        {enrichedResults && enrichedResults.dumps.length > 0 && !loading && (
+        {enrichedResults && enrichedResults.results.length > 0 && !loading && (
           <div className="space-y-6">
             {/* Results Header */}
             <div className="flex items-center justify-between">
               <p className="text-sm text-slate-600">
-                Showing {enrichedResults.dumps.length} of {enrichedResults.totalResults} results
-                {enrichedResults.searchTime && ` in ${enrichedResults.searchTime}ms`}
+                Showing {enrichedResults.results.length} of {enrichedResults.total} results
+                {enrichedResults.query?.processingTime && ` in ${enrichedResults.query.processingTime}ms`}
               </p>
             </div>
 
             {/* Results Grid */}
             <div className="space-y-3">
-              {enrichedResults.dumps.map(dump => (
+              {enrichedResults.results.map(dump => (
                 <DumpCard
                   key={dump.id}
                   dump={dump}
