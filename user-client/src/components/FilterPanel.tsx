@@ -40,13 +40,13 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   // Multi-select checkbox handler
   const handleCheckboxChange = (
     field: 'contentTypes' | 'categories' | 'urgencyLevels' | 'statuses',
-    value: string,
+    value: string | number,
     checked: boolean
   ) => {
     const current = filters[field] || [];
     const updated = checked
-      ? [...current, value]
-      : current.filter((v: string) => v !== value);
+      ? [...current, value as any]
+      : current.filter((v: any) => v !== value);
     
     onFiltersChange({
       ...filters,
@@ -142,36 +142,36 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               </label>
               <div className="space-y-2">
                 {filterEnums.contentTypes.map(type => (
-                  <label key={type} className="flex items-center gap-2 cursor-pointer">
+                  <label key={type.value} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={filters.contentTypes?.includes(type as any) || false}
-                      onChange={e => handleCheckboxChange('contentTypes', type, e.target.checked)}
+                      checked={filters.contentTypes?.includes(type.value as any) || false}
+                      onChange={e => handleCheckboxChange('contentTypes', type.value, e.target.checked)}
                       className="h-4 w-4 rounded border-slate-300 text-electric-purple focus:ring-electric-purple"
                     />
-                    <span className="text-sm text-slate-700">{type}</span>
+                    <span className="text-sm text-slate-700">{type.label}</span>
                   </label>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Categories */}
-          {filterEnums?.categories && filterEnums.categories.length > 0 && (
+          {/* Processing Status */}
+          {filterEnums?.statuses && filterEnums.statuses.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                Category
+                Processing Status
               </label>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {filterEnums.categories.map(category => (
-                  <label key={category} className="flex items-center gap-2 cursor-pointer">
+              <div className="space-y-2">
+                {filterEnums.statuses.map(status => (
+                  <label key={status.value} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={filters.categories?.includes(category) || false}
-                      onChange={e => handleCheckboxChange('categories', category, e.target.checked)}
+                      checked={filters.statuses?.includes(status.value) || false}
+                      onChange={e => handleCheckboxChange('statuses', status.value, e.target.checked)}
                       className="h-4 w-4 rounded border-slate-300 text-electric-purple focus:ring-electric-purple"
                     />
-                    <span className="text-sm text-slate-700">{category}</span>
+                    <span className="text-sm text-slate-700">{status.label}</span>
                   </label>
                 ))}
               </div>
@@ -186,14 +186,14 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               </label>
               <div className="space-y-2">
                 {filterEnums.urgencyLevels.map(level => (
-                  <label key={level} className="flex items-center gap-2 cursor-pointer">
+                  <label key={level.value} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={filters.urgencyLevels?.includes(level as any) || false}
-                      onChange={e => handleCheckboxChange('urgencyLevels', level, e.target.checked)}
+                      checked={filters.urgencyLevels?.includes(level.value as any) || false}
+                      onChange={e => handleCheckboxChange('urgencyLevels', level.value, e.target.checked)}
                       className="h-4 w-4 rounded border-slate-300 text-electric-purple focus:ring-electric-purple"
                     />
-                    <span className="text-sm text-slate-700">{level}</span>
+                    <span className="text-sm text-slate-700">{level.label}</span>
                   </label>
                 ))}
               </div>

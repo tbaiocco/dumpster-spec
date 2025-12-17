@@ -14,7 +14,7 @@ import {
   addMonths,
   parseISO,
 } from 'date-fns';
-import type { TimeBucket, Dump, DumpDerived } from '../types/dump.types';
+import type { TimeBucket, Dump, DumpDerived, ProcessingStatus } from '../types/dump.types';
 
 /**
  * Assign a time bucket to a dump based on its earliest date
@@ -108,16 +108,15 @@ export function isOverdue(dump: Dump): boolean {
 }
 
 /**
- * Map backend processing_status to frontend DumpStatus
+ * Map backend processing_status to ProcessingStatus enum
+ * Backend already uses correct enum values, just ensure type safety
  */
-function mapProcessingStatus(status: string): 'Pending' | 'Processing' | 'Approved' | 'Rejected' {
-  switch (status?.toLowerCase()) {
-    case 'pending': return 'Pending';
-    case 'processing': return 'Processing';
-    case 'completed': return 'Approved';
-    case 'failed': return 'Rejected';
-    default: return 'Pending';
-  }
+function mapProcessingStatus(status: string): ProcessingStatus {
+  const validStatuses: ProcessingStatus[] = ['received', 'processing', 'completed', 'failed'];
+  const normalized = status?.toLowerCase();
+  return validStatuses.includes(normalized as ProcessingStatus) 
+    ? (normalized as ProcessingStatus) 
+    : 'received'; // Default fallback
 }
 
 /**

@@ -166,7 +166,7 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
         <div className="flex items-start justify-between">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Badge variant={dump.status === 'Pending' ? 'pending' : 'default'}>
+              <Badge variant={dump.status === 'received' ? 'pending' : 'default'}>
                 {dump.status}
               </Badge>
               {dump.isOverdue && (
@@ -282,7 +282,7 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
             {showRejectForm ? 'Back' : 'Cancel'}
           </Button>
           
-          {dump.status === 'Pending' && !showRejectForm && (
+          {dump.status === 'received' && !showRejectForm && (
             <>
               <Button
                 onClick={handleShowRejectForm}
@@ -301,7 +301,7 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
             </>
           )}
 
-          {dump.status === 'Pending' && showRejectForm && (
+          {dump.status === 'received' && showRejectForm && (
             <Button
               onClick={handleReject}
               variant="destructive"

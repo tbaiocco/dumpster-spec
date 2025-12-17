@@ -8,7 +8,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useDebouncedSearch } from '../hooks/useSearch';
-import { fetchFilterEnums } from '../services/search.service';
+import { getFilterEnums } from '../services/search.service';
 import { SearchBar } from '../components/SearchBar';
 import { FilterPanel } from '../components/FilterPanel';
 import { DumpCard } from '../components/DumpCard';
@@ -51,18 +51,9 @@ export const SearchPage: React.FC = () => {
     };
   }, [results]);
 
-  // Fetch filter enums on mount
+  // Load filter enums on mount (hardcoded, no API call needed)
   useEffect(() => {
-    const loadFilterEnums = async () => {
-      try {
-        const enums = await fetchFilterEnums();
-        setFilterEnums(enums);
-      } catch (err) {
-        console.error('Failed to load filter enums:', err);
-      }
-    };
-
-    loadFilterEnums();
+    setFilterEnums(getFilterEnums());
   }, []);
 
   // Handle modal routing via query param

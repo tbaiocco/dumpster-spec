@@ -33,19 +33,36 @@ export const searchDumps = async (
  * Filter enum metadata response
  */
 export interface FilterEnums {
-  contentTypes: string[];
-  categories: string[];
-  urgencyLevels: string[];
-  statuses: string[];
+  contentTypes: Array<{ value: string; label: string }>;
+  urgencyLevels: Array<{ value: number; label: string }>;
+  statuses: Array<{ value: string; label: string }>;
 }
 
 /**
- * Fetch available filter enum values from backend
- * Used to populate FilterPanel dropdowns dynamically
+ * Hardcoded filter enums matching backend entity definitions
+ * ContentType from dump.entity.ts, ProcessingStatus from dump.entity.ts
+ * UrgencyLevels: 1=low, 2=medium, 3=high (from categorization.service.ts)
  */
-export const fetchFilterEnums = async (): Promise<FilterEnums> => {
-  const response = await apiService.get<FilterEnums>('/metadata/enums');
-  return response.data!;
+export const getFilterEnums = (): FilterEnums => {
+  return {
+    contentTypes: [
+      { value: 'text', label: 'Text' },
+      { value: 'voice', label: 'Voice' },
+      { value: 'image', label: 'Image' },
+      { value: 'email', label: 'Email' },
+    ],
+    urgencyLevels: [
+      { value: 1, label: 'Low' },
+      { value: 2, label: 'Medium' },
+      { value: 3, label: 'High' },
+    ],
+    statuses: [
+      { value: 'received', label: 'Received' },
+      { value: 'processing', label: 'Processing' },
+      { value: 'completed', label: 'Completed' },
+      { value: 'failed', label: 'Failed' },
+    ],
+  };
 };
 
 /**

@@ -9,11 +9,14 @@
 // Enums
 // ============================================================================
 
-export type DumpStatus = 'Pending' | 'Processing' | 'Approved' | 'Rejected';
+// Backend enum: ProcessingStatus from dump.entity.ts
+export type ProcessingStatus = 'received' | 'processing' | 'completed' | 'failed';
 
-export type UrgencyLevel = 'Low' | 'Medium' | 'High' | 'Critical';
+// Urgency levels (1=low, 2=medium, 3=high)
+export type UrgencyLevel = 1 | 2 | 3;
 
-export type ContentType = 'Phone' | 'Email' | 'Task' | 'Note' | 'Package' | 'Reminder' | 'Event' | 'Other';
+// Backend enum: ContentType from dump.entity.ts
+export type ContentType = 'text' | 'voice' | 'image' | 'email';
 
 export type TimeBucket = 'overdue' | 'today' | 'tomorrow' | 'nextWeek' | 'nextMonth' | 'later';
 
@@ -156,7 +159,7 @@ export interface DumpDerived extends Dump {
   hasReminder: boolean;          // True if action items exist
   hasTracking: boolean;          // True if tracking numbers in content
   // Helper properties for display
-  status: DumpStatus;            // Mapped from processing_status
+  status: ProcessingStatus;      // Processing status from backend
   categoryName?: string;         // Category name for display (optional override)
   notes?: string;                // User notes (if any)
 }
@@ -189,35 +192,30 @@ export const BUCKET_LABELS: Record<TimeBucket, string> = {
 };
 
 /**
- * Status display labels
+ * Processing status display labels
  */
-export const STATUS_LABELS: Record<DumpStatus, string> = {
-  Pending: 'Pending',
-  Processing: 'Processing',
-  Approved: 'Approved',
-  Rejected: 'Rejected',
+export const STATUS_LABELS: Record<ProcessingStatus, string> = {
+  received: 'Received',
+  processing: 'Processing',
+  completed: 'Completed',
+  failed: 'Failed',
 };
 
 /**
  * Urgency level display labels
  */
 export const URGENCY_LABELS: Record<UrgencyLevel, string> = {
-  Low: 'Low',
-  Medium: 'Medium',
-  High: 'High',
-  Critical: 'Critical',
+  1: 'Low',
+  2: 'Medium',
+  3: 'High',
 };
 
 /**
  * Content type display labels
  */
 export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
-  Phone: 'Phone',
-  Email: 'Email',
-  Task: 'Task',
-  Note: 'Note',
-  Package: 'Package',
-  Reminder: 'Reminder',
-  Event: 'Event',
-  Other: 'Other',
+  text: 'Text',
+  voice: 'Voice',
+  image: 'Image',
+  email: 'Email',
 };

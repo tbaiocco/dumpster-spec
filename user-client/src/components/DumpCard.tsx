@@ -37,7 +37,7 @@ export const DumpCard: React.FC<DumpCardProps> = ({ dump, showActions = false, o
 
   // Status badge variant mapping
   const statusVariants: Record<string, 'overdue' | 'pending' | 'approved' | 'rejected' | 'processing'> = {
-    Pending: 'pending',
+    received: 'pending',
     Processing: 'processing',
     Approved: 'approved',
     Rejected: 'rejected',
@@ -131,7 +131,7 @@ export const DumpCard: React.FC<DumpCardProps> = ({ dump, showActions = false, o
         </div>
 
         {/* Action Buttons */}
-        {showActions && dump.status === 'Pending' && (
+        {showActions && dump.status === 'received' && (
           <div className="flex items-center gap-2">
             <Button
               size="sm"

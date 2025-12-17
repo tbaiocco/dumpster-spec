@@ -14,11 +14,11 @@ import type { ContentType, Dump, UrgencyLevel } from './dump.types';
  * Search filter state for natural language queries and faceted filtering
  */
 export interface SearchFilters {
-  contentTypes?: ContentType[];   // Selected content types
-  categories?: string[];          // Selected categories
-  urgencyLevels?: UrgencyLevel[]; // Selected urgency levels
-  statuses?: string[];            // Selected statuses
-  minConfidence?: number;         // Minimum confidence (0-1)
+  contentTypes?: ContentType[];   // Selected content types (text, voice, image, email)
+  categories?: string[];          // Selected category IDs (UUIDs)
+  urgencyLevels?: UrgencyLevel[]; // Selected urgency levels (1=low, 2=medium, 3=high)
+  statuses?: string[];            // Selected processing statuses (received, processing, completed, failed)
+  minConfidence?: number;         // Minimum AI confidence (0-100)
   dateRange?: {
     from?: string;                // ISO 8601 date
     to?: string;                  // ISO 8601 date
