@@ -117,7 +117,18 @@ function mapProcessingStatus(status: string): 'Pending' | 'Processing' | 'Approv
  */
 export function enrichDump(dump: Dump): DumpDerived {
   const earliestDate = getEarliestDate(dump);
-  const displayDate = earliestDate || new Date(dump.created_at);
+  
+  // Safely create display date, fallback to current date if created_at is invalid
+  let displayDate: Date;
+  if (earliestDate) {
+    displayDate = earliestDate;
+  } else if (dump.created_at) {
+    const parsedDate = new Date(dump.created_at);
+    displayDate = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
+  } else {
+    displayDate = new Date();
+  }
+  
   const hasReminder = !!(dump.extracted_entities?.actionItems && dump.extracted_entities.actionItems.length > 0);
   const hasTracking = !!(dump.extracted_entities?.entities?.contacts?.phones && dump.extracted_entities.entities.contacts.phones.length > 0);
 
