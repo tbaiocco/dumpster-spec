@@ -79,10 +79,11 @@ export const getUserTrackableItems = async (params?: {
   if (params?.status) queryParams.append('status', params.status);
   if (params?.activeOnly !== undefined) queryParams.append('activeOnly', String(params.activeOnly));
 
-  const response = await apiService.get<TrackableItem[]>(
+  const response = await apiService.get<{ success: boolean; data: TrackableItem[]; count: number }>(
     `/api/tracking${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
   );
-  return Array.isArray(response.data) ? response.data : [];
+  // Backend returns { success, data, count }, extract data array
+  return Array.isArray(response.data?.data) ? response.data.data : [];
 };
 
 /**

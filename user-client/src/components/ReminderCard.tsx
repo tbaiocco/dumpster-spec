@@ -68,7 +68,7 @@ export const ReminderCard: React.FC<ReminderCardProps> = ({
           <div className="flex items-center gap-2 mb-2">
             <Clock className="h-4 w-4 text-orange-600" />
             <span className="text-sm font-medium text-stone-700">
-              {format(new Date(reminder.scheduled_for), 'PPp')}
+              {reminder.scheduled_for ? format(new Date(reminder.scheduled_for), 'PPp') : 'No date set'}
             </span>
             {reminder.status === ReminderStatus.SNOOZED && (
               <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full">
@@ -76,10 +76,12 @@ export const ReminderCard: React.FC<ReminderCardProps> = ({
               </span>
             )}
           </div>
-          <p className="text-stone-900">{reminder.message}</p>
-          <div className="mt-1 text-xs text-stone-500">
-            Type: {reminder.reminder_type.replace('_', ' ')}
-          </div>
+          <p className="text-stone-900">{reminder.message || 'No message'}</p>
+          {reminder.reminder_type && (
+            <div className="mt-1 text-xs text-stone-500">
+              Type: {reminder.reminder_type.replace(/_/g, ' ')}
+            </div>
+          )}
         </div>
 
         <div className="flex gap-2">

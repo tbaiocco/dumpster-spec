@@ -8,7 +8,7 @@
 import React, { useEffect, useState } from 'react';
 import { Bell, Package, Calendar, Loader2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { getUserReminders, type Reminder, ReminderStatus } from '../services/reminders.service';
+import { getUserReminders, type Reminder } from '../services/reminders.service';
 import { getUserTrackableItems, type TrackableItem } from '../services/tracking.service';
 import { ReminderCard } from '../components/ReminderCard';
 import { PackageTrackingCard } from '../components/PackageTrackingCard';
@@ -41,9 +41,8 @@ export const TrackingPage: React.FC = () => {
     try {
       setLoadingReminders(true);
       setErrorReminders(null);
-      const data = await getUserReminders({ 
-        status: ReminderStatus.PENDING 
-      });
+      const data = await getUserReminders(); // Fetch all reminders without filter
+      console.log('Fetched reminders:', data);
       setReminders(Array.isArray(data) ? data : []);
     } catch (err: any) {
       console.error('Failed to fetch reminders:', err);

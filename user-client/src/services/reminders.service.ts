@@ -75,10 +75,11 @@ export const getUserReminders = async (params?: {
   if (params?.endDate) queryParams.append('endDate', params.endDate);
   if (params?.includeRecurring !== undefined) queryParams.append('includeRecurring', String(params.includeRecurring));
 
-  const response = await apiService.get<Reminder[]>(
+  const response = await apiService.get<{ success: boolean; reminders: Reminder[]; count: number }>(
     `/api/reminders${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
   );
-  return Array.isArray(response.data) ? response.data : [];
+  // Backend returns { success, reminders, count }, extract reminders array
+  return Array.isArray(response.data?.reminders) ? response.data.reminders : [];
 };
 
 /**
