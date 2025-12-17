@@ -256,18 +256,18 @@
 
 ### API Service for User Story 7
 
-- [ ] T083 [P] [US7] Create user-client/src/services/feedback.service.ts with submitFeedback(feedback) → POST /api/feedback (auth header via interceptor)
-- [ ] T084 [P] [US7] Add fetchMyFeedback() → GET /api/feedback?userId={userId} to feedback.service.ts
+- [X] T083 [P] [US7] Create user-client/src/services/feedback.service.ts with submitFeedback(feedback) → POST /api/feedback (auth header via interceptor)
+- [X] T084 [P] [US7] Add fetchMyFeedback() → GET /api/feedback?userId={userId} to feedback.service.ts
 
 ### UI Components for User Story 7
 
-- [ ] T085 [P] [US7] Create user-client/src/components/FeedbackForm.tsx with category dropdown (bug, feature_request, general), message textarea (min 10 chars), rating (1-5 stars), submit button
-- [ ] T086 [P] [US7] Create user-client/src/components/MyFeedbackList.tsx fetching feedback via fetchMyFeedback, rendering list with status badges
-- [ ] T087 [US7] Add form validation to FeedbackForm: message ≥10 chars, rating 1-5, category required, show validation errors
-- [ ] T088 [US7] Create user-client/src/pages/Feedback.tsx with FeedbackForm at top, MyFeedbackList at bottom
-- [ ] T089 [US7] Implement status badge color coding in MyFeedbackList: Pending=yellow Clock icon, In Review=blue Eye icon, Resolved=green CheckCircle icon, Rejected=red XCircle icon (per clarification Q4)
-- [ ] T090 [US7] Add success state to FeedbackForm: show success toast "Feedback submitted! We'll review it soon.", clear form, refresh MyFeedbackList
-- [ ] T091 [US7] Add error handling to FeedbackForm: show error toast with retry button on API failure
+- [X] T085 [P] [US7] Create user-client/src/components/FeedbackForm.tsx with category dropdown (bug, feature_request, general), message textarea (min 10 chars), rating (1-5 stars), submit button
+- [X] T086 [P] [US7] Create user-client/src/components/MyFeedbackList.tsx fetching feedback via fetchMyFeedback, rendering list with status badges
+- [X] T087 [US7] Add form validation to FeedbackForm: message ≥10 chars, rating 1-5, category required, show validation errors
+- [X] T088 [US7] Create user-client/src/pages/Feedback.tsx with FeedbackForm at top, MyFeedbackList at bottom
+- [X] T089 [US7] Implement status badge color coding in MyFeedbackList: Pending=yellow Clock icon, In Review=blue Eye icon, Resolved=green CheckCircle icon, Rejected=red XCircle icon (per clarification Q4)
+- [X] T090 [US7] Add success state to FeedbackForm: show success toast "Feedback submitted! We'll review it soon.", clear form, refresh MyFeedbackList
+- [X] T091 [US7] Add error handling to FeedbackForm: show error toast with retry button on API failure
 
 **Checkpoint**: All 7 user stories should now be independently functional.
 
@@ -297,9 +297,9 @@
 
 ### Brand Identity Verification
 
-- [ ] T104 [P] Verify all Clutter.AI brand elements applied: Electric Purple (#B929EB) + Bright Cyan (#2DD9F6) gradient, Warm Stone (#FAFAF9) background
-- [ ] T105 [P] Verify typography: Outfit for headings, Inter for body text across all pages
-- [ ] T106 [P] Verify custom shadows and charming rounded corners applied to cards, modals, buttons
+- [X] T104 [P] Verify all Clutter.AI brand elements applied: Electric Purple (#B929EB) + Bright Cyan (#2DD9F6) gradient, Warm Stone (#FAFAF9) background
+- [X] T105 [P] Verify typography: Outfit for headings, Inter for body text across all pages
+- [X] T106 [P] Verify custom shadows and charming rounded corners applied to cards, modals, buttons
 
 ### Cross-Cutting Testing
 
@@ -311,9 +311,9 @@
 
 ### Documentation & Final QA
 
-- [ ] T112 Update user-client/README.md with: setup instructions, environment variables, run/build commands, port configuration (3000 vs admin 3001)
-- [ ] T113 Create user-client/Dockerfile for containerized deployment
-- [ ] T114 Verify .env.example includes all required variables: REACT_APP_API_URL
+- [X] T112 Update user-client/README.md with: setup instructions, environment variables, run/build commands, port configuration (3000 vs admin 3001)
+- [X] T113 Create user-client/Dockerfile for containerized deployment
+- [X] T114 Verify .env.example includes all required variables: REACT_APP_API_URL
 - [ ] T115 Run final QA against all 10 success criteria from spec.md (SC-001 through SC-010)
 - [ ] T116 Verify no breaking changes to existing admin-dashboard functionality (admin app still runs independently on port 3001)
 - [ ] T117 Test deployment readiness: build succeeds, assets optimized, environment variables configurable
