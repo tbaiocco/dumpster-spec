@@ -165,18 +165,8 @@ export class DumpController {
   @Get('user/:userId')
   async findByUser(
     @Param('userId') userId: string,
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '20',
   ): Promise<ApiResponse<any>> {
-    const pageNum = Number.parseInt(page, 10);
-    const limitNum = Number.parseInt(limit, 10);
-
-    const result = await this.dumpService.findByUserId(
-      userId,
-      undefined,
-      pageNum,
-      limitNum,
-    );
+    const result = await this.dumpService.findByUserId(userId, undefined);
 
     return {
       success: true,

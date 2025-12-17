@@ -68,8 +68,8 @@ export interface DumpSearchFilters {
 export interface DumpListResult {
   dumps: Dump[];
   total: number;
-  page: number;
-  totalPages: number;
+  page?: number;
+  totalPages?: number;
 }
 
 @Injectable()
@@ -751,8 +751,6 @@ export class DumpService {
   async findByUserId(
     userId: string,
     filters?: DumpSearchFilters,
-    page = 1,
-    limit = 20,
   ): Promise<DumpListResult> {
     const queryBuilder = this.dumpRepository
       .createQueryBuilder('dump')
@@ -796,21 +794,14 @@ export class DumpService {
       }
     }
 
-    // Pagination
-    const offset = (page - 1) * limit;
-    queryBuilder.skip(offset).take(limit);
-
     // Order by creation date (newest first)
     queryBuilder.orderBy('dump.created_at', 'DESC');
 
     const [dumps, total] = await queryBuilder.getManyAndCount();
-    const totalPages = Math.ceil(total / limit);
 
     return {
       dumps,
       total,
-      page,
-      totalPages,
     };
   }
 
