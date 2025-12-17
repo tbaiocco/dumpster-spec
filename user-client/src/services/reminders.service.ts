@@ -78,8 +78,10 @@ export const getUserReminders = async (params?: {
   const response = await apiService.get<{ success: boolean; reminders: Reminder[]; count: number }>(
     `/api/reminders${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
   );
-  // Backend returns { success, reminders, count }, extract reminders array
-  return Array.isArray(response.data?.reminders) ? response.data.reminders : [];
+  // Backend returns { success, reminders, count }, but apiService wraps it in another { success, data }
+  // So we need to access response.data.reminders (the data property from apiService wrapper)
+  const backendResponse = response.data as any;
+  return Array.isArray(backendResponse?.reminders) ? backendResponse.reminders : [];
 };
 
 /**
