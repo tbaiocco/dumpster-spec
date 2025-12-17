@@ -237,12 +237,14 @@
 
 ### Implementation for User Story 6
 
-- [ ] T079 [US6] Verify time bucket calculation logic in user-client/src/utils/time-buckets.ts handles Tomorrow, Next Week, Next Month per calendar-based definitions (clarification Q2)
-- [ ] T080 [US6] Verify TimeBucket component lazy rendering: only render dump cards when expanded (performance optimization per FR-004)
-- [ ] T081 [US6] Verify Dashboard renders Tomorrow, This Week, Next Week, Future buckets collapsed by default with "Show Actions" toggle
-- [ ] T082 [US6] Add expand/collapse state persistence (optional): remember user's expanded buckets in localStorage
+- [x] T079 [US6] Verify time bucket calculation logic in user-client/src/utils/time-buckets.ts handles Tomorrow, Next Week, Next Month per calendar-based definitions (clarification Q2)
+- [x] T080 [US6] Verify TimeBucket component lazy rendering: only render dump cards when expanded (performance optimization per FR-004)
+- [x] T081 [US6] Verify Dashboard renders Tomorrow, This Week, Next Week, Future buckets collapsed by default with "Show Actions" toggle
+- [x] T082 [US6] Add expand/collapse state persistence (optional): remember user's expanded buckets in localStorage
 
 **Checkpoint**: At this point, User Stories 1-6 should all work independently. Forward planning enabled.
+
+**Phase 8 Status**: ✅ COMPLETE - Future items functionality verified and enhanced with localStorage persistence
 
 ---
 

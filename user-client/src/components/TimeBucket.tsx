@@ -5,7 +5,7 @@
  * with lazy rendering, expand/collapse toggle, and empty state
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { TimeBucketGroup, DumpDerived } from '../types/dump.types';
 import { DumpCard } from './DumpCard';
 import { EmptyState } from './EmptyState';
@@ -27,7 +27,21 @@ export const TimeBucket: React.FC<TimeBucketProps> = ({
   onDumpUpdate,
   onDumpClick,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(timeBucket.isExpanded);
+  const localStorageKey = `timeBucket_${timeBucket.bucket}_expanded`;
+  
+  // Initialize from localStorage or default value
+  const [isExpanded, setIsExpanded] = useState(() => {
+    const stored = localStorage.getItem(localStorageKey);
+    if (stored !== null) {
+      return stored === 'true';
+    }
+    return timeBucket.isExpanded;
+  });
+
+  // Persist to localStorage when expanded state changes
+  useEffect(() => {
+    localStorage.setItem(localStorageKey, String(isExpanded));
+  }, [isExpanded, localStorageKey]);
 
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded);
