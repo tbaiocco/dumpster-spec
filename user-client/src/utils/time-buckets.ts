@@ -81,9 +81,17 @@ export function getEarliestDate(dump: Dump): Date | null {
     return null;
   }
 
-  // Dates are ISO strings, parse them
-  const parsedDates = dates.map(d => parseISO(d));
-  return new Date(Math.min(...parsedDates.map(d => d.getTime())));
+  // Dates are ISO strings, parse them and filter out invalid dates
+  const parsedDates = dates
+    .map(d => parseISO(d))
+    .filter(d => !isNaN(d.getTime()));
+  
+  if (parsedDates.length === 0) {
+    return null;
+  }
+  
+  const earliestTime = Math.min(...parsedDates.map(d => d.getTime()));
+  return isNaN(earliestTime) ? null : new Date(earliestTime);
 }
 
 /**
@@ -132,10 +140,13 @@ export function enrichDump(dump: Dump): DumpDerived {
   const hasReminder = !!(dump.extracted_entities?.actionItems && dump.extracted_entities.actionItems.length > 0);
   const hasTracking = !!(dump.extracted_entities?.entities?.contacts?.phones && dump.extracted_entities.entities.contacts.phones.length > 0);
 
+  // Validate earliestDate before using toISOString
+  const validEarliestDate = earliestDate && !isNaN(earliestDate.getTime()) ? earliestDate : null;
+  
   return {
     ...dump,
-    timeBucket: earliestDate ? assignTimeBucket(earliestDate.toISOString()) : 'later',
-    isOverdue: earliestDate ? isOverdue(dump) : false,
+    timeBucket: validEarliestDate ? assignTimeBucket(validEarliestDate.toISOString()) : 'later',
+    isOverdue: validEarliestDate ? isOverdue(dump) : false,
     displayDate,
     hasReminder,
     hasTracking,
