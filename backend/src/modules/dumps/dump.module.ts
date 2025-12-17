@@ -2,8 +2,6 @@ import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DumpService } from './services/dump.service';
 import { DumpController } from './controllers/dump.controller';
-import { TelegramWebhookController } from './controllers/telegram-webhook.controller';
-import { WhatsAppWebhookController } from './controllers/whatsapp-webhook.controller';
 import { Dump } from '../../entities/dump.entity';
 import { Category } from '../../entities/category.entity';
 import { Reminder } from '../../entities/reminder.entity';
@@ -15,9 +13,8 @@ import { SpeechService } from '../ai/speech.service';
 import { VisionService } from '../ai/vision.service';
 import { EntityExtractionService } from '../ai/extraction.service';
 import { ResponseFormatterService } from '../ai/formatter.service';
+import { TranslationService } from '../ai/translation.service';
 import { MediaProcessorService } from '../ai/media-processor.service';
-import { VoiceProcessorService } from '../ai/voice-processor.service';
-import { ImageProcessorService } from '../ai/image-processor.service';
 import { ReviewService } from './services/review.service';
 import { ReviewController } from './controllers/review.controller';
 import { ConfidenceService } from '../ai/confidence.service';
@@ -25,7 +22,6 @@ import { FallbackHandlerService } from '../ai/fallback-handler.service';
 import { DocumentProcessorService } from '../ai/document-processor.service';
 import { ScreenshotProcessorService } from '../ai/screenshot-processor.service';
 import { ContentRouterService } from './content-router.service';
-import { MultiLanguageSpeechService } from '../ai/multi-lang-speech.service';
 import { HandwritingService } from '../ai/handwriting.service';
 import { CategorizationService } from './services/categorization.service';
 
@@ -34,19 +30,16 @@ import { UserModule } from '../users/user.module';
 import { VectorService } from '../search/vector.service';
 import { DatabaseInitService } from '../../database/database-init.service';
 import { BotsModule } from '../bots/bots.module';
+import { MetricsModule } from '../metrics/metrics.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Dump, Category, Reminder, User]),
     UserModule, // Import UserModule to make UserService available
     forwardRef(() => BotsModule), // Use forwardRef to resolve circular dependency
+    MetricsModule,
   ],
-  controllers: [
-    DumpController,
-    TelegramWebhookController,
-    WhatsAppWebhookController,
-    ReviewController,
-  ],
+  controllers: [DumpController, ReviewController],
   providers: [
     DumpService,
     // AI Services
@@ -55,14 +48,12 @@ import { BotsModule } from '../bots/bots.module';
     VisionService,
     EntityExtractionService,
     ResponseFormatterService,
+    TranslationService,
     MediaProcessorService,
-    VoiceProcessorService,
-    ImageProcessorService,
     FallbackHandlerService,
     DocumentProcessorService,
     ScreenshotProcessorService,
     ContentRouterService,
-    MultiLanguageSpeechService,
     HandwritingService,
     CategorizationService,
     // Vector Service for embedding generation
@@ -74,6 +65,11 @@ import { BotsModule } from '../bots/bots.module';
     // Confidence service for AI result validation
     ConfidenceService,
   ],
-  exports: [DumpService, ReviewService, ConfidenceService, DocumentProcessorService],
+  exports: [
+    DumpService,
+    ReviewService,
+    ConfidenceService,
+    DocumentProcessorService,
+  ],
 })
 export class DumpModule {}

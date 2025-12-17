@@ -8,7 +8,10 @@ import { DumpsPage } from './pages/dumps/DumpsPage';
 import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
 import { SearchMetricsPage } from './pages/analytics/SearchMetricsPage';
 import { AIMetricsPage } from './pages/analytics/AIMetricsPage';
+import { UserStatsPage } from './pages/analytics/UserStatsPage';
+import { FeatureUsagePage } from './pages/analytics/FeatureUsagePage';
 import { ReviewPage } from './pages/ReviewPage';
+import { FeedbackPage } from './pages/feedback/FeedbackPage';
 
 /**
  * Main App Component (T088)
@@ -56,6 +59,14 @@ function App() {
             }
           />
           <Route
+            path="/feedback"
+            element={
+              <DashboardLayout>
+                <FeedbackPage />
+              </DashboardLayout>
+            }
+          />
+          <Route
             path="/analytics"
             element={
               <DashboardLayout>
@@ -76,6 +87,22 @@ function App() {
             element={
               <DashboardLayout>
                 <AIMetricsPage />
+              </DashboardLayout>
+            }
+          />
+          <Route
+            path="/analytics/users"
+            element={
+              <DashboardLayout>
+                <UserStatsPage />
+              </DashboardLayout>
+            }
+          />
+          <Route
+            path="/analytics/features"
+            element={
+              <DashboardLayout>
+                <FeatureUsagePage />
               </DashboardLayout>
             }
           />

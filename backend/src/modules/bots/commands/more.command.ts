@@ -12,17 +12,17 @@ interface UserSearchSession {
 
 /**
  * Command handler for viewing more search results
- * 
+ *
  * Allows users to paginate through search results using /more command
  */
 @Injectable()
 export class MoreCommand {
   private readonly logger = new Logger(MoreCommand.name);
-  
+
   // Store user search sessions in memory
   // In production, use Redis or similar cache
   private searchSessions: Map<string, UserSearchSession> = new Map();
-  
+
   // Session timeout (10 minutes)
   private readonly SESSION_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -37,7 +37,10 @@ export class MoreCommand {
   /**
    * Execute /more command to show additional search results
    */
-  async execute(user: User, platform: 'telegram' | 'whatsapp' = 'telegram'): Promise<string> {
+  async execute(
+    user: User,
+    platform: 'telegram' | 'whatsapp' = 'telegram',
+  ): Promise<string> {
     const session = this.searchSessions.get(user.id);
 
     if (!session) {
@@ -47,7 +50,7 @@ export class MoreCommand {
     // Check if session is expired
     const now = new Date();
     const sessionAge = now.getTime() - session.timestamp.getTime();
-    
+
     if (sessionAge > this.SESSION_TIMEOUT_MS) {
       this.searchSessions.delete(user.id);
       return this.getExpiredSessionMessage(platform);
@@ -81,7 +84,9 @@ export class MoreCommand {
       timestamp: new Date(),
     });
 
-    this.logger.log(`Stored search session for user ${userId}: ${results.length} results`);
+    this.logger.log(
+      `Stored search session for user ${userId}: ${results.length} results`,
+    );
   }
 
   /**
@@ -108,7 +113,10 @@ export class MoreCommand {
     platform: 'telegram' | 'whatsapp',
   ): string {
     const currentIndex = session.offset + 1;
-    const endIndex = Math.min(session.offset + batch.length, session.results.length);
+    const endIndex = Math.min(
+      session.offset + batch.length,
+      session.results.length,
+    );
     const hasMore = endIndex < session.results.length;
 
     let response = '';
@@ -164,9 +172,10 @@ export class MoreCommand {
     const relevancePercent = Math.round((result.relevanceScore || 0.5) * 100);
 
     const contentText = result.dump.ai_summary || result.dump.raw_content;
-    const content = contentText?.length > 80 
-      ? `${contentText.substring(0, 80)}...`
-      : contentText || 'No content available';
+    const content =
+      contentText?.length > 80
+        ? `${contentText.substring(0, 80)}...`
+        : contentText || 'No content available';
 
     let line = `${categoryIcon} <b>${this.escapeHTML(categoryName)}</b>\n`;
     line += `📅 ${date} • 🎯 ${relevancePercent}%\n`;
@@ -193,9 +202,10 @@ export class MoreCommand {
     const relevancePercent = Math.round((result.relevanceScore || 0.5) * 100);
 
     const contentText = result.dump.ai_summary || result.dump.raw_content;
-    const content = contentText?.length > 80 
-      ? `${contentText.substring(0, 80)}...`
-      : contentText || 'No content available';
+    const content =
+      contentText?.length > 80
+        ? `${contentText.substring(0, 80)}...`
+        : contentText || 'No content available';
 
     let line = `${categoryIcon} *${categoryName}*\n`;
     line += `📅 ${date} • 🎯 ${relevancePercent}%\n`;
@@ -279,7 +289,7 @@ export class MoreCommand {
 
     for (const [userId, session] of this.searchSessions.entries()) {
       const sessionAge = now.getTime() - session.timestamp.getTime();
-      
+
       if (sessionAge > this.SESSION_TIMEOUT_MS) {
         this.searchSessions.delete(userId);
         cleanedCount++;
@@ -296,17 +306,17 @@ export class MoreCommand {
    */
   private getCategoryIcon(categoryName: string): string {
     const iconMap: Record<string, string> = {
-      'Work': '💼',
-      'Personal': '👤',
-      'Shopping': '🛒',
-      'Finance': '💰',
-      'Health': '🏥',
-      'Travel': '✈️',
-      'Learning': '📚',
-      'Entertainment': '🎬',
-      'Food': '🍽️',
-      'Home': '🏠',
-      'Uncategorized': '📦',
+      Work: '💼',
+      Personal: '👤',
+      Shopping: '🛒',
+      Finance: '💰',
+      Health: '🏥',
+      Travel: '✈️',
+      Learning: '📚',
+      Entertainment: '🎬',
+      Food: '🍽️',
+      Home: '🏠',
+      Uncategorized: '📦',
     };
 
     return iconMap[categoryName] || '📁';

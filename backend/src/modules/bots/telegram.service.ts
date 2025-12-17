@@ -1,11 +1,23 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UserService } from '../users/user.service';
-import { DumpService, CreateDumpRequest, DumpProcessingResult } from '../dumps/services/dump.service';
+import {
+  DumpService,
+  CreateDumpRequest,
+  DumpProcessingResult,
+} from '../dumps/services/dump.service';
 import { HelpCommand } from './commands/help.command';
 import { RecentCommand } from './commands/recent.command';
-import { ReportCommand } from './commands/report.command';
+import { UpcomingCommand } from './commands/upcoming.command';
+import { TrackCommand } from './commands/track.command';
 import { SearchCommand } from './commands/search.command';
+import { ReportCommand } from './commands/report.command';
+import { MetricsService } from '../metrics/metrics.service';
+import { FeatureType } from '../../entities/feature-usage.entity';
+import { MessageFormatterHelper } from './helpers/message-formatter.helper';
+import { ResponseFormatterService } from '../ai/formatter.service';
+import { EntityExtractionResult } from '../ai/extraction.service';
+import { ContentAnalysisResponse } from '../ai/claude.service';
 
 export interface TelegramMessage {
   message_id: number;
@@ -82,8 +94,12 @@ export class TelegramService {
     private readonly dumpService: DumpService,
     private readonly helpCommand: HelpCommand,
     private readonly recentCommand: RecentCommand,
+    private readonly upcomingCommand: UpcomingCommand,
+    private readonly trackCommand: TrackCommand,
     private readonly reportCommand: ReportCommand,
     private readonly searchCommand: SearchCommand,
+    private readonly responseFormatterService: ResponseFormatterService,
+    private readonly metricsService: MetricsService,
   ) {
     this.botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN') || '';
     this.apiUrl = `https://api.telegram.org/bot${this.botToken}`;
@@ -138,33 +154,98 @@ export class TelegramService {
   }
 
   async sendFormattedResponse(
+    userId: string,
     chatId: number,
-    title: string,
-    content: string,
-    category?: string,
-    confidence?: number,
+    result: DumpProcessingResult,
     replyToMessageId?: number,
-  ): Promise<TelegramMessage> {
-    let text = `✅ <b>${title}</b>\n\n`;
-    text += `${content}\n\n`;
+  ): Promise<string> {
+    // Extract analysis and entities from the dump
+    const dump = result.dump;
+    const extractedEntities = dump.extracted_entities || {};
 
-    if (category) {
-      text += `📁 <b>Category:</b> ${category}\n`;
-    }
+    // Build ContentAnalysisResponse from dump data
+    const analysis: ContentAnalysisResponse = {
+      summary: dump.ai_summary || '',
+      category: dump.category?.name || 'General',
+      categoryConfidence: (dump.ai_confidence || 95) / 100,
+      extractedEntities: {
+        dates: extractedEntities.entities?.dates || [],
+        times: extractedEntities.entities?.times || [],
+        locations: extractedEntities.entities?.locations || [],
+        people: extractedEntities.entities?.people || [],
+        organizations: extractedEntities.entities?.organizations || [],
+        amounts: extractedEntities.entities?.amounts || [],
+        tags: [],
+      },
+      actionItems: extractedEntities.actionItems || [],
+      sentiment:
+        (extractedEntities.sentiment as 'positive' | 'neutral' | 'negative') ||
+        'neutral',
+      urgency:
+        (extractedEntities.urgency as 'low' | 'medium' | 'high') || 'low',
+      confidence: (dump.ai_confidence || 95) / 100,
+    };
 
-    if (confidence !== undefined) {
-      const confidencePercent = Math.round(confidence * 100);
-      text += `🎯 <b>Confidence:</b> ${confidencePercent}%\n`;
-    }
+    // Build EntityExtractionResult from dump data
+    const entities: EntityExtractionResult = {
+      entities: (extractedEntities.entityDetails || []).map((entity: any) => ({
+        type: entity.type as
+          | 'date'
+          | 'time'
+          | 'location'
+          | 'person'
+          | 'organization'
+          | 'amount'
+          | 'phone'
+          | 'email'
+          | 'url',
+        value: entity.value,
+        confidence: entity.confidence,
+        context: entity.context,
+        position: entity.position,
+      })),
+      summary: extractedEntities.entitySummary || {
+        totalEntities: 0,
+        entitiesByType: {},
+        averageConfidence: 0,
+      },
+      structuredData: {
+        dates: extractedEntities.entities?.dates || [],
+        times: extractedEntities.entities?.times || [],
+        locations: extractedEntities.entities?.locations || [],
+        people: extractedEntities.entities?.people || [],
+        organizations: extractedEntities.entities?.organizations || [],
+        amounts: extractedEntities.entities?.amounts || [],
+        contacts: extractedEntities.entities?.contacts || {
+          phones: [],
+          emails: [],
+          urls: [],
+        },
+      },
+    };
 
-    text += `\n<i>Your content has been saved!</i>`;
+    // Use ResponseFormatterService with brief format
+    const formatted =
+      await this.responseFormatterService.formatAnalysisResponse(
+        userId,
+        analysis,
+        entities,
+        {
+          platform: 'telegram',
+          format: 'brief',
+          includeEmojis: true,
+          includeMarkdown: true,
+        },
+      );
 
-    return this.sendMessage({
+    const message = await this.sendMessage({
       chat_id: chatId,
-      text,
+      text: formatted.html || formatted.text,
       parse_mode: 'HTML',
       reply_to_message_id: replyToMessageId,
     });
+
+    return message.message_id.toString();
   }
 
   async getFile(fileId: string): Promise<TelegramFile> {
@@ -203,7 +284,7 @@ export class TelegramService {
       }
 
       const fileInfo = await fileInfoResponse.json();
-      
+
       if (!fileInfo.ok || !fileInfo.result?.file_path) {
         throw new Error('Invalid file info response from Telegram');
       }
@@ -250,17 +331,20 @@ export class TelegramService {
         this.logger.log(
           `User not found for Telegram chat ${chatId}, checking for registration`,
         );
-        
+
         // Check if this is a phone number registration attempt
-        if (message.text && await this.handlePhoneNumberRegistration(message)) {
+        if (
+          message.text &&
+          (await this.handlePhoneNumberRegistration(message))
+        ) {
           return; // Registration handled
         }
-        
+
         // Ask for phone number registration
         await this.sendTextMessage(
           chatId,
           '👋 Welcome! Please complete your registration by sending your phone number to get started.\n\n' +
-          'Example: +351999888777'
+            'Example: +351999888777',
         );
         return;
       }
@@ -292,8 +376,6 @@ export class TelegramService {
     }
   }
 
-
-
   // New method to handle phone number registration
   async handlePhoneNumberRegistration(
     message: TelegramMessage,
@@ -304,66 +386,55 @@ export class TelegramService {
     // Detect phone number pattern (international format)
     const phonePattern = /^\+?[1-9]\d{1,14}$/;
     const cleanPhone = text.replaceAll(/[\s\-()]/g, '');
-    
+
     if (!phonePattern.test(cleanPhone)) {
       return false; // Not a valid phone number
     }
 
     try {
-      // Check if user already exists with this phone number
+      // Check if user exists with this phone number
       const existingUser = await this.userService.findByPhone(cleanPhone);
-      
+
       if (existingUser) {
-        // Update existing user with Telegram chat ID
+        // Link existing user to Telegram chat ID
         await this.userService.update(existingUser.id, {
           chat_id_telegram: chatId.toString(),
         });
-        
+
         await this.sendTextMessage(
           chatId,
-          `✅ Welcome back! Your account has been linked to Telegram.\n\n` +
-          `You can now send me:\n` +
-          `📝 Text messages to save thoughts\n` +
-          `🎤 Voice messages\n` +
-          `📸 Photos\n` +
-          `📄 Documents\n\n` +
-          `Try sending: "Preciso lembrar de comprar leite hoje"`
+          `✅ Welcome! Your account has been linked to Telegram.\n\n` +
+            `You can now send me:\n` +
+            `📝 Text messages to save thoughts\n` +
+            `🎤 Voice messages\n` +
+            `📸 Photos\n` +
+            `📄 Documents\n\n` +
+            `Try sending: "Preciso lembrar de comprar leite hoje"`,
         );
-        
-        this.logger.log(`Linked existing user ${existingUser.id} to Telegram chat ${chatId}`);
+
+        this.logger.log(
+          `Linked existing user ${existingUser.id} to Telegram chat ${chatId}`,
+        );
         return true;
       } else {
-        // Create new user
-        const newUser = await this.userService.create({
-          phone_number: cleanPhone,
-          timezone: 'Europe/Lisbon', // Default for Portuguese users
-          language: 'pt',
-        });
-        
-        // Update with Telegram chat ID
-        await this.userService.update(newUser.id, {
-          chat_id_telegram: chatId.toString(),
-        });
-        
+        // User not found - they need to register first
         await this.sendTextMessage(
           chatId,
-          `🎉 Registration complete! Welcome to your personal life inbox.\n\n` +
-          `I'll help you capture and organize everything:\n` +
-          `📝 Notes and reminders\n` +
-          `🎤 Voice messages\n` +
-          `📸 Photos and documents\n` +
-          `🔍 Smart search and categorization\n\n` +
-          `Try sending: "Reunião com cliente amanhã às 15h"`
+          `❌ No account found with phone number ${cleanPhone}.\n\n` +
+            `Please register first at:\nhttps://theclutter.app\n\n` +
+            `Then send your registered phone number here to link your account.`,
         );
-        
-        this.logger.log(`Created new user ${newUser.id} for Telegram chat ${chatId}`);
-        return true;
+
+        this.logger.log(
+          `Phone number ${cleanPhone} not found, user needs to register at website`,
+        );
+        return true; // Handled
       }
     } catch (error) {
       this.logger.error('Error during phone registration:', error);
       await this.sendTextMessage(
         chatId,
-        '❌ Sorry, there was an error during registration. Please try again or contact support.'
+        '❌ Sorry, there was an error during registration. Please try again or contact support.',
       );
       return true; // Handled, even if failed
     }
@@ -399,17 +470,14 @@ export class TelegramService {
 
       // Process with enhanced ContentRouterService integration
       const result = await this.dumpService.createDumpEnhanced(dumpRequest);
-      
+
       // Send success response with processing details
       await this.sendFormattedResponse(
+        userId,
         chatId,
-        '✅ Processed Successfully',
-        this.formatProcessingResult(result),
-        result.dump.category?.name || 'General',
-        (result.dump.ai_confidence || 95) / 100,
+        result,
         message.message_id,
       );
-
     } catch (error) {
       this.logger.error('Error processing text message:', error);
       await this.sendTextMessage(
@@ -431,7 +499,7 @@ export class TelegramService {
     try {
       // Download the voice file
       const voiceBuffer = await this.downloadFile(voice.file_id);
-      
+
       // Create dump request for enhanced voice processing
       const dumpRequest: CreateDumpRequest = {
         userId,
@@ -449,17 +517,14 @@ export class TelegramService {
 
       // Process with enhanced ContentRouterService integration
       const result = await this.dumpService.createDumpEnhanced(dumpRequest);
-      
+
       // Send success response with processing details
       await this.sendFormattedResponse(
+        userId,
         chatId,
-        '🎤 Processed Successfully',
-        this.formatProcessingResult(result),
-        result.dump.category?.name || 'Audio',
-        (result.dump.ai_confidence || 90) / 100,
+        result,
         message.message_id,
       );
-
     } catch (error) {
       this.logger.error('Error handling voice message:', error);
       await this.sendTextMessage(chatId, '❌ Failed to process voice message.');
@@ -485,7 +550,7 @@ export class TelegramService {
     try {
       // Download the photo file
       const photoBuffer = await this.downloadFile(largestPhoto.file_id);
-      
+
       // Create dump request for enhanced image processing
       const dumpRequest: CreateDumpRequest = {
         userId,
@@ -504,17 +569,14 @@ export class TelegramService {
 
       // Process with enhanced ContentRouterService integration
       const result = await this.dumpService.createDumpEnhanced(dumpRequest);
-      
+
       // Send success response with processing details
       await this.sendFormattedResponse(
+        userId,
         chatId,
-        '📷 Processed Successfully',
-        this.formatProcessingResult(result),
-        result.dump.category?.name || 'Media',
-        (result.dump.ai_confidence || 85) / 100,
+        result,
         message.message_id,
       );
-
     } catch (error) {
       this.logger.error('Error handling photo message:', error);
       await this.sendTextMessage(chatId, '❌ Failed to process image.');
@@ -533,7 +595,7 @@ export class TelegramService {
     try {
       // Download the document file
       const documentBuffer = await this.downloadFile(document.file_id);
-      
+
       // Create dump request for enhanced document processing
       const dumpRequest: CreateDumpRequest = {
         userId,
@@ -553,21 +615,31 @@ export class TelegramService {
 
       // Process with enhanced ContentRouterService integration
       const result = await this.dumpService.createDumpEnhanced(dumpRequest);
-      
+
       // Send success response with processing details
       await this.sendFormattedResponse(
+        userId,
         chatId,
-        '📄 Processed Successfully',
-        this.formatProcessingResult(result),
-        result.dump.category?.name || 'Documents',
-        (result.dump.ai_confidence || 85) / 100,
+        result,
         message.message_id,
       );
-
     } catch (error) {
       this.logger.error('Error handling document message:', error);
       await this.sendTextMessage(chatId, '❌ Failed to process document.');
     }
+  }
+
+  private trackBotCommand(command: string, userId: string): void {
+    this.metricsService.fireAndForget(() =>
+      this.metricsService.trackFeature({
+        featureType: FeatureType.BOT_COMMAND,
+        detail: command,
+        userId,
+        metadata: {
+          platform: 'telegram',
+        },
+      }),
+    );
   }
 
   private async handleCommand(
@@ -576,6 +648,9 @@ export class TelegramService {
     userId: string,
   ): Promise<void> {
     const [cmd] = command.split(' ');
+
+    // Track bot command usage
+    this.trackBotCommand(cmd.toLowerCase(), userId);
 
     // Get the user entity for command handlers
     const user = await this.userService.findOne(userId);
@@ -605,25 +680,65 @@ export class TelegramService {
         }
 
         case '/help': {
-          const helpMessage = this.helpCommand.execute();
+          const helpMessage = this.helpCommand.execute('telegram');
           await this.sendTextMessage(chatId, helpMessage);
           break;
         }
 
         case '/recent': {
-          const recentMessage = await this.recentCommand.execute(user);
+          const recentMessage = await this.recentCommand.execute(
+            user,
+            5,
+            'telegram',
+          );
           await this.sendTextMessage(chatId, recentMessage);
           break;
         }
 
+        case '/upcoming':
+        case '/next': {
+          // Parse optional hours parameter: /upcoming 48
+          const parts = command.split(' ');
+          const hours =
+            parts.length > 1 ? Number.parseInt(parts[1], 10) || 24 : 24;
+          const upcomingMessage = await this.upcomingCommand.execute(
+            user,
+            hours,
+            'telegram',
+          );
+          await this.sendTextMessage(chatId, upcomingMessage);
+          break;
+        }
+
+        case '/track': {
+          // Parse tracking command: /track <tracking-number> OR /track list
+          const parts = command.split(' ').filter((p) => p.trim());
+          const args = parts.slice(1); // Remove '/track' itself
+          const trackMessage = await this.trackCommand.execute(
+            user,
+            args,
+            'telegram',
+          );
+          await this.sendTextMessage(chatId, trackMessage);
+          break;
+        }
+
         case '/search': {
-          const searchMessage = await this.searchCommand.execute(user, command);
+          const searchMessage = await this.searchCommand.execute(
+            user,
+            command,
+            'telegram',
+          );
           await this.sendTextMessage(chatId, searchMessage);
           break;
         }
 
         case '/report': {
-          const reportMessage = await this.reportCommand.execute(user, command);
+          const reportMessage = await this.reportCommand.execute(
+            user,
+            command,
+            'telegram',
+          );
           await this.sendTextMessage(chatId, reportMessage);
           break;
         }
@@ -685,47 +800,6 @@ export class TelegramService {
    * Format processing result for user-friendly display
    */
   private formatProcessingResult(result: DumpProcessingResult): string {
-    const { dump } = result;
-    const entities = dump.extracted_entities;
-    
-    let content = '';
-    
-    // Summary (clean, no asterisks)
-    if (dump.ai_summary) {
-      content += `📝 <b>Summary:</b> ${dump.ai_summary}\n\n`;
-    }
-    
-    // Extract structured data for beautiful display
-    let urgency = 'low';
-    let actionItems: string[] = [];
-    
-    if (entities) {
-      urgency = entities.urgency || 'low';
-      actionItems = entities.actionItems || [];
-    }
-    
-    // Show urgency if not low
-    if (urgency !== 'low') {
-      const urgencyEmoji = urgency === 'high' ? '🔴' : '🟡';
-      content += `${urgencyEmoji} <b>Urgency:</b> ${urgency.charAt(0).toUpperCase() + urgency.slice(1)}\n\n`;
-    }
-    
-    // Show action items if any
-    if (actionItems.length > 0) {
-      content += `✅ <b>Action Items:</b>\n`;
-      const itemsToShow = actionItems.slice(0, 3);
-      for (const [index, item] of itemsToShow.entries()) {
-        content += `${index + 1}. ${item}\n`;
-      }
-      if (actionItems.length > 3) {
-        content += `... and ${actionItems.length - 3} more\n`;
-      }
-      content += '\n';
-    }
-    
-    // Clean content (remove any remaining asterisks and technical details)
-    content = content.replaceAll('*', ''); // Remove markdown asterisks
-    
-    return content.length > 3500 ? content.substring(0, 3500) + '...' : content;
+    return MessageFormatterHelper.formatProcessingResult(result);
   }
 }

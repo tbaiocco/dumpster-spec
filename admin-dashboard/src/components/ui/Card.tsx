@@ -6,15 +6,15 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 /**
- * Card Container
+ * Card Container - Clutter.AI Design System
  */
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ className, hover, ...props }, ref) => (
     <div
       ref={ref}
       className={cn(
-        'rounded-xl border border-slate-200 bg-white shadow-sm',
-        hover && 'transition-all duration-200 hover:shadow-lg hover:border-primary-200',
+        'rounded-2xl bg-white shadow-sm p-6',
+        hover && 'transition-all duration-200 hover:shadow-md',
         className
       )}
       {...props}
@@ -38,13 +38,13 @@ const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDiv
 CardHeader.displayName = 'CardHeader';
 
 /**
- * Card Title
+ * Card Title - Clutter.AI Typography
  */
 const CardTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLHeadingElement>>(
   ({ className, children, ...props }, ref) => (
     <h3
       ref={ref}
-      className={cn('text-xl font-semibold leading-none tracking-tight text-slate-900', className)}
+      className={cn('text-xl font-heading font-bold leading-none tracking-tight text-slate-900', className)}
       {...props}
     >
       {children}

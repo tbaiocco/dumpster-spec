@@ -67,7 +67,6 @@ async function checkDatabaseStatus() {
     console.log('Data counts:', counts);
 
     console.log('\n🎉 Database status check completed!');
-
   } catch (error) {
     console.error('\n❌ Database status check failed!');
     console.error('Error:', (error as Error).message);

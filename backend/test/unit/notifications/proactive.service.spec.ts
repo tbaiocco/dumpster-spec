@@ -3,7 +3,11 @@ import { ProactiveService } from '../../../src/modules/notifications/proactive.s
 import { ReminderService } from '../../../src/modules/reminders/reminder.service';
 import { ClaudeService } from '../../../src/modules/ai/claude.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Dump, ContentType, ProcessingStatus } from '../../../src/entities/dump.entity';
+import {
+  Dump,
+  ContentType,
+  ProcessingStatus,
+} from '../../../src/entities/dump.entity';
 import { User } from '../../../src/entities/user.entity';
 import { Repository } from 'typeorm';
 
@@ -92,7 +96,9 @@ describe('ProactiveService', () => {
         getMany: jest.fn().mockResolvedValue([mockDump]),
       };
 
-      dumpRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+      dumpRepository.createQueryBuilder.mockReturnValue(
+        mockQueryBuilder as any,
+      );
 
       // Mock the AI service to return insights in the expected format
       const insights = [
@@ -110,7 +116,9 @@ describe('ProactiveService', () => {
       claudeService.analyzeContent.mockResolvedValue({
         summary: JSON.stringify(insights),
       } as any);
-      reminderService.createReminder.mockResolvedValue({ id: 'reminder-123' } as any);
+      reminderService.createReminder.mockResolvedValue({
+        id: 'reminder-123',
+      } as any);
 
       const result = await service.analyzeUserContent(userId);
 
@@ -130,7 +138,9 @@ describe('ProactiveService', () => {
         getMany: jest.fn().mockResolvedValue([]),
       };
 
-      dumpRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+      dumpRepository.createQueryBuilder.mockReturnValue(
+        mockQueryBuilder as any,
+      );
 
       const result = await service.analyzeUserContent('user-123');
 
@@ -149,7 +159,9 @@ describe('ProactiveService', () => {
         getMany: jest.fn().mockResolvedValue([mockDump]),
       };
 
-      dumpRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+      dumpRepository.createQueryBuilder.mockReturnValue(
+        mockQueryBuilder as any,
+      );
 
       const insights = [
         {
@@ -175,9 +187,13 @@ describe('ProactiveService', () => {
       claudeService.analyzeContent.mockResolvedValue({
         summary: JSON.stringify(insights),
       } as any);
-      reminderService.createReminder.mockResolvedValue({ id: 'reminder-123' } as any);
+      reminderService.createReminder.mockResolvedValue({
+        id: 'reminder-123',
+      } as any);
 
-      const result = await service.analyzeUserContent('user-123', { confidenceThreshold: 'high' });
+      const result = await service.analyzeUserContent('user-123', {
+        confidenceThreshold: 'high',
+      });
 
       expect(result.insights.length).toBeGreaterThanOrEqual(1);
     });
@@ -203,9 +219,13 @@ describe('ProactiveService', () => {
         message: 'Follow up on proposal',
       } as any);
 
-      const result = await service.generateRemindersFromInsights(userId, insights, {
-        autoCreate: true,
-      });
+      const result = await service.generateRemindersFromInsights(
+        userId,
+        insights,
+        {
+          autoCreate: true,
+        },
+      );
 
       expect(result.created.length).toBeGreaterThanOrEqual(0);
       expect(result.suggestions.length).toBeGreaterThanOrEqual(0);
@@ -224,11 +244,17 @@ describe('ProactiveService', () => {
         },
       ];
 
-      reminderService.createReminder.mockRejectedValue(new Error('Database error'));
+      reminderService.createReminder.mockRejectedValue(
+        new Error('Database error'),
+      );
 
-      const result = await service.generateRemindersFromInsights('user-123', insights, {
-        autoCreate: true,
-      });
+      const result = await service.generateRemindersFromInsights(
+        'user-123',
+        insights,
+        {
+          autoCreate: true,
+        },
+      );
 
       expect(result.suggestions.length).toBeGreaterThan(0); // Should fall back to suggestions on error
     });

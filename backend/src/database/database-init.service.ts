@@ -40,17 +40,23 @@ export class DatabaseInitService implements OnModuleInit {
       `);
 
       if (indexExists.length === 0) {
-                // TEMPORARILY DISABLED: Index creation appears to cause vector data loss
+        // TEMPORARILY DISABLED: Index creation appears to cause vector data loss
         // Will keep manual creation available via admin endpoint
-        this.logger.log('ℹ️ Vector index creation disabled to prevent data loss');
-        this.logger.log('💡 Index can be created manually via /admin/recreate-vector-index endpoint if needed');
+        this.logger.log(
+          'ℹ️ Vector index creation disabled to prevent data loss',
+        );
+        this.logger.log(
+          '💡 Index can be created manually via /admin/recreate-vector-index endpoint if needed',
+        );
       } else {
         this.logger.log('✅ Vector index already exists');
       }
     } catch (error) {
       this.logger.error('❌ Failed to create vector index:', error);
       // Don't throw the error to prevent app startup failure
-      this.logger.warn('⚠️ Continuing without vector index - it can be created later via admin endpoint');
+      this.logger.warn(
+        '⚠️ Continuing without vector index - it can be created later via admin endpoint',
+      );
     }
   }
 
@@ -84,9 +90,13 @@ export class DatabaseInitService implements OnModuleInit {
         `);
 
         if (vectorTypeCheck.length > 0) {
-          this.logger.log(`✅ Vector column exists with type: ${vectorTypeCheck[0].typname}, dimensions: ${vectorTypeCheck[0].atttypmod - 4}`);
+          this.logger.log(
+            `✅ Vector column exists with type: ${vectorTypeCheck[0].typname}, dimensions: ${vectorTypeCheck[0].atttypmod - 4}`,
+          );
         } else {
-          this.logger.warn('⚠️ Vector column exists but may not be properly typed');
+          this.logger.warn(
+            '⚠️ Vector column exists but may not be properly typed',
+          );
         }
       }
     } catch (error) {
@@ -98,13 +108,15 @@ export class DatabaseInitService implements OnModuleInit {
   async recreateVectorIndex() {
     try {
       this.logger.log('Recreating vector index...');
-      
+
       // Ensure vector column dimensions first
       await this.ensureVectorColumnDimensions();
-      
+
       // Drop existing index if it exists
-      await this.dataSource.query('DROP INDEX IF EXISTS "idx_dumps_content_vector"');
-      
+      await this.dataSource.query(
+        'DROP INDEX IF EXISTS "idx_dumps_content_vector"',
+      );
+
       // Check if there are vectors to index
       const vectorCount = await this.dataSource.query(`
         SELECT COUNT(*) as count FROM "dumps" WHERE "content_vector" IS NOT NULL
@@ -119,7 +131,9 @@ export class DatabaseInitService implements OnModuleInit {
             USING hnsw ("content_vector" vector_cosine_ops)
           `);
         } catch (hnswError) {
-          this.logger.warn(`HNSW failed: ${hnswError.message}, trying IVFFlat without dimension constraint...`);
+          this.logger.warn(
+            `HNSW failed: ${hnswError.message}, trying IVFFlat without dimension constraint...`,
+          );
           try {
             await this.dataSource.query(`
               CREATE INDEX "idx_dumps_content_vector" ON "dumps" 
@@ -127,16 +141,22 @@ export class DatabaseInitService implements OnModuleInit {
               WITH (lists = 100)
             `);
           } catch (ivfError) {
-            this.logger.warn(`IVFFlat also failed: ${ivfError.message}, creating basic index...`);
+            this.logger.warn(
+              `IVFFlat also failed: ${ivfError.message}, creating basic index...`,
+            );
             await this.dataSource.query(`
               CREATE INDEX "idx_dumps_content_vector" ON "dumps" ("content_vector")
             `);
           }
         }
-        
-        this.logger.log(`✅ Vector index recreated successfully for ${vectorCount[0].count} records`);
+
+        this.logger.log(
+          `✅ Vector index recreated successfully for ${vectorCount[0].count} records`,
+        );
       } else {
-        this.logger.warn('⚠️ No vector data found - index will be created after vectors are generated');
+        this.logger.warn(
+          '⚠️ No vector data found - index will be created after vectors are generated',
+        );
       }
     } catch (error) {
       this.logger.error('❌ Failed to recreate vector index:', error);
@@ -155,7 +175,7 @@ export class DatabaseInitService implements OnModuleInit {
         WHERE tablename = 'dumps' 
         AND indexname LIKE '%vector%'
       `);
-      
+
       return result;
     } catch (error) {
       this.logger.error('❌ Failed to get index info:', error);
@@ -166,11 +186,15 @@ export class DatabaseInitService implements OnModuleInit {
   async getVectorHealthStatus() {
     try {
       // Check total dumps
-      const totalDumps = await this.dataSource.query('SELECT COUNT(*) as count FROM dumps');
-      
+      const totalDumps = await this.dataSource.query(
+        'SELECT COUNT(*) as count FROM dumps',
+      );
+
       // Check dumps with vectors
-      const vectorDumps = await this.dataSource.query('SELECT COUNT(*) as count FROM dumps WHERE content_vector IS NOT NULL');
-      
+      const vectorDumps = await this.dataSource.query(
+        'SELECT COUNT(*) as count FROM dumps WHERE content_vector IS NOT NULL',
+      );
+
       // Check vector index existence and size
       const vectorIndex = await this.dataSource.query(`
         SELECT 
@@ -183,7 +207,9 @@ export class DatabaseInitService implements OnModuleInit {
       `);
 
       // Check pgvector extension
-      const pgvectorExt = await this.dataSource.query("SELECT extname, extversion FROM pg_extension WHERE extname = 'vector'");
+      const pgvectorExt = await this.dataSource.query(
+        "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector'",
+      );
 
       // Check vector column info
       const vectorColumn = await this.dataSource.query(`
@@ -210,30 +236,47 @@ export class DatabaseInitService implements OnModuleInit {
 
       return {
         summary: {
-          status: this.determineHealthStatus(totalCount, vectorCount, vectorIndex.length > 0),
+          status: this.determineHealthStatus(
+            totalCount,
+            vectorCount,
+            vectorIndex.length > 0,
+          ),
           totalDumps: totalCount,
           dumpsWithVectors: vectorCount,
           vectorCoverage: Number.parseFloat(coverage.toFixed(2)),
           indexExists: vectorIndex.length > 0,
         },
         details: {
-          pgvectorExtension: pgvectorExt.length > 0 ? {
-            installed: true,
-            version: pgvectorExt[0].extversion
-          } : { installed: false },
-          vectorColumn: vectorColumn.length > 0 ? {
-            exists: true,
-            dataType: vectorColumn[0].data_type,
-            dimensions: vectorColumn[0].dimensions
-          } : { exists: false },
-          vectorIndex: vectorIndex.length > 0 ? {
-            exists: true,
-            name: vectorIndex[0].indexname,
-            sizeHuman: vectorIndex[0].size,
-            sizeBytes: vectorIndex[0].size_bytes
-          } : { exists: false },
+          pgvectorExtension:
+            pgvectorExt.length > 0
+              ? {
+                  installed: true,
+                  version: pgvectorExt[0].extversion,
+                }
+              : { installed: false },
+          vectorColumn:
+            vectorColumn.length > 0
+              ? {
+                  exists: true,
+                  dataType: vectorColumn[0].data_type,
+                  dimensions: vectorColumn[0].dimensions,
+                }
+              : { exists: false },
+          vectorIndex:
+            vectorIndex.length > 0
+              ? {
+                  exists: true,
+                  name: vectorIndex[0].indexname,
+                  sizeHuman: vectorIndex[0].size,
+                  sizeBytes: vectorIndex[0].size_bytes,
+                }
+              : { exists: false },
         },
-        recommendations: this.generateRecommendations(totalCount, vectorCount, vectorIndex.length > 0)
+        recommendations: this.generateRecommendations(
+          totalCount,
+          vectorCount,
+          vectorIndex.length > 0,
+        ),
       };
     } catch (error) {
       this.logger.error('❌ Failed to get vector health status:', error);
@@ -241,7 +284,11 @@ export class DatabaseInitService implements OnModuleInit {
     }
   }
 
-  private determineHealthStatus(totalDumps: number, vectorDumps: number, hasIndex: boolean): string {
+  private determineHealthStatus(
+    totalDumps: number,
+    vectorDumps: number,
+    hasIndex: boolean,
+  ): string {
     if (totalDumps === 0) return 'empty';
     if (!hasIndex && vectorDumps > 0) return 'needs_index';
     if (vectorDumps === 0) return 'no_vectors';
@@ -252,29 +299,39 @@ export class DatabaseInitService implements OnModuleInit {
     return 'degraded';
   }
 
-  private generateRecommendations(totalDumps: number, vectorDumps: number, hasIndex: boolean): string[] {
+  private generateRecommendations(
+    totalDumps: number,
+    vectorDumps: number,
+    hasIndex: boolean,
+  ): string[] {
     const recommendations: string[] = [];
-    
+
     if (totalDumps === 0) {
       recommendations.push('Database is empty - create some dumps first');
     } else if (vectorDumps === 0) {
-      recommendations.push('No vector embeddings found - vectors will be generated automatically when creating dumps');
+      recommendations.push(
+        'No vector embeddings found - vectors will be generated automatically when creating dumps',
+      );
     } else {
       const coverage = (vectorDumps / totalDumps) * 100;
-      
+
       if (coverage < 50) {
-        recommendations.push('Low vector coverage - some dumps may be missing embeddings');
+        recommendations.push(
+          'Low vector coverage - some dumps may be missing embeddings',
+        );
       }
-      
+
       if (!hasIndex && vectorDumps > 0) {
-        recommendations.push('Vector index missing - use POST /admin/ensure-vector-index to create it');
+        recommendations.push(
+          'Vector index missing - use POST /admin/ensure-vector-index to create it',
+        );
       }
-      
+
       if (hasIndex && coverage >= 80) {
         recommendations.push('Vector search is ready for optimal performance');
       }
     }
-    
+
     return recommendations;
   }
 }

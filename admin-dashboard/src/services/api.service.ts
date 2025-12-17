@@ -27,6 +27,20 @@ export interface AuthTokens {
 }
 
 /**
+ * User data from authentication
+ */
+export interface UserData {
+  id: string;
+  phone_number: string;
+  role: string;
+  verified_at: Date;
+  chat_id_telegram: string | null;
+  chat_id_whatsapp: string | null;
+  timezone: string;
+  language: string;
+}
+
+/**
  * API Client Service for Admin Dashboard
  * Provides centralized HTTP client with authentication, error handling, and retry logic
  */
@@ -34,6 +48,7 @@ class ApiService {
   private client: AxiosInstance;
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
+  private userData: UserData | null = null;
 
   constructor(baseURL?: string) {
     this.client = axios.create({
@@ -103,35 +118,50 @@ class ApiService {
   }
 
   /**
-   * Set authentication tokens
+   * Set authentication tokens and user data
    */
-  public setTokens(tokens: AuthTokens): void {
+  public setTokens(tokens: AuthTokens, user?: UserData): void {
     this.accessToken = tokens.accessToken;
     this.refreshToken = tokens.refreshToken || null;
+    this.userData = user || null;
 
     // Persist to localStorage
     localStorage.setItem('accessToken', tokens.accessToken);
     if (tokens.refreshToken) {
       localStorage.setItem('refreshToken', tokens.refreshToken);
     }
+    if (user) {
+      localStorage.setItem('userData', JSON.stringify(user));
+    }
   }
 
   /**
-   * Clear authentication tokens
+   * Clear authentication tokens and user data
    */
   public clearTokens(): void {
     this.accessToken = null;
     this.refreshToken = null;
+    this.userData = null;
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    localStorage.removeItem('userData');
   }
 
   /**
-   * Load tokens from localStorage
+   * Load tokens and user data from localStorage
    */
   private loadTokens(): void {
     this.accessToken = localStorage.getItem('accessToken');
     this.refreshToken = localStorage.getItem('refreshToken');
+    const storedUser = localStorage.getItem('userData');
+    if (storedUser) {
+      try {
+        this.userData = JSON.parse(storedUser);
+      } catch (e) {
+        console.error('Failed to parse stored user data:', e);
+        this.userData = null;
+      }
+    }
   }
 
   /**
@@ -139,6 +169,20 @@ class ApiService {
    */
   public isAuthenticated(): boolean {
     return !!this.accessToken;
+  }
+
+  /**
+   * Check if authenticated user is an admin
+   */
+  public isAdmin(): boolean {
+    return this.userData?.role === 'ADMIN';
+  }
+
+  /**
+   * Get current user data
+   */
+  public getCurrentUser(): UserData | null {
+    return this.userData;
   }
 
   /**
@@ -308,15 +352,15 @@ class ApiService {
   }
 
   public async getDump(dumpId: string) {
-    return this.get(`/dumps/${dumpId}`);
+    return this.get(`/api/dumps/${dumpId}`);
   }
 
   public async updateDump(dumpId: string, data: any) {
-    return this.patch(`/dumps/${dumpId}`, data);
+    return this.patch(`/api/dumps/${dumpId}`, data);
   }
 
   public async deleteDump(dumpId: string) {
-    return this.delete(`/dumps/${dumpId}`);
+    return this.delete(`/api/dumps/${dumpId}`);
   }
 
   /**
@@ -335,12 +379,26 @@ class ApiService {
     return this.get(`/review/flagged/${dumpId}`);
   }
 
-  public async approveReview(dumpId: string, notes?: string) {
-    return this.post(`/review/${dumpId}/approve`, { notes });
+  public async approveReview(
+    dumpId: string,
+    data?: {
+      raw_content?: string;
+      category?: string;
+      notes?: string;
+    }
+  ) {
+    return this.post(`/review/${dumpId}/approve`, data);
   }
 
   public async rejectReview(dumpId: string, reason: string, notes?: string) {
     return this.post(`/review/${dumpId}/reject`, { reason, notes });
+  }
+
+  /**
+   * Categories
+   */
+  public async getCategories() {
+    return this.get('/admin/categories');
   }
 
   /**
@@ -360,6 +418,59 @@ class ApiService {
 
   public async getUserStats() {
     return this.get('/admin/analytics/users');
+  }
+
+  public async getFeatureStats() {
+    return this.get('/admin/analytics/features');
+  }
+
+  /**
+   * Feedback Management
+   */
+  public async getAllFeedback(params?: {
+    type?: string;
+    status?: string;
+    priority?: string;
+    userId?: string;
+    dumpId?: string;
+    tags?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    return this.get('/feedback', { params });
+  }
+
+  public async getFeedback(feedbackId: string) {
+    return this.get(`/feedback/${feedbackId}`);
+  }
+
+  public async getUserFeedback(userId: string) {
+    return this.get(`/feedback/user/${userId}`);
+  }
+
+  public async updateFeedbackStatus(
+    feedbackId: string,
+    status: string,
+    resolution?: string,
+    userId?: string
+  ) {
+    return this.put(`/feedback/${feedbackId}/status`, { status, resolution }, { params: { userId } });
+  }
+
+  public async addFeedbackNote(feedbackId: string, note: string) {
+    return this.post(`/feedback/${feedbackId}/notes`, { note });
+  }
+
+  public async upvoteFeedback(feedbackId: string) {
+    return this.post(`/feedback/${feedbackId}/upvote`);
+  }
+
+  public async getFeedbackStats() {
+    return this.get('/feedback/stats/overview');
+  }
+
+  public async getFeedbackMetadata() {
+    return this.get('/feedback/options/metadata');
   }
 
   /**

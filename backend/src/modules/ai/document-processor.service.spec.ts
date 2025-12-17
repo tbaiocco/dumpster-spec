@@ -73,11 +73,14 @@ describe('DocumentProcessorService', () => {
 
     it('should handle vision service errors gracefully', async () => {
       // Arrange
-      mockVisionService.extractTextFromImage.mockRejectedValue(new Error('Vision service failed'));
+      mockVisionService.extractTextFromImage.mockRejectedValue(
+        new Error('Vision service failed'),
+      );
 
       // Act & Assert
-      await expect(service.processDocument(mockImageBuffer, mimeType)).rejects.toThrow();
+      await expect(
+        service.processDocument(mockImageBuffer, mimeType),
+      ).rejects.toThrow();
     });
-
   });
 });

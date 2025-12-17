@@ -1,7 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UserService } from '../users/user.service';
-import { DumpService, CreateDumpRequest, DumpProcessingResult } from '../dumps/services/dump.service';
+import {
+  DumpService,
+  CreateDumpRequest,
+  DumpProcessingResult,
+} from '../dumps/services/dump.service';
+import { HelpCommand } from './commands/help.command';
+import { RecentCommand } from './commands/recent.command';
+import { UpcomingCommand } from './commands/upcoming.command';
+import { TrackCommand } from './commands/track.command';
+import { SearchCommand } from './commands/search.command';
+import { ReportCommand } from './commands/report.command';
+import { ResponseFormatterService } from '../ai/formatter.service';
+import { MetricsService } from '../metrics/metrics.service';
+import { FeatureType } from '../../entities/feature-usage.entity';
+import { EntityExtractionResult } from '../ai/extraction.service';
+import { ContentAnalysisResponse } from '../ai/claude.service';
 
 export interface WhatsAppMessage {
   MessageSid: string;
@@ -118,11 +133,22 @@ export class WhatsAppService {
     private readonly configService: ConfigService,
     private readonly userService: UserService,
     private readonly dumpService: DumpService,
+    private readonly helpCommand: HelpCommand,
+    private readonly recentCommand: RecentCommand,
+    private readonly upcomingCommand: UpcomingCommand,
+    private readonly trackCommand: TrackCommand,
+    private readonly searchCommand: SearchCommand,
+    private readonly reportCommand: ReportCommand,
+    private readonly responseFormatterService: ResponseFormatterService,
+    private readonly metricsService: MetricsService,
   ) {
     // Twilio WhatsApp API Configuration
-    this.authToken = this.configService.get<string>('WHATSAPP_AUTH_TOKEN') || '';
-    this.accountSid = this.configService.get<string>('WHATSAPP_ACCOUNT_SID') || '';
-    this.phoneNumber = this.configService.get<string>('WHATSAPP_PHONE_NUMBER') || '';
+    this.authToken =
+      this.configService.get<string>('WHATSAPP_AUTH_TOKEN') || '';
+    this.accountSid =
+      this.configService.get<string>('WHATSAPP_ACCOUNT_SID') || '';
+    this.phoneNumber =
+      this.configService.get<string>('WHATSAPP_PHONE_NUMBER') || '';
     this.apiUrl = `https://api.twilio.com/2010-04-01/Accounts/${this.accountSid}`;
 
     if (!this.authToken || !this.accountSid || !this.phoneNumber) {
@@ -130,15 +156,28 @@ export class WhatsAppService {
     }
   }
 
+  /**
+   * Get the Twilio WhatsApp number (bot's number)
+   * Returns the number without the whatsapp: prefix
+   */
+  getTwilioWhatsAppNumber(): string {
+    return this.phoneNumber.replace('whatsapp:', '');
+  }
+
   async sendMessage(
     request: WhatsAppSendMessageRequest,
   ): Promise<{ id: string }> {
     this.logger.log(`Sending WhatsApp message to ${request.to}`);
 
+    // Ensure phone number has whatsapp: prefix for Twilio
+    const toNumber = request.to.startsWith('whatsapp:')
+      ? request.to
+      : `whatsapp:${request.to}`;
+
     // Convert to Twilio format
     const twilioRequest = {
       From: this.phoneNumber,
-      To: request.to,
+      To: toNumber,
       Body: request.text?.body || '',
     };
 
@@ -173,27 +212,96 @@ export class WhatsAppService {
   }
 
   async sendFormattedResponse(
+    userId: string,
     to: string,
-    title: string,
-    content: string,
-    category?: string,
-    confidence?: number,
-  ): Promise<{ id: string }> {
-    let text = `✅ *${title}*\n\n`;
-    text += `${content}\n\n`;
+    result: DumpProcessingResult,
+    replyToMessageId?: string,
+  ): Promise<string> {
+    // Extract analysis and entities from the dump
+    const dump = result.dump;
+    const extractedEntities = dump.extracted_entities || {};
 
-    if (category) {
-      text += `📁 *Category:* ${category}\n`;
-    }
+    // Build ContentAnalysisResponse from dump data
+    const analysis: ContentAnalysisResponse = {
+      summary: dump.ai_summary || '',
+      category: dump.category?.name || 'General',
+      categoryConfidence: (dump.ai_confidence || 95) / 100,
+      extractedEntities: {
+        dates: extractedEntities.entities?.dates || [],
+        times: extractedEntities.entities?.times || [],
+        locations: extractedEntities.entities?.locations || [],
+        people: extractedEntities.entities?.people || [],
+        organizations: extractedEntities.entities?.organizations || [],
+        amounts: extractedEntities.entities?.amounts || [],
+        tags: [],
+      },
+      actionItems: extractedEntities.actionItems || [],
+      sentiment:
+        (extractedEntities.sentiment as 'positive' | 'neutral' | 'negative') ||
+        'neutral',
+      urgency:
+        (extractedEntities.urgency as 'low' | 'medium' | 'high') || 'low',
+      confidence: (dump.ai_confidence || 95) / 100,
+    };
 
-    if (confidence !== undefined) {
-      const confidencePercent = Math.round(confidence * 100);
-      text += `🎯 *Confidence:* ${confidencePercent}%\n`;
-    }
+    // Build EntityExtractionResult from dump data
+    const entities: EntityExtractionResult = {
+      entities: (extractedEntities.entityDetails || []).map((entity: any) => ({
+        type: entity.type as
+          | 'date'
+          | 'time'
+          | 'location'
+          | 'person'
+          | 'organization'
+          | 'amount'
+          | 'phone'
+          | 'email'
+          | 'url',
+        value: entity.value,
+        confidence: entity.confidence,
+        context: entity.context,
+        position: entity.position,
+      })),
+      summary: extractedEntities.entitySummary || {
+        totalEntities: 0,
+        entitiesByType: {},
+        averageConfidence: 0,
+      },
+      structuredData: {
+        dates: extractedEntities.entities?.dates || [],
+        times: extractedEntities.entities?.times || [],
+        locations: extractedEntities.entities?.locations || [],
+        people: extractedEntities.entities?.people || [],
+        organizations: extractedEntities.entities?.organizations || [],
+        amounts: extractedEntities.entities?.amounts || [],
+        contacts: extractedEntities.entities?.contacts || {
+          phones: [],
+          emails: [],
+          urls: [],
+        },
+      },
+    };
 
-    text += `\n_Your content has been saved!_`;
+    // Use ResponseFormatterService with brief format
+    const formatted =
+      await this.responseFormatterService.formatAnalysisResponse(
+        userId,
+        analysis,
+        entities,
+        {
+          platform: 'whatsapp',
+          format: 'brief',
+          includeEmojis: true,
+          includeMarkdown: false, // WhatsApp uses basic markdown
+        },
+      );
 
-    return this.sendTextMessage(to, text);
+    // WhatsApp doesn't support HTML, use plain text
+    const messageText =
+      formatted.text || formatted.html || 'Content processed successfully';
+
+    const response = await this.sendTextMessage(to, messageText);
+    return response.id;
   }
 
   async getMedia(mediaUrl: string): Promise<WhatsAppMediaResponse> {
@@ -216,7 +324,8 @@ export class WhatsAppService {
     return {
       id: mediaUrl,
       url: mediaUrl,
-      mime_type: response.headers.get('content-type') || 'application/octet-stream',
+      mime_type:
+        response.headers.get('content-type') || 'application/octet-stream',
       file_size: Number.parseInt(response.headers.get('content-length') || '0'),
     };
   }
@@ -276,7 +385,6 @@ export class WhatsAppService {
     message: WhatsAppMessage,
     contact?: WhatsAppContact,
   ): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const _contact = contact;
     try {
       const phoneNumber = message.from;
@@ -284,29 +392,20 @@ export class WhatsAppService {
 
       // Skip processing for test phone numbers
       if (phoneNumber.includes('1234567890') || phoneNumber.includes('test')) {
-        this.logger.log('Test message detected - skipping user lookup and response');
+        this.logger.log(
+          'Test message detected - skipping user lookup and response',
+        );
         return;
       }
 
-      // Test mode for development - simulate processing without API calls
-      const isTestMode = process.env.NODE_ENV === 'development' || process.env.WHATSAPP_TEST_MODE === 'true';
-      
       // Find user by WhatsApp chat ID
       const user = await this.userService.findByChatId(phoneNumber, 'whatsapp');
 
       if (!user) {
-        this.logger.log(`User not found for WhatsApp number ${phoneNumber}`);
-        
-        if (isTestMode) {
-          this.logger.log('TEST MODE: Would send welcome message - simulating success');
-          return;
-        }
-        
-        // For now, we'll need a phone number to create a user
-        // This will be handled by the authentication flow
-        await this.sendTextMessage(
-          phoneNumber,
-          '👋 Welcome! Please complete your registration to get started.',
+        // This should not happen as webhook controller handles registration
+        // But keeping as safety fallback
+        this.logger.warn(
+          `User not found for WhatsApp number ${phoneNumber} - skipping message processing`,
         );
         return;
       }
@@ -348,7 +447,9 @@ export class WhatsAppService {
   ): Promise<void> {
     const phoneNumber = message.from;
     const text = message.text?.body || '';
-    const isTestMode = process.env.NODE_ENV === 'development' || process.env.WHATSAPP_TEST_MODE === 'true';
+    const isTestMode =
+      process.env.NODE_ENV === 'development' ||
+      process.env.WHATSAPP_TEST_MODE === 'true';
 
     this.logger.log(`Handling text message: "${text.substring(0, 50)}..."`);
 
@@ -356,7 +457,11 @@ export class WhatsAppService {
     if (
       text.startsWith('/') ||
       text.toLowerCase().includes('help') ||
-      text.toLowerCase().includes('start')
+      text.toLowerCase().includes('start') ||
+      text.toLowerCase().includes('more') ||
+      text.toLowerCase().includes('recent') ||
+      text.toLowerCase().includes('report') ||
+      text.toLowerCase().includes('search')
     ) {
       await this.handleCommand(text, phoneNumber, userId);
       return;
@@ -377,32 +482,33 @@ export class WhatsAppService {
 
       // Process with enhanced ContentRouterService integration
       const result = await this.dumpService.createDumpEnhanced(dumpRequest);
-      
-      this.logger.log(`✅ Message processed successfully: ${result.dump.ai_summary}`);
-      this.logger.log(`📊 Analysis: Category=${result.dump.category?.name}, Confidence=${result.dump.ai_confidence}%`);
-      
-      if (isTestMode) {
-        this.logger.log('TEST MODE: Would send formatted response - simulating success');
-        return;
-      }
-      
-      // Send success response with processing details
-      await this.sendFormattedResponse(
-        phoneNumber,
-        '✅ Content Processed',
-        this.formatProcessingResult(result),
-        result.dump.category?.name || 'General',
-        (result.dump.ai_confidence || 95) / 100,
+
+      this.logger.log(
+        `✅ Message processed successfully: ${result.dump.ai_summary}`,
+      );
+      this.logger.log(
+        `📊 Analysis: Category=${result.dump.category?.name}, Confidence=${result.dump.ai_confidence}%`,
       );
 
-    } catch (error) {
-      this.logger.error('Error processing text message:', error);
-      
       if (isTestMode) {
-        this.logger.log('TEST MODE: Would send error message - simulating error handling');
+        this.logger.log(
+          'TEST MODE: Would send formatted response - simulating success',
+        );
         return;
       }
-      
+
+      // Send success response with processing details
+      await this.sendFormattedResponse(userId, phoneNumber, result);
+    } catch (error) {
+      this.logger.error('Error processing text message:', error);
+
+      if (isTestMode) {
+        this.logger.log(
+          'TEST MODE: Would send error message - simulating error handling',
+        );
+        return;
+      }
+
       await this.sendTextMessage(
         phoneNumber,
         '❌ Sorry, something went wrong while processing your message. Please try again later.',
@@ -430,7 +536,7 @@ export class WhatsAppService {
     try {
       // For Twilio, audio.id is actually the media URL
       const audioBuffer = await this.downloadMedia(audio.id);
-      
+
       // Create dump request for enhanced voice processing
       const dumpRequest: CreateDumpRequest = {
         userId,
@@ -447,16 +553,9 @@ export class WhatsAppService {
 
       // Process with enhanced ContentRouterService integration
       const result = await this.dumpService.createDumpEnhanced(dumpRequest);
-      
-      // Send success response with processing details
-      await this.sendFormattedResponse(
-        phoneNumber,
-        '🎤 Voice Processed',
-        this.formatProcessingResult(result),
-        result.dump.category?.name || 'Audio',
-        (result.dump.ai_confidence || 90) / 100,
-      );
 
+      // Send success response with processing details
+      await this.sendFormattedResponse(userId, phoneNumber, result);
     } catch (error) {
       this.logger.error('Error handling audio message:', error);
       await this.sendTextMessage(
@@ -483,7 +582,7 @@ export class WhatsAppService {
     try {
       // For Twilio, image.id is actually the media URL
       const imageBuffer = await this.downloadMedia(image.id);
-      
+
       // Create dump request for enhanced image processing
       const dumpRequest: CreateDumpRequest = {
         userId,
@@ -501,16 +600,9 @@ export class WhatsAppService {
 
       // Process with enhanced ContentRouterService integration
       const result = await this.dumpService.createDumpEnhanced(dumpRequest);
-      
-      // Send success response with processing details
-      await this.sendFormattedResponse(
-        phoneNumber,
-        '📷 Image Processed',
-        this.formatProcessingResult(result),
-        result.dump.category?.name || 'Media',
-        (result.dump.ai_confidence || 85) / 100,
-      );
 
+      // Send success response with processing details
+      await this.sendFormattedResponse(userId, phoneNumber, result);
     } catch (error) {
       this.logger.error('Error handling image message:', error);
       await this.sendTextMessage(phoneNumber, '❌ Failed to process image.');
@@ -534,7 +626,7 @@ export class WhatsAppService {
     try {
       // For Twilio, document.id is actually the media URL
       const documentBuffer = await this.downloadMedia(document.id);
-      
+
       // Create dump request for enhanced document processing
       const dumpRequest: CreateDumpRequest = {
         userId,
@@ -553,20 +645,26 @@ export class WhatsAppService {
 
       // Process with enhanced ContentRouterService integration
       const result = await this.dumpService.createDumpEnhanced(dumpRequest);
-      
-      // Send success response with processing details
-      await this.sendFormattedResponse(
-        phoneNumber,
-        '📄 Document Processed',
-        this.formatProcessingResult(result),
-        result.dump.category?.name || 'Documents',
-        (result.dump.ai_confidence || 80) / 100,
-      );
 
+      // Send success response with processing details
+      await this.sendFormattedResponse(userId, phoneNumber, result);
     } catch (error) {
       this.logger.error('Error handling document message:', error);
       await this.sendTextMessage(phoneNumber, '❌ Failed to process document.');
     }
+  }
+
+  private trackBotCommand(command: string, userId: string): void {
+    this.metricsService.fireAndForget(() =>
+      this.metricsService.trackFeature({
+        featureType: FeatureType.BOT_COMMAND,
+        detail: command,
+        userId,
+        metadata: {
+          platform: 'whatsapp',
+        },
+      }),
+    );
   }
 
   private async handleCommand(
@@ -574,54 +672,270 @@ export class WhatsAppService {
     phoneNumber: string,
     userId: string,
   ): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const _userId = userId;
-    const normalizedCommand = command.toLowerCase();
+    // Remove common command prefixes and normalize
+    const normalizedCommand = command
+      .toLowerCase()
+      .trim()
+      .replace(/^[/!#@]/, ''); // Remove leading /, !, #, or @
 
-    if (
-      normalizedCommand.includes('start') ||
-      normalizedCommand.includes('hello') ||
-      normalizedCommand.includes('hi')
-    ) {
+    const [cmd] = normalizedCommand.split(' ');
+
+    // Track bot command usage
+    this.trackBotCommand(cmd, userId);
+
+    // Get the user entity for command handlers
+    const user = await this.userService.findOne(userId);
+    if (!user) {
       await this.sendTextMessage(
         phoneNumber,
-        '👋 Welcome to Clutter.AI!\n\n' +
-          'I help you capture and organize any content you send me.\n\n' +
-          'Send me:\n' +
-          '📝 Text messages\n' +
-          '🎤 Voice messages\n' +
-          '📷 Photos\n' +
-          '📄 Documents\n\n' +
-          'Type "help" for more information.',
+        '❌ User not found. Please restart by sending "start"',
       );
-    } else if (normalizedCommand.includes('help')) {
+      return;
+    }
+
+    try {
+      switch (cmd) {
+        case 'start':
+        case 'hello':
+        case 'hi': {
+          await this.sendTextMessage(
+            phoneNumber,
+            '👋 Welcome to Clutter.AI!\n\n' +
+              'I help you capture and organize any content you send me.\n\n' +
+              'Send me:\n' +
+              '📝 Text messages\n' +
+              '🎤 Voice messages\n' +
+              '📷 Photos\n' +
+              '📄 Documents\n\n' +
+              'Type "help" for more commands.',
+          );
+          break;
+        }
+
+        case 'help': {
+          const helpMessage = this.helpCommand.execute('whatsapp');
+          await this.sendTextMessage(phoneNumber, helpMessage);
+          break;
+        }
+
+        case 'recent': {
+          const recentMessage = await this.recentCommand.execute(
+            user,
+            5,
+            'whatsapp',
+          );
+          await this.sendTextMessage(phoneNumber, recentMessage);
+          break;
+        }
+
+        case 'upcoming':
+        case 'next': {
+          // Parse optional hours parameter: upcoming 48
+          const parts = command.split(' ');
+          const hours =
+            parts.length > 1 ? Number.parseInt(parts[1], 10) || 24 : 24;
+          const upcomingMessage = await this.upcomingCommand.execute(
+            user,
+            hours,
+            'whatsapp',
+          );
+          await this.sendTextMessage(phoneNumber, upcomingMessage);
+          break;
+        }
+
+        case 'track': {
+          // Parse tracking command: track <tracking-number> OR track list
+          const parts = command.split(' ').filter((p) => p.trim());
+          const args = parts.slice(1); // Remove 'track' itself
+          const trackMessage = await this.trackCommand.execute(
+            user,
+            args,
+            'whatsapp',
+          );
+          await this.sendTextMessage(phoneNumber, trackMessage);
+          break;
+        }
+
+        case 'search': {
+          const searchMessage = await this.searchCommand.execute(
+            user,
+            command,
+            'whatsapp',
+          );
+          await this.sendTextMessage(phoneNumber, searchMessage);
+          break;
+        }
+
+        case 'report': {
+          const reportMessage = await this.reportCommand.execute(
+            user,
+            command,
+            'whatsapp',
+          );
+          await this.sendTextMessage(phoneNumber, reportMessage);
+          break;
+        }
+
+        default: {
+          await this.sendTextMessage(
+            phoneNumber,
+            '❓ I didn\'t understand that command. Send "help" to see available commands.',
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Error executing command ${cmd}:`, error);
       await this.sendTextMessage(
         phoneNumber,
-        '🔧 *Available Commands:*\n\n' +
-          '• Send "start" or "hello" - Welcome message\n' +
-          '• Send "help" - Show this help\n' +
-          '• Send "recent" - Show recent content\n' +
-          '• Send "search" - Search your content\n' +
-          '• Send "report" - Report an issue\n\n' +
-          '_Just send me any content to get started!_',
+        '❌ Sorry, something went wrong executing that command. Please try again.',
       );
-    } else if (normalizedCommand.includes('recent')) {
-      // Will be implemented with DumpService
+    }
+  }
+
+  /**
+   * Convert HTML formatting to WhatsApp markdown
+   * Telegram uses HTML tags, WhatsApp uses markdown-like syntax
+   */
+  private convertHtmlToWhatsApp(text: string): string {
+    return text
+      .replaceAll(/<b>(.*?)<\/b>/g, '*$1*') // Bold
+      .replaceAll(/<i>(.*?)<\/i>/g, '_$1_') // Italic
+      .replaceAll(/<code>(.*?)<\/code>/g, '```$1```') // Code
+      .replaceAll(/<pre>(.*?)<\/pre>/g, '```$1```') // Preformatted
+      .replaceAll(/<[^>]*>/g, ''); // Remove any remaining HTML tags
+  }
+
+  /**
+   * Auto-register a WhatsApp user using their phone number from Twilio webhook
+   * This is simpler than Telegram since we already have the phone number!
+   */
+  async autoRegisterUser(phoneNumber: string): Promise<void> {
+    try {
+      this.logger.log(`Linking WhatsApp user: ${phoneNumber}`);
+
+      // Check if user exists with this phone number
+      const existingUser = await this.userService.findByPhone(phoneNumber);
+
+      if (existingUser) {
+        // Link existing user to WhatsApp chat ID
+        await this.userService.update(existingUser.id, {
+          chat_id_whatsapp: phoneNumber,
+        });
+
+        await this.sendTextMessage(
+          phoneNumber,
+          `✅ Welcome! Your account has been linked to WhatsApp.\n\n` +
+            `You can now send me:\n` +
+            `📝 Text messages to save thoughts\n` +
+            `🎤 Voice messages\n` +
+            `📸 Photos\n` +
+            `📄 Documents\n\n` +
+            `Try sending: "Preciso lembrar de comprar leite hoje"`,
+        );
+
+        this.logger.log(
+          `Linked existing user ${existingUser.id} to WhatsApp: ${phoneNumber}`,
+        );
+      } else {
+        // User not found - they need to register first
+        await this.sendTextMessage(
+          phoneNumber,
+          `❌ No account found with phone number ${phoneNumber}.\n\n` +
+            `Please register first at:\nhttps://theclutter.app\n\n` +
+            `After registration, send a message here to link your account.`,
+        );
+
+        this.logger.log(
+          `Phone number ${phoneNumber} not found, user needs to register at website`,
+        );
+      }
+    } catch (error) {
+      this.logger.error('Error during auto-registration:', error);
       await this.sendTextMessage(
         phoneNumber,
-        '📋 Recent content feature coming soon!',
+        '❌ Sorry, there was an error. Please try again or contact support.',
       );
-    } else if (normalizedCommand.includes('search')) {
-      // Will be implemented in Phase 4
-      await this.sendTextMessage(phoneNumber, '🔍 Search feature coming soon!');
-    } else if (normalizedCommand.includes('report')) {
-      // Will be implemented in Phase 5
-      await this.sendTextMessage(phoneNumber, '🚨 Report feature coming soon!');
-    } else {
+      throw error;
+    }
+  }
+
+  /**
+   * Handle phone number registration for Telegram (kept for backward compatibility)
+   * Note: WhatsApp doesn't need this since we get the phone number from Twilio
+   */
+  async handlePhoneNumberRegistration(
+    phoneNumber: string,
+    text: string,
+  ): Promise<boolean> {
+    // Detect phone number pattern (international format)
+    const phonePattern = /^\+?[1-9]\d{1,14}$/;
+    const cleanPhone = text.replaceAll(/[\s\-()]/g, '');
+
+    if (!phonePattern.test(cleanPhone)) {
+      return false; // Not a valid phone number
+    }
+
+    try {
+      // Check if user already exists with this phone number
+      const existingUser = await this.userService.findByPhone(cleanPhone);
+
+      if (existingUser) {
+        // Update existing user with WhatsApp chat ID
+        await this.userService.update(existingUser.id, {
+          chat_id_whatsapp: phoneNumber,
+        });
+
+        await this.sendTextMessage(
+          phoneNumber,
+          `✅ Welcome back! Your account has been linked to WhatsApp.\n\n` +
+            `You can now send me:\n` +
+            `📝 Text messages to save thoughts\n` +
+            `🎤 Voice messages\n` +
+            `📸 Photos\n` +
+            `📄 Documents\n\n` +
+            `Try sending: "Preciso lembrar de comprar leite hoje"`,
+        );
+
+        this.logger.log(
+          `Linked existing user ${existingUser.id} to WhatsApp chat ${phoneNumber}`,
+        );
+        return true;
+      } else {
+        // Create new user
+        const newUser = await this.userService.create({
+          phone_number: cleanPhone,
+          timezone: 'Europe/Lisbon', // Default for Portuguese users
+          language: 'pt',
+        });
+
+        // Update with WhatsApp chat ID
+        await this.userService.update(newUser.id, {
+          chat_id_whatsapp: phoneNumber,
+        });
+
+        await this.sendTextMessage(
+          phoneNumber,
+          `🎉 Registration complete! Welcome to your personal life inbox.\n\n` +
+            `I'll help you capture and organize everything:\n` +
+            `📝 Notes and reminders\n` +
+            `🎤 Voice messages\n` +
+            `📸 Photos and documents\n` +
+            `🔍 Smart search and categorization\n\n` +
+            `Try sending: "Reunião com cliente amanhã às 15h"`,
+        );
+
+        this.logger.log(
+          `Created new user ${newUser.id} for WhatsApp chat ${phoneNumber}`,
+        );
+        return true;
+      }
+    } catch (error) {
+      this.logger.error('Error during phone registration:', error);
       await this.sendTextMessage(
         phoneNumber,
-        '❓ I didn\'t understand that command. Send "help" to see available commands.',
+        '❌ Sorry, there was an error during registration. Please try again or contact support.',
       );
+      return true; // Handled, even if failed
     }
   }
 
@@ -631,10 +945,9 @@ export class WhatsAppService {
   async processTwilioWebhook(body: any): Promise<void> {
     try {
       this.logger.log('Processing Twilio WhatsApp webhook');
-      
+
       const message = this.convertTwilioToMessage(body);
       await this.processMessage(message);
-      
     } catch (error) {
       this.logger.error('Error processing Twilio WhatsApp webhook:', error);
       throw error;
@@ -651,7 +964,7 @@ export class WhatsAppService {
     const mediaType = twilioBody.MediaContentType0;
 
     let type: WhatsAppMessage['type'] = 'text';
-    let processedMessage: Partial<WhatsAppMessage> = {};
+    const processedMessage: Partial<WhatsAppMessage> = {};
 
     if (hasMedia && mediaType) {
       if (mediaType.startsWith('image/')) {
@@ -707,36 +1020,4 @@ export class WhatsAppService {
 
   // Note: Twilio WhatsApp webhooks do not use verification tokens
   // This method is kept for compatibility but not used with Twilio
-
-  /**
-   * Format processing result for user-friendly display
-   */
-  private formatProcessingResult(result: DumpProcessingResult): string {
-    const { dump, processingSteps } = result;
-    
-    let summary = `📝 Processed and saved`;
-    
-    if (dump.ai_summary) {
-      summary += `\n\n*Summary:* ${dump.ai_summary}`;
-    }
-    
-    // Check for enhanced processing metadata
-    const metadata = dump.extracted_entities?.metadata;
-    const enhancedProcessing = metadata?.enhancedProcessing;
-    const routingInfo = metadata?.routingInfo;
-    
-    if (enhancedProcessing && routingInfo) {
-      summary += `\n\n*Analysis:* ${routingInfo.contentType} content (${Math.round(routingInfo.confidence * 100)}% confidence)`;
-      
-      if (routingInfo.processingTimeEstimate) {
-        summary += `\n*Processing time:* ${routingInfo.processingTimeEstimate}ms`;
-      }
-    }
-    
-    if (processingSteps && processingSteps.length > 0) {
-      summary += `\n\n*Processing:* ${processingSteps.at(-1)}`;
-    }
-    
-    return summary.length > 4000 ? summary.substring(0, 4000) + '...' : summary;
-  }
 }

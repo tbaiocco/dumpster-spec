@@ -6,6 +6,8 @@ import { Reminder, ReminderType } from '../../entities/reminder.entity';
 import { User } from '../../entities/user.entity';
 import { ClaudeService } from '../ai/claude.service';
 import { ReminderService } from '../reminders/reminder.service';
+import { TrackingService } from '../tracking/tracking.service';
+import { TrackingType } from '../../entities/trackable-item.entity';
 
 /**
  * Confidence level for contextual insights
@@ -15,7 +17,12 @@ type ConfidenceLevel = 'high' | 'medium' | 'low';
 /**
  * Type of contextual insight
  */
-type InsightType = 'expiration' | 'deadline' | 'follow-up' | 'recurring-task' | 'preparation';
+type InsightType =
+  | 'expiration'
+  | 'deadline'
+  | 'follow-up'
+  | 'recurring-task'
+  | 'preparation';
 
 /**
  * Contextual insight extracted from user's dumps
@@ -41,7 +48,7 @@ interface ProactiveAnalysisResult {
 
 /**
  * Service for proactive reminder generation based on user content analysis
- * 
+ *
  * This service uses AI to analyze user dumps and automatically suggest
  * contextual reminders (e.g., "Your passport expires in 3 months").
  */
@@ -56,6 +63,7 @@ export class ProactiveService {
     private readonly userRepository: Repository<User>,
     private readonly claudeService: ClaudeService,
     private readonly reminderService: ReminderService,
+    private readonly trackingService: TrackingService,
   ) {}
 
   /**
@@ -94,7 +102,9 @@ export class ProactiveService {
         .take(maxDumps);
 
       if (categories && categories.length > 0) {
-        queryBuilder.andWhere('category.name IN (:...categories)', { categories });
+        queryBuilder.andWhere('category.name IN (:...categories)', {
+          categories,
+        });
       }
 
       const dumps = await queryBuilder.getMany();
@@ -114,9 +124,15 @@ export class ProactiveService {
       const insights = await this.extractInsightsWithAI(contentSummary, userId);
 
       // Filter by confidence threshold
-      const filteredInsights = this.filterByConfidence(insights, confidenceThreshold);
+      const filteredInsights = this.filterByConfidence(
+        insights,
+        confidenceThreshold,
+      );
 
-      const summary = this.generateAnalysisSummary(filteredInsights, dumps.length);
+      const summary = this.generateAnalysisSummary(
+        filteredInsights,
+        dumps.length,
+      );
 
       return {
         insights: filteredInsights,
@@ -124,7 +140,61 @@ export class ProactiveService {
         processingTimeMs: Date.now() - startTime,
       };
     } catch (error) {
-      this.logger.error(`Failed to analyze user content: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to analyze user content: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Analyze user content from pre-fetched dumps (optimized for cron jobs)
+   * Avoids duplicate database queries
+   */
+  private async analyzeUserContentFromDumps(
+    dumps: Dump[],
+    userId: string,
+  ): Promise<ProactiveAnalysisResult> {
+    const startTime = Date.now();
+
+    try {
+      this.logger.log(
+        `Analyzing ${dumps.length} pre-fetched dumps for user ${userId}`,
+      );
+
+      if (dumps.length === 0) {
+        return {
+          insights: [],
+          summary: 'No content provided for analysis',
+          processingTimeMs: Date.now() - startTime,
+        };
+      }
+
+      // Prepare content for AI analysis
+      const contentSummary = this.prepareDumpsForAnalysis(dumps);
+
+      // Use Claude to extract contextual insights
+      const insights = await this.extractInsightsWithAI(contentSummary, userId);
+
+      // Filter by medium confidence threshold (suitable for daily analysis)
+      const filteredInsights = this.filterByConfidence(insights, 'medium');
+
+      const summary = this.generateAnalysisSummary(
+        filteredInsights,
+        dumps.length,
+      );
+
+      return {
+        insights: filteredInsights,
+        summary,
+        processingTimeMs: Date.now() - startTime,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to analyze user content from dumps: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }
@@ -149,8 +219,15 @@ export class ProactiveService {
       try {
         if (autoCreate && insight.confidence === 'high') {
           // Automatically create high-confidence reminders
+          // Use the first related dump ID as the primary source
+          const primaryDumpId =
+            insight.relatedDumpIds && insight.relatedDumpIds.length > 0
+              ? insight.relatedDumpIds[0]
+              : undefined;
+
           const reminder = await this.reminderService.createReminder({
             userId,
+            dumpId: primaryDumpId, // Link reminder to the dump that generated it
             message: `${insight.title}\n\n${insight.description}`,
             reminderType: this.mapInsightTypeToReminderType(insight.type),
             scheduledFor: insight.suggestedDate,
@@ -158,13 +235,17 @@ export class ProactiveService {
           });
 
           created.push(reminder);
-          this.logger.log(`Auto-created proactive reminder: ${insight.title}`);
+          this.logger.log(
+            `Auto-created proactive reminder: ${insight.title} (linked to dump ${primaryDumpId || 'none'})`,
+          );
         } else {
           // Add to suggestions for user review
           suggestions.push(insight);
         }
       } catch (error) {
-        this.logger.warn(`Failed to create reminder from insight: ${error.message}`);
+        this.logger.warn(
+          `Failed to create reminder from insight: ${error.message}`,
+        );
         suggestions.push(insight); // Fall back to suggestion
       }
     }
@@ -180,6 +261,7 @@ export class ProactiveService {
     usersProcessed: number;
     remindersCreated: number;
     suggestionsGenerated: number;
+    trackingItemsCreated: number;
   }> {
     this.logger.log('Starting daily proactive analysis for all users');
 
@@ -187,18 +269,33 @@ export class ProactiveService {
 
     let remindersCreated = 0;
     let suggestionsGenerated = 0;
+    let trackingItemsCreated = 0;
 
     for (const user of users) {
       try {
-        // Analyze user content
-        const analysis = await this.analyzeUserContent(user.id, {
-          lookbackDays: 7,
-          maxDumps: 50,
-          confidenceThreshold: 'medium',
-        });
+        // Get recent dumps for analysis (last 7 days) - single query
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - 7);
+
+        const dumps = await this.dumpRepository
+          .createQueryBuilder('dump')
+          .leftJoinAndSelect('dump.category', 'category')
+          .where('dump.user_id = :userId', { userId: user.id })
+          .andWhere('dump.created_at > :cutoffDate', { cutoffDate })
+          .orderBy('dump.created_at', 'DESC')
+          .take(50)
+          .getMany();
+
+        if (dumps.length === 0) {
+          this.logger.log(`User ${user.id}: No recent dumps to analyze`);
+          continue;
+        }
+
+        // Analyze user content for reminders using pre-fetched dumps
+        const analysis = await this.analyzeUserContentFromDumps(dumps, user.id);
 
         // Generate reminders from insights
-        const result = await this.generateRemindersFromInsights(
+        const reminderResult = await this.generateRemindersFromInsights(
           user.id,
           analysis.insights,
           {
@@ -207,25 +304,48 @@ export class ProactiveService {
           },
         );
 
-        remindersCreated += result.created.length;
-        suggestionsGenerated += result.suggestions.length;
+        remindersCreated += reminderResult.created.length;
+        suggestionsGenerated += reminderResult.suggestions.length;
+
+        // Filter out dumps that were used for reminders to avoid overlap in tracking
+        const dumpIdsWithReminders = new Set(
+          analysis.insights.flatMap((insight) => insight.relatedDumpIds),
+        );
+        const dumpsForTracking = dumps.filter(
+          (dump) => !dumpIdsWithReminders.has(dump.id),
+        );
 
         this.logger.log(
-          `User ${user.id}: Created ${result.created.length} reminders, ${result.suggestions.length} suggestions`,
+          `User ${user.id}: ${dumps.length} dumps, ${dumpIdsWithReminders.size} used for reminders, ${dumpsForTracking.length} available for tracking`,
+        );
+
+        // Detect and create tracking items from remaining dumps
+        const trackingResult = await this.detectAndCreateTrackingItems(
+          user.id,
+          dumpsForTracking,
+        );
+
+        trackingItemsCreated += trackingResult.created;
+
+        this.logger.log(
+          `User ${user.id}: Created ${reminderResult.created.length} reminders, ${reminderResult.suggestions.length} suggestions, ${trackingResult.created} tracking items`,
         );
       } catch (error) {
-        this.logger.error(`Failed to process user ${user.id}: ${error.message}`);
+        this.logger.error(
+          `Failed to process user ${user.id}: ${error.message}`,
+        );
       }
     }
 
     this.logger.log(
-      `Daily proactive analysis complete: ${users.length} users, ${remindersCreated} reminders, ${suggestionsGenerated} suggestions`,
+      `Daily proactive analysis complete: ${users.length} users, ${remindersCreated} reminders, ${suggestionsGenerated} suggestions, ${trackingItemsCreated} tracking items`,
     );
 
     return {
       usersProcessed: users.length,
       remindersCreated,
       suggestionsGenerated,
+      trackingItemsCreated,
     };
   }
 
@@ -249,14 +369,37 @@ export class ProactiveService {
     const dumpSummaries = dumps.map((dump, index) => {
       const category = dump.category?.name || 'Uncategorized';
       const content = dump.raw_content?.substring(0, 500) || ''; // Limit content length
-      const entities = dump.extracted_entities ? JSON.stringify(dump.extracted_entities) : '';
+      const summary = dump.ai_summary || '';
 
-      return `[${index + 1}] Dump ${dump.id.substring(0, 8)}
+      // Extract key information from entities
+      let entitiesInfo = '';
+      if (dump.extracted_entities) {
+        const entities = (dump.extracted_entities.entities as any) || {};
+        const dates = entities.dates || [];
+        const times = entities.times || [];
+        const people = entities.people || [];
+        const actionItems = dump.extracted_entities.actionItems || [];
+
+        if (
+          dates.length > 0 ||
+          times.length > 0 ||
+          people.length > 0 ||
+          actionItems.length > 0
+        ) {
+          entitiesInfo = `
+Action Items: ${actionItems.join(', ') || 'None'}
+Dates: ${dates.join(', ') || 'None'}
+Times: ${times.join(', ') || 'None'}
+People: ${people.join(', ') || 'None'}`;
+        }
+      }
+
+      return `[${index + 1}] Dump ${dump.id.substring(0, 8)} (ID: ${dump.id})
 Category: ${category}
 Type: ${dump.content_type}
 Date: ${dump.created_at.toISOString()}
 Content: ${content}
-Entities: ${entities}
+AI Summary: ${summary}${entitiesInfo}
 ---`;
     });
 
@@ -272,66 +415,74 @@ Entities: ${entities}
   ): Promise<ContextualInsight[]> {
     const systemPrompt = `You are a proactive assistant analyzing user content to identify opportunities for helpful reminders.
 
+CRITICAL: You must respond with ONLY a valid JSON array, no other text before or after.
+
 Your task is to identify:
-1. **Expiration dates**: Passports, licenses, subscriptions, warranties
-2. **Deadlines**: Projects, bills, appointments
-3. **Follow-ups**: Tasks that need checking back (e.g., "waiting for response")
+1. **Follow-ups**: Tasks with specific dates/times that need action (e.g., "Call X tomorrow morning")
+2. **Deadlines**: Projects, bills, appointments with due dates
+3. **Expiration dates**: Passports, licenses, subscriptions, warranties
 4. **Recurring tasks**: Regular activities mentioned multiple times
 5. **Preparation needs**: Events requiring advance preparation
 
-For each insight, provide:
-- type: One of [expiration, deadline, follow-up, recurring-task, preparation]
-- title: Short, actionable reminder title
-- description: Context and details
-- suggestedDate: When to remind (ISO format)
-- confidence: high/medium/low based on clarity of information
-- relatedDumpIds: Array of dump IDs that support this insight
-- reasoning: Why this reminder would be helpful
+IMPORTANT: Pay special attention to action items with dates and times. These should ALWAYS generate follow-up reminders.
 
-Return ONLY a valid JSON array of insights, no additional text.
-Example format:
+For each insight, provide:
+- type: One of [follow-up, deadline, expiration, recurring-task, preparation]
+- title: Short, actionable reminder title (e.g., "Call Gilson about car repair")
+- description: Context and details (e.g., "Scheduled for 2025-12-04 at 09:00")
+- suggestedDate: When to remind in ISO format (e.g., "2025-12-04T09:00:00Z")
+- confidence: high (clear date/time), medium (implied timing), or low (vague)
+- relatedDumpIds: Array of FULL dump IDs from the "ID:" field (e.g., ["3b9384f5-abc1-4567-89ef-0123456789ab"])
+- reasoning: Why this reminder would be helpful (e.g., "Action item with specific date and time")
+
+Example response (ONLY THIS, NO OTHER TEXT):
 [
   {
-    "type": "expiration",
-    "title": "Passport renewal reminder",
-    "description": "Your passport expires in 3 months",
-    "suggestedDate": "2025-12-15T09:00:00Z",
+    "type": "follow-up",
+    "title": "Call Gilson about car repair",
+    "description": "Scheduled call tomorrow morning at 09:00",
+    "suggestedDate": "2025-12-04T09:00:00Z",
     "confidence": "high",
-    "relatedDumpIds": ["abc123"],
-    "reasoning": "Clear expiration date mentioned in content"
+    "relatedDumpIds": ["3b9384f5-abc1-4567-89ef-0123456789ab"],
+    "reasoning": "Action item with specific date and time extracted from entities"
   }
-]`;
+]
 
-    const userPrompt = `Analyze this user content and suggest proactive reminders:
+If no opportunities found, return empty array: []`;
+
+    const userPrompt = `Analyze this user content and suggest proactive reminders.
 
 ${contentSummary}
 
-Return insights as JSON array.`;
+CRITICAL: Respond with ONLY a JSON array, no other text. Look especially for action items with dates and times in the entities.`;
 
     try {
-      const response = await this.claudeService.analyzeContent({
-        content: userPrompt,
-        contentType: 'text',
-        customSystemPrompt: systemPrompt,
-        context: {
-          source: 'telegram',
-          userId,
-          timestamp: new Date(),
-        },
-      });
+      // Use queryWithCustomPrompt for raw JSON response instead of analyzeContent
+      const fullPrompt = `${systemPrompt}
 
-      // Try to parse insights from the summary
-      const summary = response.summary || '';
-      
+${userPrompt}`;
+
+      const response =
+        await this.claudeService.queryWithCustomPrompt(fullPrompt);
+
+      this.logger.debug(`AI response: ${response.substring(0, 200)}...`);
+
       // Try to extract JSON array from the response
-      const jsonMatch = summary.match(/\[[\s\S]*\]/);
+      const jsonRegex = /\[[\s\S]*\]/;
+      const jsonMatch = jsonRegex.exec(response);
       if (!jsonMatch) {
-        this.logger.warn('AI response did not contain valid JSON array');
+        this.logger.warn(
+          `AI response did not contain valid JSON array. Response was: ${response.substring(0, 500)}`,
+        );
         return [];
       }
 
       const insights = JSON.parse(jsonMatch[0]) as ContextualInsight[];
-      
+
+      this.logger.log(
+        `Successfully parsed ${insights.length} insights from AI`,
+      );
+
       // Validate and parse dates
       const validatedInsights = insights.map((insight) => ({
         ...insight,
@@ -340,7 +491,10 @@ Return insights as JSON array.`;
 
       return validatedInsights;
     } catch (error) {
-      this.logger.error(`Failed to extract insights with AI: ${error.message}`);
+      this.logger.error(
+        `Failed to extract insights with AI: ${error.message}`,
+        error.stack,
+      );
       return [];
     }
   }
@@ -440,5 +594,367 @@ Return insights as JSON array.`;
     }
 
     return null;
+  }
+
+  /**
+   * Detect tracking opportunities from dumps and create trackable items
+   * Uses AI analysis to identify packages, subscriptions, warranties, etc.
+   */
+  async detectAndCreateTrackingItems(
+    userId: string,
+    dumps: Dump[],
+  ): Promise<{
+    created: number;
+    suggestions: Array<{
+      type: TrackingType;
+      title: string;
+      description: string;
+      dumpId: string;
+    }>;
+  }> {
+    const suggestions: Array<{
+      type: TrackingType;
+      title: string;
+      description: string;
+      dumpId: string;
+    }> = [];
+    let created = 0;
+
+    for (const dump of dumps) {
+      // Prepare enriched context from dump's AI analysis
+      const enrichedContent = this.prepareEnrichedContextForTracking(dump);
+
+      if (!enrichedContent) {
+        this.logger.debug(`Skipping dump ${dump.id} - no content available`);
+        continue;
+      }
+
+      // Use AI to detect tracking opportunities with enriched context
+      const trackingInsights = await this.detectTrackingWithAI(
+        enrichedContent,
+        dump,
+      );
+
+      for (const insight of trackingInsights) {
+        try {
+          // Check if similar tracking already exists
+          const existing = await this.trackingService.getUserTrackableItems(
+            userId,
+            {},
+          );
+
+          const isDuplicate = existing.some(
+            (item) =>
+              item.type === insight.type &&
+              item.title.toLowerCase() === insight.title.toLowerCase(),
+          );
+
+          if (!isDuplicate) {
+            // Create the trackable item
+            await this.trackingService.createTrackableItem(userId, dump.id, {
+              type: insight.type,
+              title: insight.title,
+              description: insight.description,
+              expectedEndDate: insight.expectedDate,
+              metadata: {
+                source: 'proactive_detection',
+                confidence: insight.confidence,
+                detectedAt: new Date().toISOString(),
+                trackingNumber: insight.trackingNumber,
+              },
+              autoReminders: true,
+            });
+
+            created++;
+            suggestions.push({
+              type: insight.type,
+              title: insight.title,
+              description: insight.description,
+              dumpId: dump.id,
+            });
+          }
+        } catch (error) {
+          this.logger.error(
+            `Failed to create tracking item: ${error.message}`,
+            error.stack,
+          );
+        }
+      }
+    }
+
+    return { created, suggestions };
+  }
+
+  /**
+   * Prepare enriched context for tracking detection
+   * Uses AI summary, extracted entities, and category for better accuracy
+   */
+  private prepareEnrichedContextForTracking(dump: Dump): string | null {
+    const parts: string[] = [];
+
+    // AI Summary (most important - already processed and understood by AI)
+    if (dump.ai_summary) {
+      parts.push(`AI Summary: ${dump.ai_summary}`);
+    }
+
+    // Category provides context
+    const category = dump.category?.name || 'Uncategorized';
+    parts.push(`Category: ${category}`);
+
+    // Content type
+    parts.push(`Content Type: ${dump.content_type}`);
+
+    // Extracted entities (structured data)
+    if (dump.extracted_entities) {
+      const entities = (dump.extracted_entities.entities as any) || {};
+      const extractedData: string[] = [];
+
+      if (entities.dates && entities.dates.length > 0) {
+        extractedData.push(`Dates: ${entities.dates.join(', ')}`);
+      }
+      if (entities.organizations && entities.organizations.length > 0) {
+        extractedData.push(
+          `Organizations: ${entities.organizations.join(', ')}`,
+        );
+      }
+      if (entities.locations && entities.locations.length > 0) {
+        extractedData.push(`Locations: ${entities.locations.join(', ')}`);
+      }
+      if (entities.amounts && entities.amounts.length > 0) {
+        extractedData.push(`Amounts: ${entities.amounts.join(', ')}`);
+      }
+
+      if (extractedData.length > 0) {
+        parts.push(`Extracted Data:\n${extractedData.join('\n')}`);
+      }
+    }
+
+    // Raw content excerpt (for additional context)
+    if (dump.raw_content) {
+      const excerpt = dump.raw_content.substring(0, 500);
+      parts.push(`Content Excerpt: ${excerpt}`);
+    }
+
+    // Return null if we have no meaningful content
+    if (parts.length === 0) {
+      return null;
+    }
+
+    return parts.join('\n\n');
+  }
+
+  /**
+   * Use Claude AI to detect tracking opportunities from enriched dump content
+   * Now receives AI summary, entities, and structured data for better accuracy
+   */
+  private async detectTrackingWithAI(
+    enrichedContent: string,
+    dump: Dump,
+  ): Promise<
+    Array<{
+      type: TrackingType;
+      title: string;
+      description: string;
+      trackingNumber?: string;
+      expectedDate?: Date;
+      confidence: ConfidenceLevel;
+    }>
+  > {
+    const prompt = `You are analyzing enriched content from a user's message that has already been processed by AI. The content includes:
+- An AI-generated summary
+- Extracted entities (dates, organizations, locations, amounts)
+- Category classification
+- Original content excerpt
+
+Your task: Identify items that should be TRACKED (status monitoring), NOT reminded about.
+
+**TRACKING items** (what to include):
+1. **Packages**: Tracking numbers (UPS, FedEx, USPS, DHL, etc.), shipment notifications, delivery confirmations
+2. **Applications**: Job applications, visa applications, loan applications with reference numbers
+3. **Subscriptions**: Trial periods, subscription renewals, membership expirations
+4. **Warranties**: Product warranties, service contracts, guarantee periods
+5. **Loans**: Loan applications, payment deadlines, maturity dates
+6. **Insurance**: Policy renewals, claim tracking, coverage periods
+
+**NOT tracking items** (what to EXCLUDE):
+- Appointments (dentist, doctor, meetings) → These are REMINDERS, not tracking
+- Phone calls to make → These are REMINDERS, not tracking
+- Tasks with specific dates/times → These are REMINDERS, not tracking
+- Follow-ups with people → These are REMINDERS, not tracking
+- General action items → These are REMINDERS, not tracking
+
+TRACKING = monitoring status of something in progress (packages, applications, subscriptions)
+REMINDERS = time-based actions you need to take (calls, meetings, follow-ups)
+
+For each TRACKING opportunity found, provide:
+- type: One of: package, application, subscription, warranty, loan, insurance (DO NOT use 'other' for reminder-like items)
+- title: Short descriptive title (max 100 chars)
+- description: Detailed description with relevant context
+- trackingNumber: If applicable (tracking codes, reference numbers, policy numbers)
+- expectedDate: When status update or completion is expected (ISO 8601 format)
+- confidence: high, medium, or low
+
+Enriched Content to analyze:
+${enrichedContent}
+
+**Analysis Strategy:**
+1. Start with the AI Summary - it contains the most accurate understanding
+2. Use extracted dates for expectedDate
+3. Use extracted organizations for context (shipping companies, service providers)
+4. Consider the category to understand intent
+5. Review content excerpt for additional details
+
+Return your analysis as a JSON array. If no tracking opportunities found, return empty array [].
+IMPORTANT: Respond with ONLY valid JSON, no other text.`;
+
+    try {
+      const response = await this.claudeService.queryWithCustomPrompt(prompt);
+
+      // Parse AI response
+      const jsonPattern = /\[[\s\S]*\]/;
+      const jsonMatch = jsonPattern.exec(response);
+      if (!jsonMatch) {
+        this.logger.warn('No JSON array found in AI response');
+        return [];
+      }
+
+      const insights = JSON.parse(jsonMatch[0]);
+
+      // Validate and normalize the insights
+      return insights
+        .filter((insight) => insight.type && insight.title)
+        .map((insight) => ({
+          type: this.normalizeTrackingType(insight.type),
+          title: insight.title.substring(0, 100),
+          description: insight.description || insight.title,
+          trackingNumber: insight.trackingNumber || undefined,
+          expectedDate: insight.expectedDate
+            ? new Date(insight.expectedDate)
+            : undefined,
+          confidence: insight.confidence || 'medium',
+        }));
+    } catch (error) {
+      this.logger.error(
+        `AI tracking detection failed: ${error.message}`,
+        error.stack,
+      );
+      // Fallback to keyword-based detection
+      return this.detectTrackingWithKeywords(enrichedContent);
+    }
+  }
+
+  /**
+   * Normalize tracking type from AI response to valid enum
+   */
+  private normalizeTrackingType(type: string): TrackingType {
+    const normalized = type.toLowerCase().trim();
+    const typeMap: Record<string, TrackingType> = {
+      package: TrackingType.PACKAGE,
+      packages: TrackingType.PACKAGE,
+      shipment: TrackingType.PACKAGE,
+      delivery: TrackingType.PACKAGE,
+      application: TrackingType.APPLICATION,
+      applications: TrackingType.APPLICATION,
+      subscription: TrackingType.SUBSCRIPTION,
+      subscriptions: TrackingType.SUBSCRIPTION,
+      trial: TrackingType.SUBSCRIPTION,
+      warranty: TrackingType.WARRANTY,
+      warranties: TrackingType.WARRANTY,
+      guarantee: TrackingType.WARRANTY,
+      loan: TrackingType.LOAN,
+      loans: TrackingType.LOAN,
+      mortgage: TrackingType.LOAN,
+      insurance: TrackingType.INSURANCE,
+      policy: TrackingType.INSURANCE,
+      claim: TrackingType.INSURANCE,
+    };
+
+    return typeMap[normalized] || TrackingType.OTHER;
+  }
+
+  /**
+   * Fallback keyword-based tracking detection
+   */
+  private detectTrackingWithKeywords(content: string): Array<{
+    type: TrackingType;
+    title: string;
+    description: string;
+    trackingNumber?: string;
+    expectedDate?: Date;
+    confidence: ConfidenceLevel;
+  }> {
+    const results: Array<{
+      type: TrackingType;
+      title: string;
+      description: string;
+      trackingNumber?: string;
+      expectedDate?: Date;
+      confidence: ConfidenceLevel;
+    }> = [];
+    const contentLower = content.toLowerCase();
+
+    // Package detection
+    const trackingNumberPattern = /\b(1Z[\dA-Z]{16}|\d{22}|\d{12}|\d{20})\b/gi;
+    const trackingMatches = content.match(trackingNumberPattern);
+    if (
+      trackingMatches ||
+      contentLower.includes('tracking') ||
+      contentLower.includes('shipment') ||
+      contentLower.includes('delivery')
+    ) {
+      results.push({
+        type: TrackingType.PACKAGE,
+        title: 'Package Delivery',
+        description: trackingMatches
+          ? `Package with tracking number: ${trackingMatches[0]}`
+          : 'Package shipment detected',
+        trackingNumber: trackingMatches ? trackingMatches[0] : undefined,
+        confidence: trackingMatches ? 'high' : 'medium',
+      });
+    }
+
+    // Subscription detection
+    if (
+      contentLower.includes('trial') ||
+      contentLower.includes('subscription') ||
+      contentLower.includes('membership')
+    ) {
+      results.push({
+        type: TrackingType.SUBSCRIPTION,
+        title: 'Subscription/Trial Period',
+        description: 'Subscription or trial period detected',
+        confidence: 'medium',
+      });
+    }
+
+    // Warranty detection
+    if (
+      contentLower.includes('warranty') ||
+      contentLower.includes('guarantee')
+    ) {
+      results.push({
+        type: TrackingType.WARRANTY,
+        title: 'Warranty Period',
+        description: 'Product warranty or guarantee detected',
+        confidence: 'medium',
+      });
+    }
+
+    // Application detection
+    if (
+      contentLower.includes('application') &&
+      (contentLower.includes('reference') ||
+        contentLower.includes('status') ||
+        contentLower.includes('submitted'))
+    ) {
+      results.push({
+        type: TrackingType.APPLICATION,
+        title: 'Application Status',
+        description: 'Application submission detected',
+        confidence: 'medium',
+      });
+    }
+
+    return results;
   }
 }

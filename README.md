@@ -4,11 +4,12 @@
 1. [Introduction](#introduction)
 2. [Getting Started](#getting-started)
 3. [Features](#features)
-4. [API Documentation](#api-documentation)
-5. [Admin Dashboard](#admin-dashboard)
-6. [Best Practices](#best-practices)
-7. [Troubleshooting](#troubleshooting)
-8. [FAQ](#faq)
+4. [Deployment](#deployment)
+5. [API Documentation](#api-documentation)
+6. [Admin Dashboard](#admin-dashboard)
+7. [Best Practices](#best-practices)
+8. [Troubleshooting](#troubleshooting)
+9. [FAQ](#faq)
 
 ---
 
@@ -255,6 +256,43 @@ POST /api/reminders
 - **Channels**: Email, SMS, push notifications, bot messages
 - **Snooze**: Reschedule reminders easily
 - **Recurring**: Daily, weekly, monthly patterns (coming soon)
+
+---
+
+## Deployment
+
+### Railway Deployment (Recommended)
+
+Deploy your backend to production using Railway:
+
+**Quick Start:**
+```bash
+# 1. Encode Google Cloud credentials
+cd backend
+./scripts/encode-google-credentials.sh
+
+# 2. Follow the deployment guide
+# See: docs/RAILWAY_QUICKSTART.md
+```
+
+**📚 Complete Documentation:**
+- [📖 Railway Deployment Index](./docs/RAILWAY_INDEX.md) - Start here for all deployment docs
+- [⚡ Quick Start Guide](./docs/RAILWAY_QUICKSTART.md) - Fast deployment in ~20 minutes
+- [📕 Complete Guide](./docs/RAILWAY_DEPLOYMENT.md) - Detailed step-by-step instructions
+- [🔄 CI/CD Setup](./docs/CICD_RAILWAY.md) - Automated deployments with GitHub Actions
+- [📋 Commands Reference](./docs/RAILWAY_COMMANDS.md) - CLI command cheat sheet
+- [🏗️ Architecture](./docs/RAILWAY_ARCHITECTURE.md) - System architecture diagrams
+
+**Features:**
+- ✅ Production-ready Docker configuration
+- ✅ Automatic SSL/HTTPS
+- ✅ Zero-downtime deployments
+- ✅ Health monitoring built-in
+- ✅ CI/CD with GitHub Actions
+- ✅ Environment variable management
+- ✅ Easy rollback capability
+
+**Cost:** Starting at $5/month (hobby tier) or $20/month (unlimited)
 
 ---
 

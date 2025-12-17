@@ -44,10 +44,15 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3000;
 
   // Swagger API Documentation (T092)
-  if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true') {
+  if (
+    process.env.NODE_ENV !== 'production' ||
+    process.env.ENABLE_SWAGGER === 'true'
+  ) {
     const config = new DocumentBuilder()
       .setTitle('Clutter.AI Universal Life Inbox API')
-      .setDescription('REST API for the Clutter.AI Universal Life Inbox system. Supports content capture, AI processing, natural language search, and proactive reminders.')
+      .setDescription(
+        'REST API for the Clutter.AI Universal Life Inbox system. Supports content capture, AI processing, natural language search, and proactive reminders.',
+      )
       .setVersion('1.0.0')
       .addBearerAuth(
         {
@@ -81,7 +86,9 @@ async function bootstrap() {
       ],
     });
 
-    console.log(`📚 Swagger documentation available at: http://localhost:${port}/api/docs`);
+    console.log(
+      `📚 Swagger documentation available at: http://localhost:${port}/api/docs`,
+    );
   }
 
   await app.listen(port);

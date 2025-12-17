@@ -1,10 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DigestService } from '../../../src/modules/notifications/digest.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Dump, ContentType, ProcessingStatus } from '../../../src/entities/dump.entity';
+import {
+  Dump,
+  ContentType,
+  ProcessingStatus,
+} from '../../../src/entities/dump.entity';
+import { User } from '../../../src/entities/user.entity';
 import { ReminderService } from '../../../src/modules/reminders/reminder.service';
 import { ReminderStatus } from '../../../src/entities/reminder.entity';
 import { Repository } from 'typeorm';
+import { TranslationService } from '../../../src/modules/ai/translation.service';
 
 describe('DigestService', () => {
   let service: DigestService;
@@ -53,6 +59,18 @@ describe('DigestService', () => {
       getUserReminders: jest.fn(),
     };
 
+    const mockUserRepo = {
+      findOne: jest.fn(),
+    };
+
+    const mockTranslationService = {
+      translate: jest.fn().mockResolvedValue({
+        translatedText: 'Translated text',
+        detectedSourceLanguage: 'en',
+      }),
+      translateBatch: jest.fn().mockResolvedValue(['Translated text']),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DigestService,
@@ -61,8 +79,16 @@ describe('DigestService', () => {
           useValue: mockDumpRepo,
         },
         {
+          provide: getRepositoryToken(User),
+          useValue: mockUserRepo,
+        },
+        {
           provide: ReminderService,
           useValue: mockReminderService,
+        },
+        {
+          provide: TranslationService,
+          useValue: mockTranslationService,
         },
       ],
     }).compile();
@@ -78,7 +104,9 @@ describe('DigestService', () => {
 
       dumpRepository.find.mockResolvedValue([mockDump] as any);
       reminderService.getUserReminders.mockResolvedValue([mockReminder] as any);
-      reminderService.getUpcomingReminders.mockResolvedValue([mockReminder] as any);
+      reminderService.getUpcomingReminders.mockResolvedValue([
+        mockReminder,
+      ] as any);
 
       const result = await service.generateDailyDigest(userId);
 
@@ -121,7 +149,9 @@ describe('DigestService', () => {
     it('should generate morning-focused digest', async () => {
       dumpRepository.find.mockResolvedValue([mockDump] as any);
       reminderService.getUserReminders.mockResolvedValue([mockReminder] as any);
-      reminderService.getUpcomingReminders.mockResolvedValue([mockReminder] as any);
+      reminderService.getUpcomingReminders.mockResolvedValue([
+        mockReminder,
+      ] as any);
 
       const result = await service.generateMorningDigest('user-123');
 
@@ -129,7 +159,7 @@ describe('DigestService', () => {
       expect(result.summary).toBeDefined();
     });
 
-    it('should prioritize today\'s tasks', async () => {
+    it("should prioritize today's tasks", async () => {
       const todayReminder = {
         ...mockReminder,
         scheduled_for: new Date(),
@@ -161,7 +191,9 @@ describe('DigestService', () => {
     it('should generate evening-focused digest', async () => {
       dumpRepository.find.mockResolvedValue([mockDump] as any);
       reminderService.getUserReminders.mockResolvedValue([mockReminder] as any);
-      reminderService.getUpcomingReminders.mockResolvedValue([mockReminder] as any);
+      reminderService.getUpcomingReminders.mockResolvedValue([
+        mockReminder,
+      ] as any);
 
       const result = await service.generateEveningDigest('user-123');
 
@@ -169,15 +201,19 @@ describe('DigestService', () => {
       expect(result.summary).toBeDefined();
     });
 
-    it('should include tomorrow\'s preview', async () => {
+    it("should include tomorrow's preview", async () => {
       const tomorrowReminder = {
         ...mockReminder,
         scheduled_for: new Date(Date.now() + 24 * 60 * 60 * 1000),
       };
 
       dumpRepository.find.mockResolvedValue([mockDump] as any);
-      reminderService.getUserReminders.mockResolvedValue([tomorrowReminder] as any);
-      reminderService.getUpcomingReminders.mockResolvedValue([tomorrowReminder] as any);
+      reminderService.getUserReminders.mockResolvedValue([
+        tomorrowReminder,
+      ] as any);
+      reminderService.getUpcomingReminders.mockResolvedValue([
+        tomorrowReminder,
+      ] as any);
 
       const result = await service.generateEveningDigest('user-123');
 
@@ -189,7 +225,9 @@ describe('DigestService', () => {
     it('should format digest as HTML', async () => {
       dumpRepository.find.mockResolvedValue([mockDump] as any);
       reminderService.getUserReminders.mockResolvedValue([mockReminder] as any);
-      reminderService.getUpcomingReminders.mockResolvedValue([mockReminder] as any);
+      reminderService.getUpcomingReminders.mockResolvedValue([
+        mockReminder,
+      ] as any);
 
       const digest = await service.generateDailyDigest('user-123');
       const html = service.formatDigestAsHTML(digest);
@@ -221,10 +259,12 @@ describe('DigestService', () => {
     it('should format digest as plain text', async () => {
       dumpRepository.find.mockResolvedValue([mockDump] as any);
       reminderService.getUserReminders.mockResolvedValue([mockReminder] as any);
-      reminderService.getUpcomingReminders.mockResolvedValue([mockReminder] as any);
+      reminderService.getUpcomingReminders.mockResolvedValue([
+        mockReminder,
+      ] as any);
 
       const digest = await service.generateDailyDigest('user-123');
-      const text = service.formatDigestAsText(digest);
+      const text = await service.formatDigestAsText(digest);
 
       expect(text).toBeDefined();
       expect(text).not.toContain('<b>');

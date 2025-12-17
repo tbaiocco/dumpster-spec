@@ -2,12 +2,16 @@ import { AppDataSource } from '../../data-source';
 import { VectorService } from '../../src/modules/search/vector.service';
 import { ConfigService } from '@nestjs/config';
 import { DataSource, Repository } from 'typeorm';
-import { Dump, ContentType, ProcessingStatus } from '../../src/entities/dump.entity';
+import {
+  Dump,
+  ContentType,
+  ProcessingStatus,
+} from '../../src/entities/dump.entity';
 import { User } from '../../src/entities/user.entity';
 
 /**
  * Supabase Integration Test
- * 
+ *
  * This script tests real database operations with pgvector:
  * 1. Database connection to Supabase
  * 2. Vector storage and retrieval
@@ -35,10 +39,10 @@ async function testSupabaseIntegration() {
     console.log('\n🔧 Initializing services...');
     const configService = new ConfigService();
     vectorService = new VectorService(dataSource, configService);
-    
+
     // Initialize the VectorService (load the model)
     await vectorService.onModuleInit();
-    
+
     dumpRepository = dataSource.getRepository(Dump);
     userRepository = dataSource.getRepository(User);
 
@@ -60,7 +64,7 @@ async function testSupabaseIntegration() {
       'doctor appointment scheduled for Friday',
       'grocery shopping list for weekend',
       'meeting notes from client call',
-      'restaurant reservation confirmation'
+      'restaurant reservation confirmation',
     ];
 
     const embeddings: number[][] = [];
@@ -68,8 +72,10 @@ async function testSupabaseIntegration() {
       const start = Date.now();
       const response = await vectorService.generateEmbedding({ text });
       const duration = Date.now() - start;
-      
-      console.log(`  - "${text}": ${response.embedding.length}D vector (${duration}ms)`);
+
+      console.log(
+        `  - "${text}": ${response.embedding.length}D vector (${duration}ms)`,
+      );
       embeddings.push(response.embedding);
     }
     console.log('✅ Embedding generation successful');
@@ -77,7 +83,7 @@ async function testSupabaseIntegration() {
     // 5. Test Vector Storage
     console.log('\n💾 Testing vector storage in Supabase...');
     const testDumps: Dump[] = [];
-    
+
     for (let i = 0; i < testTexts.length; i++) {
       const dump = dumpRepository.create({
         user_id: testUser.id,
@@ -87,7 +93,7 @@ async function testSupabaseIntegration() {
         content_vector: embeddings[i],
         ai_confidence: 95,
       });
-      
+
       const savedDump = await dumpRepository.save(dump);
       testDumps.push(savedDump);
       console.log(`  - Stored: "${testTexts[i]}" (ID: ${savedDump.id})`);
@@ -96,7 +102,7 @@ async function testSupabaseIntegration() {
 
     // 6. Test Semantic Search
     console.log('\n🔍 Testing semantic similarity search...');
-    
+
     const searchQueries = [
       'power bill payment',
       'medical appointment',
@@ -105,13 +111,16 @@ async function testSupabaseIntegration() {
 
     for (const query of searchQueries) {
       console.log(`\n🔎 Searching for: "${query}"`);
-      
-      const queryResponse = await vectorService.generateEmbedding({ text: query });
+
+      const queryResponse = await vectorService.generateEmbedding({
+        text: query,
+      });
       const queryEmbedding = queryResponse.embedding;
-      
+
       // Perform cosine similarity search
       const searchStart = Date.now();
-      const results = await dataSource.query(`
+      const results = await dataSource.query(
+        `
         SELECT 
           id,
           raw_content,
@@ -121,19 +130,23 @@ async function testSupabaseIntegration() {
           AND content_vector IS NOT NULL
         ORDER BY content_vector <=> $1::vector
         LIMIT 3
-      `, [JSON.stringify(queryEmbedding), testUser.id]);
+      `,
+        [JSON.stringify(queryEmbedding), testUser.id],
+      );
       const searchDuration = Date.now() - searchStart;
-      
+
       console.log(`  Search completed in ${searchDuration}ms:`);
       for (const [index, result] of results.entries()) {
-        console.log(`    ${index + 1}. "${result.raw_content}" (${(result.similarity_score * 100).toFixed(2)}% match)`);
+        console.log(
+          `    ${index + 1}. "${result.raw_content}" (${(result.similarity_score * 100).toFixed(2)}% match)`,
+        );
       }
     }
     console.log('✅ Semantic search successful');
 
     // 7. Performance Benchmarking
     console.log('\n⚡ Running performance benchmarks...');
-    
+
     // Test embedding generation speed
     const embeddingTests = 10;
     const embeddingStart = Date.now();
@@ -141,22 +154,29 @@ async function testSupabaseIntegration() {
       await vectorService.generateEmbedding({ text: `test embedding ${i}` });
     }
     const embeddingAvg = (Date.now() - embeddingStart) / embeddingTests;
-    console.log(`  - Average embedding generation: ${embeddingAvg.toFixed(2)}ms`);
-    
+    console.log(
+      `  - Average embedding generation: ${embeddingAvg.toFixed(2)}ms`,
+    );
+
     // Test search speed
     const searchTests = 10;
     const searchStart = Date.now();
-    const testQueryResponse = await vectorService.generateEmbedding({ text: 'test query' });
+    const testQueryResponse = await vectorService.generateEmbedding({
+      text: 'test query',
+    });
     const testQuery = testQueryResponse.embedding;
-    
+
     for (let i = 0; i < searchTests; i++) {
-      await dataSource.query(`
+      await dataSource.query(
+        `
         SELECT id, raw_content
         FROM dumps 
         WHERE user_id = $1 AND content_vector IS NOT NULL
         ORDER BY content_vector <=> $2::vector
         LIMIT 5
-      `, [testUser.id, JSON.stringify(testQuery)]);
+      `,
+        [testUser.id, JSON.stringify(testQuery)],
+      );
     }
     const searchAvg = (Date.now() - searchStart) / searchTests;
     console.log(`  - Average search query: ${searchAvg.toFixed(2)}ms`);
@@ -174,7 +194,6 @@ async function testSupabaseIntegration() {
     console.log(`  - Embedding: ${embeddingAvg.toFixed(2)}ms average`);
     console.log(`  - Search: ${searchAvg.toFixed(2)}ms average`);
     console.log(`  - Test data: ${testDumps.length} dumps created`);
-
   } catch (error) {
     console.error('\n❌ Supabase Integration Test FAILED!');
     console.error('Error:', error.message);

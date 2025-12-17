@@ -2,7 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CalendarService } from '../../../src/modules/calendar/calendar.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Dump } from '../../../src/entities/dump.entity';
-import { Reminder, ReminderStatus } from '../../../src/entities/reminder.entity';
+import {
+  Reminder,
+  ReminderStatus,
+} from '../../../src/entities/reminder.entity';
 import { Repository } from 'typeorm';
 
 describe('CalendarService', () => {

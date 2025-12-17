@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { VisionService } from './vision.service';
 import { EntityExtractionService } from './extraction.service';
+import * as mammoth from 'mammoth';
+import * as XLSX from 'xlsx';
+const { PDFParse } = require('pdf-parse');
 
 export interface DocumentProcessingResult {
   documentType: DocumentType;
@@ -37,13 +40,13 @@ export interface DocumentEntities {
     currency: string;
     label?: string; // e.g., 'total', 'subtotal', 'tax'
   }>;
-  
+
   // Date information
   dates?: Array<{
     date: Date;
     label?: string; // e.g., 'transaction_date', 'due_date', 'expiry'
   }>;
-  
+
   // Contact information
   contacts?: Array<{
     name?: string;
@@ -52,7 +55,7 @@ export interface DocumentEntities {
     address?: string;
     role?: string; // e.g., 'vendor', 'customer', 'merchant'
   }>;
-  
+
   // Business information
   businesses?: Array<{
     name: string;
@@ -61,7 +64,7 @@ export interface DocumentEntities {
     taxId?: string;
     website?: string;
   }>;
-  
+
   // Item/Product information (for receipts/invoices)
   items?: Array<{
     name: string;
@@ -69,7 +72,7 @@ export interface DocumentEntities {
     price?: number;
     category?: string;
   }>;
-  
+
   // Account/Reference numbers
   references?: Array<{
     type: string; // e.g., 'invoice_number', 'account_number', 'reference_id'
@@ -104,57 +107,107 @@ export class DocumentProcessorService {
   ) {}
 
   /**
-   * Process a document image and extract structured information
+   * Process a document and extract structured information
+   * Supports: images (OCR), PDFs, Word documents, Excel spreadsheets
    */
-  async processDocument(imageBuffer: Buffer, mimeType: string): Promise<DocumentProcessingResult> {
+  async processDocument(
+    documentBuffer: Buffer,
+    mimeType: string,
+  ): Promise<DocumentProcessingResult> {
     try {
-      this.logger.log('Processing document image');
+      this.logger.log(`Processing document with mime type: ${mimeType}`);
 
-      // Step 1: Detect document type
-      const documentTypeResult = await this.detectDocumentType(imageBuffer, mimeType);
-      
-      // Step 2: Extract text using OCR
-      const ocrResult = await this.visionService.extractTextFromImage(imageBuffer, mimeType);
-      
-      // Step 3: Analyze layout
-      const layoutAnalysis = await this.analyzeLayout(imageBuffer, ocrResult);
-      
-      // Step 4: Extract structured data based on document type
-      const structuredData = await this.extractStructuredData(
+      let extractedText: string;
+      let confidence: number;
+      let layoutAnalysis: LayoutAnalysis;
+      let documentTypeResult: { type: DocumentType; confidence: number };
+
+      // Handle different document types
+      if (mimeType === 'application/pdf') {
+        // PDF processing
+        this.logger.log('Processing PDF document');
+        extractedText = await this.extractTextFromPDF(documentBuffer);
+        confidence = 0.9; // High confidence for PDF text extraction
+        documentTypeResult = { type: DocumentType.UNKNOWN, confidence: 0.8 };
+        layoutAnalysis = this.createDefaultLayout();
+      } else if (
+        mimeType ===
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        mimeType === 'application/msword'
+      ) {
+        // Word document processing
+        this.logger.log('Processing Word document');
+        extractedText = await this.extractTextFromWord(documentBuffer);
+        confidence = 0.95; // Very high confidence for Word extraction
+        documentTypeResult = { type: DocumentType.MEMO, confidence: 0.9 };
+        layoutAnalysis = this.createDefaultLayout();
+      } else if (
+        mimeType ===
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+        mimeType === 'application/vnd.ms-excel'
+      ) {
+        // Excel spreadsheet processing
+        this.logger.log('Processing Excel spreadsheet');
+        extractedText = await this.extractTextFromExcel(documentBuffer);
+        confidence = 0.9; // High confidence for Excel extraction
+        documentTypeResult = { type: DocumentType.STATEMENT, confidence: 0.85 };
+        layoutAnalysis = this.createDefaultLayout();
+      } else if (mimeType.startsWith('image/')) {
+        // Image processing with OCR
+        this.logger.log('Processing image with OCR');
+        documentTypeResult = await this.detectDocumentType(
+          documentBuffer,
+          mimeType,
+        );
+        const ocrResult = await this.visionService.extractTextFromImage(
+          documentBuffer,
+          mimeType,
+        );
+        extractedText = ocrResult.text;
+        confidence = ocrResult.confidence;
+        layoutAnalysis = this.analyzeLayout(documentBuffer, ocrResult);
+      } else {
+        throw new Error(`Unsupported document type: ${mimeType}`);
+      }
+
+      // Extract structured data based on document type
+      const structuredData = this.extractStructuredData(
         documentTypeResult.type,
-        ocrResult.text,
-        layoutAnalysis
-      );
-      
-      // Step 5: Extract entities specific to document type
-      const entities = await this.extractDocumentEntities(
-        documentTypeResult.type,
-        ocrResult.text,
-        structuredData
+        extractedText,
+        layoutAnalysis,
       );
 
-      // Step 6: Calculate quality and confidence scores
-      const qualityScore = this.calculateQualityScore(ocrResult, layoutAnalysis);
-      const overallConfidence = (documentTypeResult.confidence + ocrResult.confidence + qualityScore) / 3;
+      // Extract entities specific to document type
+      const entities = this.extractDocumentEntities(
+        documentTypeResult.type,
+        extractedText,
+        structuredData,
+      );
+
+      // Calculate quality score
+      const qualityScore = extractedText.length > 0 ? 0.8 : 0.3;
+      const overallConfidence =
+        (documentTypeResult.confidence + confidence + qualityScore) / 3;
 
       const result: DocumentProcessingResult = {
         documentType: documentTypeResult.type,
-        extractedText: ocrResult.text,
+        extractedText,
         confidence: overallConfidence,
         entities,
         structuredData,
         processingMetadata: {
-          ocrConfidence: ocrResult.confidence,
+          ocrConfidence: confidence,
           layoutAnalysis,
           detectedFields: Object.keys(structuredData),
           qualityScore,
         },
       };
 
-      this.logger.log(`Document processed: ${documentTypeResult.type} (confidence: ${Math.round(overallConfidence * 100)}%)`);
+      this.logger.log(
+        `Document processed: ${documentTypeResult.type} (confidence: ${Math.round(overallConfidence * 100)}%)`,
+      );
 
       return result;
-
     } catch (error) {
       this.logger.error('Error processing document:', error);
       throw error;
@@ -162,16 +215,90 @@ export class DocumentProcessorService {
   }
 
   /**
+   * Extract text from PDF document
+   */
+  private async extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
+    try {
+      const parser = new PDFParse({ data: pdfBuffer });
+      const result = await parser.getText();
+      return result.text.trim();
+    } catch (error) {
+      this.logger.error(`Failed to extract text from PDF: ${error.message}`);
+      throw new Error(`PDF extraction failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Extract text from Word document (.docx or .doc)
+   */
+  private async extractTextFromWord(wordBuffer: Buffer): Promise<string> {
+    try {
+      const result = await mammoth.extractRawText({ buffer: wordBuffer });
+      return result.value.trim();
+    } catch (error) {
+      this.logger.error(`Failed to extract text from Word: ${error.message}`);
+      throw new Error(`Word extraction failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Extract text from Excel spreadsheet (.xlsx or .xls)
+   */
+  private async extractTextFromExcel(excelBuffer: Buffer): Promise<string> {
+    try {
+      const workbook = XLSX.read(excelBuffer, { type: 'buffer' });
+      const allText: string[] = [];
+
+      // Process all sheets
+      workbook.SheetNames.forEach((sheetName) => {
+        const sheet = workbook.Sheets[sheetName];
+        allText.push(`Sheet: ${sheetName}\n`);
+
+        // Convert sheet to CSV format for text extraction
+        const csvData = XLSX.utils.sheet_to_csv(sheet);
+        allText.push(csvData);
+        allText.push('\n');
+      });
+
+      return allText.join('\n').trim();
+    } catch (error) {
+      this.logger.error(`Failed to extract text from Excel: ${error.message}`);
+      throw new Error(`Excel extraction failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create default layout analysis for non-image documents
+   */
+  private createDefaultLayout(): LayoutAnalysis {
+    return {
+      structure: 'single_column',
+      hasHeader: false,
+      hasFooter: false,
+      hasTable: false,
+      hasSignature: false,
+      hasLogo: false,
+      textRegions: [],
+    };
+  }
+
+  /**
    * Detect the type of document
    */
-  private async detectDocumentType(imageBuffer: Buffer, mimeType: string): Promise<{
+  private async detectDocumentType(
+    imageBuffer: Buffer,
+    mimeType: string,
+  ): Promise<{
     type: DocumentType;
     confidence: number;
   }> {
     try {
       // Use vision service for initial detection
-      const visionResult = await this.visionService.detectDocumentType(imageBuffer, mimeType);
-      
+      const visionResult = await this.visionService.detectDocumentType(
+        imageBuffer,
+        mimeType,
+      );
+
       // Map vision service results to our document types
       let documentType = DocumentType.UNKNOWN;
       let confidence = 0.5;
@@ -188,7 +315,6 @@ export class DocumentProcessorService {
       }
 
       return { type: documentType, confidence };
-
     } catch (error) {
       this.logger.error('Error detecting document type:', error);
       return { type: DocumentType.UNKNOWN, confidence: 0.3 };
@@ -198,15 +324,15 @@ export class DocumentProcessorService {
   /**
    * Analyze document layout and structure
    */
-  private async analyzeLayout(
+  private analyzeLayout(
     imageBuffer: Buffer,
-    ocrResult: { text: string; confidence: number; boundingBoxes?: any[] }
-  ): Promise<LayoutAnalysis> {
+    ocrResult: { text: string; confidence: number; boundingBoxes?: any[] },
+  ): LayoutAnalysis {
     // Simplified layout analysis - in a real implementation, this would use
     // more sophisticated computer vision techniques
-    
+
     const text = ocrResult.text.toLowerCase();
-    
+
     return {
       structure: this.determineStructure(text),
       hasHeader: this.hasHeader(text),
@@ -221,26 +347,26 @@ export class DocumentProcessorService {
   /**
    * Extract structured data based on document type
    */
-  private async extractStructuredData(
+  private extractStructuredData(
     documentType: DocumentType,
     text: string,
-    layout: LayoutAnalysis
-  ): Promise<Record<string, any>> {
+    layout: LayoutAnalysis,
+  ): Record<string, any> {
     const structuredData: Record<string, any> = {};
 
     switch (documentType) {
       case DocumentType.RECEIPT:
         return this.extractReceiptData(text);
-      
+
       case DocumentType.INVOICE:
         return this.extractInvoiceData(text);
-      
+
       case DocumentType.BILL:
         return this.extractBillData(text);
-      
+
       case DocumentType.BUSINESS_CARD:
         return this.extractBusinessCardData(text);
-      
+
       default:
         return this.extractGenericDocumentData(text);
     }
@@ -249,30 +375,33 @@ export class DocumentProcessorService {
   /**
    * Extract entities specific to the document type
    */
-  private async extractDocumentEntities(
+  private extractDocumentEntities(
     documentType: DocumentType,
     text: string,
-    structuredData: Record<string, any>
-  ): Promise<DocumentEntities> {
+    structuredData: Record<string, any>,
+  ): DocumentEntities {
     const entities: DocumentEntities = {};
 
     // Extract amounts
     entities.amounts = this.extractAmounts(text);
-    
+
     // Extract dates
     entities.dates = this.extractDates(text);
-    
+
     // Extract contacts
     entities.contacts = this.extractContacts(text);
-    
+
     // Extract business information
     entities.businesses = this.extractBusinesses(text);
-    
+
     // Extract items (for receipts/invoices)
-    if (documentType === DocumentType.RECEIPT || documentType === DocumentType.INVOICE) {
+    if (
+      documentType === DocumentType.RECEIPT ||
+      documentType === DocumentType.INVOICE
+    ) {
       entities.items = this.extractItems(text);
     }
-    
+
     // Extract reference numbers
     entities.references = this.extractReferences(text, documentType);
 
@@ -331,9 +460,12 @@ export class DocumentProcessorService {
   }
 
   // Helper methods for specific data extraction
-  private extractAmounts(text: string): Array<{ value: number; currency: string; label?: string }> {
-    const amounts: Array<{ value: number; currency: string; label?: string }> = [];
-    
+  private extractAmounts(
+    text: string,
+  ): Array<{ value: number; currency: string; label?: string }> {
+    const amounts: Array<{ value: number; currency: string; label?: string }> =
+      [];
+
     // Regular expressions for common currency formats
     const patterns = [
       /\$(\d+(?:,\d{3})*(?:\.\d{2})?)/g, // USD format
@@ -359,7 +491,7 @@ export class DocumentProcessorService {
 
   private extractDates(text: string): Array<{ date: Date; label?: string }> {
     const dates: Array<{ date: Date; label?: string }> = [];
-    
+
     // Simple date extraction patterns
     const patterns = [
       /(\d{1,2}\/\d{1,2}\/\d{4})/g,
@@ -372,7 +504,7 @@ export class DocumentProcessorService {
       while ((match = pattern.exec(text)) !== null) {
         const dateStr = match[1] || match[0];
         const parsedDate = new Date(dateStr);
-        
+
         if (!Number.isNaN(parsedDate.getTime())) {
           dates.push({ date: parsedDate });
         }
@@ -382,17 +514,24 @@ export class DocumentProcessorService {
     return dates;
   }
 
-  private extractContacts(text: string): Array<{ name?: string; email?: string; phone?: string }> {
-    const contacts: Array<{ name?: string; email?: string; phone?: string }> = [];
-    
-    const emails = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
-    const phones = text.match(/(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/g) || [];
+  private extractContacts(
+    text: string,
+  ): Array<{ name?: string; email?: string; phone?: string }> {
+    const contacts: Array<{ name?: string; email?: string; phone?: string }> =
+      [];
+
+    const emails =
+      text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+    const phones =
+      text.match(
+        /(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/g,
+      ) || [];
 
     // Create contact entries
     for (const email of emails) {
       contacts.push({ email });
     }
-    
+
     for (const phone of phones) {
       contacts.push({ phone });
     }
@@ -400,13 +539,16 @@ export class DocumentProcessorService {
     return contacts;
   }
 
-  private extractBusinesses(text: string): Array<{ name: string; address?: string }> {
+  private extractBusinesses(
+    text: string,
+  ): Array<{ name: string; address?: string }> {
     // Simplified business extraction - would need more sophisticated NLP
     const businesses: Array<{ name: string; address?: string }> = [];
-    
+
     // Look for patterns that might indicate business names
     const lines = text.split('\n');
-    for (const line of lines.slice(0, 5)) { // Check first few lines
+    for (const line of lines.slice(0, 5)) {
+      // Check first few lines
       if (line.trim().length > 3 && line.match(/^[A-Z][A-Za-z\s&,.-]+$/)) {
         businesses.push({ name: line.trim() });
         break; // Usually the first valid line is the business name
@@ -416,9 +558,12 @@ export class DocumentProcessorService {
     return businesses;
   }
 
-  private extractItems(text: string): Array<{ name: string; quantity?: number; price?: number }> {
-    const items: Array<{ name: string; quantity?: number; price?: number }> = [];
-    
+  private extractItems(
+    text: string,
+  ): Array<{ name: string; quantity?: number; price?: number }> {
+    const items: Array<{ name: string; quantity?: number; price?: number }> =
+      [];
+
     // Look for line items with prices
     const lines = text.split('\n');
     for (const line of lines) {
@@ -434,9 +579,12 @@ export class DocumentProcessorService {
     return items.slice(0, 20); // Limit to 20 items
   }
 
-  private extractReferences(text: string, documentType: DocumentType): Array<{ type: string; value: string }> {
+  private extractReferences(
+    text: string,
+    documentType: DocumentType,
+  ): Array<{ type: string; value: string }> {
     const references: Array<{ type: string; value: string }> = [];
-    
+
     // Extract common reference patterns based on document type
     if (documentType === DocumentType.INVOICE) {
       const invoiceMatch = text.match(/(?:invoice|inv)\s*#?\s*([A-Z0-9-]+)/i);
@@ -471,11 +619,16 @@ export class DocumentProcessorService {
   }
 
   private hasTable(text: string): boolean {
-    return text.includes('\t') || text.match(/\s{3,}\d+(?:\.\d{2})?\s*$/m) !== null;
+    return (
+      text.includes('\t') || text.match(/\s{3,}\d+(?:\.\d{2})?\s*$/m) !== null
+    );
   }
 
   private hasSignature(text: string): boolean {
-    return text.toLowerCase().includes('signature') || text.toLowerCase().includes('signed');
+    return (
+      text.toLowerCase().includes('signature') ||
+      text.toLowerCase().includes('signed')
+    );
   }
 
   private hasLogo(text: string): boolean {
@@ -483,21 +636,23 @@ export class DocumentProcessorService {
     return false;
   }
 
-  private extractTextRegions(boundingBoxes: any[]): LayoutAnalysis['textRegions'] {
+  private extractTextRegions(
+    boundingBoxes: any[],
+  ): LayoutAnalysis['textRegions'] {
     // Simplified - would use actual bounding box data from OCR
     return [];
   }
 
   private calculateQualityScore(
     ocrResult: { confidence: number },
-    layout: LayoutAnalysis
+    layout: LayoutAnalysis,
   ): number {
     let score = ocrResult.confidence;
-    
+
     // Adjust score based on layout analysis
     if (layout.structure === 'table') score *= 0.9; // Tables are harder to process
     if (layout.hasHeader && layout.hasFooter) score *= 1.1; // Well-structured documents
-    
+
     return Math.max(0, Math.min(1, score));
   }
 
@@ -529,7 +684,10 @@ export class DocumentProcessorService {
   }
 
   private extractLineItems(text: string): string[] {
-    return text.split('\n').slice(1, -3).filter(line => line.trim().length > 0);
+    return text
+      .split('\n')
+      .slice(1, -3)
+      .filter((line) => line.trim().length > 0);
   }
 
   private extractInvoiceNumber(text: string): string | undefined {
@@ -547,7 +705,9 @@ export class DocumentProcessorService {
   }
 
   private extractDueDate(text: string): string | undefined {
-    const dueDateMatch = text.match(/due\s+date\s*:?\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
+    const dueDateMatch = text.match(
+      /due\s+date\s*:?\s*(\d{1,2}\/\d{1,2}\/\d{4})/i,
+    );
     return dueDateMatch ? dueDateMatch[1] : undefined;
   }
 
@@ -585,17 +745,23 @@ export class DocumentProcessorService {
   }
 
   private extractEmail(text: string): string | undefined {
-    const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const emailMatch = text.match(
+      /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/,
+    );
     return emailMatch ? emailMatch[0] : undefined;
   }
 
   private extractPhoneNumber(text: string): string | undefined {
-    const phoneMatch = text.match(/(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/);
+    const phoneMatch = text.match(
+      /(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/,
+    );
     return phoneMatch ? phoneMatch[0] : undefined;
   }
 
   private extractWebsite(text: string): string | undefined {
-    const websiteMatch = text.match(/(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z]{2,})/);
+    const websiteMatch = text.match(
+      /(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z]{2,})/,
+    );
     return websiteMatch ? websiteMatch[0] : undefined;
   }
 
@@ -605,9 +771,10 @@ export class DocumentProcessorService {
 
   private extractKeyTerms(text: string): string[] {
     // Simple key term extraction - would use NLP for better results
-    return text.toLowerCase()
+    return text
+      .toLowerCase()
       .split(/\W+/)
-      .filter(word => word.length > 3)
+      .filter((word) => word.length > 3)
       .slice(0, 10);
   }
 }

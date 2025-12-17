@@ -98,6 +98,11 @@ jest_0/
 
 # Deployment
 .vercel/
+.railway/
+
+# Railway tokens and secrets (just in case)
+railway-token.txt
+.railway-token
 .netlify/
 
 # Supabase

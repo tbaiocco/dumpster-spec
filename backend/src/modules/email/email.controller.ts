@@ -7,10 +7,17 @@ import {
   HttpStatus,
   Logger,
   BadRequestException,
-
+  UseInterceptors,
+  UploadedFiles,
+  Req,
 } from '@nestjs/common';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
+import type { Request } from 'express';
 import { EmailProcessorService } from './email-processor.service';
 import { DumpService } from '../dumps/services/dump.service';
+import { UserService } from '../users/user.service';
+import { MetricsService } from '../metrics/metrics.service';
+import { FeatureType } from '../../entities/feature-usage.entity';
 
 // Define email webhook payload interfaces
 interface EmailWebhookPayload {
@@ -54,6 +61,8 @@ export class EmailController {
   constructor(
     private readonly emailProcessor: EmailProcessorService,
     private readonly dumpService: DumpService,
+    private readonly userService: UserService,
+    private readonly metricsService: MetricsService,
   ) {}
 
   /**
@@ -67,7 +76,9 @@ export class EmailController {
     @Headers() headers: Record<string, string>,
   ): Promise<EmailWebhookResponse> {
     try {
-      this.logger.log(`Received email webhook for message: ${payload.messageId}`);
+      this.logger.log(
+        `Received email webhook for message: ${payload.messageId}`,
+      );
 
       // Validate webhook authenticity
       await this.validateWebhookSignature(headers, payload);
@@ -79,24 +90,44 @@ export class EmailController {
       const emailMessage = await this.convertWebhookToEmailMessage(payload);
 
       // Process email using EmailProcessorService
-      const processedEmail = await this.emailProcessor.processEmail(emailMessage);
+      const processedEmail =
+        await this.emailProcessor.processEmail(emailMessage);
 
-      // Create dump entry from processed email
-      const dump = await this.createDumpFromEmail(processedEmail);
+      // Create dumps from email (one for body text, one per attachment)
+      const dumps = await this.createDumpsFromEmail(processedEmail);
 
       const response: EmailWebhookResponse = {
         success: true,
         messageId: payload.messageId,
         processedAt: new Date().toISOString(),
         extractedText: processedEmail.extractedText,
-        attachmentCount: processedEmail.processedAttachments.length,
+        attachmentCount: processedEmail.attachments.length,
       };
 
-      this.logger.log(`Successfully processed email ${payload.messageId} as dump ${dump.id}`);
-      return response;
+      // TRACK EMAIL PROCESSING FEATURE (Fire-and-Forget)
+      const userId = await this.getEmailUserId(payload.from);
+      this.metricsService.fireAndForget(() =>
+        this.metricsService.trackFeature({
+          featureType: FeatureType.EMAIL_PROCESSED,
+          detail: 'webhook_inbound',
+          userId,
+          metadata: {
+            hasAttachments: (payload.attachments?.length || 0) > 0,
+            attachmentCount: payload.attachments?.length || 0,
+            dumpsCreated: dumps.length,
+          },
+        }),
+      );
 
+      this.logger.log(
+        `Successfully processed email ${payload.messageId}, created ${dumps.length} dump(s)`,
+      );
+      return response;
     } catch (error) {
-      this.logger.error(`Failed to process email webhook: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to process email webhook: ${error.message}`,
+        error.stack,
+      );
 
       const errorResponse: EmailWebhookResponse = {
         success: false,
@@ -112,27 +143,55 @@ export class EmailController {
 
   /**
    * Webhook endpoint for SendGrid-specific format
+   * SendGrid sends multipart/form-data, not JSON
    */
   @Post('webhook/sendgrid')
   @HttpCode(HttpStatus.OK)
+  @UseInterceptors(AnyFilesInterceptor())
   async handleSendGridWebhook(
-    @Body() payload: any,
+    @Req() req: Request,
+    @Body() body: any,
+    @UploadedFiles() files: Array<Express.Multer.File>,
     @Headers() headers: Record<string, string>,
   ): Promise<EmailWebhookResponse> {
     try {
       this.logger.log('Received SendGrid email webhook');
+      this.logger.debug(
+        `SendGrid body keys: ${Object.keys(body || {}).join(', ')}`,
+      );
+      this.logger.debug(`SendGrid files count: ${files?.length || 0}`);
 
       // Convert SendGrid format to standard format
-      const standardPayload = this.convertSendGridPayload(payload);
+      const standardPayload = this.convertSendGridPayload(body, files);
 
       // Process using standard webhook handler
-      return await this.handleInboundEmail(standardPayload, headers);
+      const result = await this.handleInboundEmail(standardPayload, headers);
 
+      // TRACK EMAIL PROCESSING FEATURE (Fire-and-Forget)
+      if (result.success) {
+        const userId = await this.getEmailUserId(standardPayload.from);
+        this.metricsService.fireAndForget(() =>
+          this.metricsService.trackFeature({
+            featureType: FeatureType.EMAIL_PROCESSED,
+            detail: 'webhook_sendgrid',
+            userId,
+            metadata: {
+              hasAttachments: (standardPayload.attachments?.length || 0) > 0,
+              attachmentCount: standardPayload.attachments?.length || 0,
+            },
+          }),
+        );
+      }
+
+      return result;
     } catch (error) {
-      this.logger.error(`Failed to process SendGrid webhook: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to process SendGrid webhook: ${error.message}`,
+        error.stack,
+      );
       return {
         success: false,
-        messageId: payload.messageId || 'unknown',
+        messageId: body?.messageId || 'unknown',
         processedAt: new Date().toISOString(),
         errors: [error.message],
       };
@@ -155,10 +214,30 @@ export class EmailController {
       const standardPayload = this.convertMailgunPayload(payload);
 
       // Process using standard webhook handler
-      return await this.handleInboundEmail(standardPayload, headers);
+      const result = await this.handleInboundEmail(standardPayload, headers);
 
+      // TRACK EMAIL PROCESSING FEATURE (Fire-and-Forget)
+      if (result.success) {
+        const userId = await this.getEmailUserId(standardPayload.from);
+        this.metricsService.fireAndForget(() =>
+          this.metricsService.trackFeature({
+            featureType: FeatureType.EMAIL_PROCESSED,
+            detail: 'webhook_mailgun',
+            userId,
+            metadata: {
+              hasAttachments: (standardPayload.attachments?.length || 0) > 0,
+              attachmentCount: standardPayload.attachments?.length || 0,
+            },
+          }),
+        );
+      }
+
+      return result;
     } catch (error) {
-      this.logger.error(`Failed to process Mailgun webhook: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to process Mailgun webhook: ${error.message}`,
+        error.stack,
+      );
       return {
         success: false,
         messageId: payload.messageId || 'unknown',
@@ -190,7 +269,7 @@ export class EmailController {
     // In a real implementation, this would verify webhook signatures
     // For now, just check for a basic API key
     const apiKey = headers['x-api-key'] || headers['authorization'];
-    
+
     if (!apiKey) {
       this.logger.warn('Missing API key in webhook request');
       // Don't throw error for now - just log warning
@@ -228,7 +307,9 @@ export class EmailController {
     }
 
     if (errors.length > 0) {
-      throw new BadRequestException(`Invalid email payload: ${errors.join(', ')}`);
+      throw new BadRequestException(
+        `Invalid email payload: ${errors.join(', ')}`,
+      );
     }
   }
 
@@ -249,7 +330,7 @@ export class EmailController {
           contentId: att.contentId,
           disposition: att.disposition,
         };
-      })
+      }),
     );
 
     return {
@@ -268,53 +349,137 @@ export class EmailController {
   }
 
   /**
-   * Create dump entry from processed email
+   * Create dump entries from processed email
+   * Creates one dump per attachment with email body included as content
    */
-  private async createDumpFromEmail(processedEmail: any): Promise<any> {
-    // Extract relevant information for dump creation
-    const content = processedEmail.extractedText;
-    const metadata = {
-      source: 'email',
-      sender: processedEmail.metadata.sender,
-      timestamp: processedEmail.metadata.timestamp,
-      hasAttachments: processedEmail.metadata.hasAttachments,
-      attachmentCount: processedEmail.metadata.attachmentCount,
-      priority: processedEmail.metadata.priority,
-    };
+  private async createDumpsFromEmail(processedEmail: any): Promise<any[]> {
+    const dumps: any[] = [];
+    const userId = await this.getEmailUserId(processedEmail.metadata.sender);
 
-    // For now, create a simple text dump
-    // In the future, this could be enhanced to handle attachments separately
-    const dumpRequest = {
-      userId: this.getEmailUserId(processedEmail.metadata.sender).toString(),
-      content,
-      contentType: 'text' as const,
-      metadata: {
-        ...metadata,
-        source: 'email' as any, // Extend source type in the future
-      },
-    };
+    // Create one dump per attachment, including email body as content
+    for (const attachment of processedEmail.attachments) {
+      try {
+        // Determine content type based on MIME type
+        const contentType = this.mapMimeTypeToContentType(
+          attachment.contentType,
+        );
 
-    return await this.dumpService.createDump(dumpRequest);
+        // Include email body as additional context in the content field
+        const content = processedEmail.extractedText?.trim()
+          ? `${processedEmail.extractedText}\n\n---\nAttachment: ${attachment.filename}`
+          : `Email attachment: ${attachment.filename}`;
+
+        const attachmentDump = await this.dumpService.createDumpEnhanced({
+          userId,
+          content,
+          contentType,
+          mediaBuffer: attachment.content,
+          metadata: {
+            source: 'email',
+            messageId: processedEmail.metadata.messageId,
+            fileName: attachment.filename,
+            mimeType: attachment.contentType,
+            fileSize: attachment.size,
+            chatId: processedEmail.metadata.sender,
+          },
+        });
+
+        dumps.push(attachmentDump.dump);
+        this.logger.log(
+          `Created ${contentType} dump from attachment: ${attachmentDump.dump.id}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Failed to process attachment ${attachment.filename}: ${error.message}`,
+        );
+      }
+    }
+
+    return dumps;
+  }
+
+  /**
+   * Map MIME type to content type for CreateDumpRequest
+   */
+  private mapMimeTypeToContentType(
+    mimeType: string,
+  ): 'text' | 'voice' | 'image' | 'document' {
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.startsWith('audio/')) return 'voice';
+    if (
+      mimeType === 'application/pdf' ||
+      mimeType.includes('word') ||
+      mimeType.includes('document') ||
+      mimeType.includes('spreadsheet') ||
+      mimeType.includes('presentation')
+    ) {
+      return 'document';
+    }
+    return 'text';
   }
 
   /**
    * Get or create user ID from email address
    */
-  private getEmailUserId(emailAddress: string): number {
-    // This is a placeholder - in a real implementation,
-    // this would look up or create a user based on email address
-    return 1; // Default user ID for now
+  private async getEmailUserId(emailAddress: string): Promise<string> {
+    try {
+      // Extract email from "Name" <email@domain.com> format
+      const emailMatch = emailAddress.match(/<(.+?)>/);
+      const cleanEmail = emailMatch ? emailMatch[1] : emailAddress.trim();
+
+      this.logger.debug(`Extracted email: ${cleanEmail} from: ${emailAddress}`);
+
+      // Try to find existing user by email
+      const user = await this.userService.findByEmail(cleanEmail);
+
+      // If user doesn't exist, log and throw error
+      if (!user) {
+        const errorMsg = `No registered user found for email: ${cleanEmail}. Users must be registered before sending emails.`;
+        this.logger.warn(errorMsg);
+        throw new BadRequestException(errorMsg);
+      }
+
+      return user.id;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get user for email ${emailAddress}: ${error.message}`,
+      );
+      throw error;
+    }
   }
 
   /**
    * Convert SendGrid webhook payload to standard format
    */
-  private convertSendGridPayload(payload: any): EmailWebhookPayload {
+  private convertSendGridPayload(
+    payload: any,
+    files?: Array<Express.Multer.File>,
+  ): EmailWebhookPayload {
     // SendGrid webhook format conversion
+    if (!payload) {
+      throw new BadRequestException('Empty payload received from SendGrid');
+    }
+
+    this.logger.debug(
+      `Converting SendGrid payload with keys: ${Object.keys(payload).join(', ')}`,
+    );
+
+    // Extract messageId from headers string if present
+    let messageId = '';
+    if (payload.headers) {
+      const headersStr = payload.headers;
+      const messageIdMatch = headersStr.match(/Message-ID:\s*<(.+?)>/i);
+      if (messageIdMatch) {
+        messageId = messageIdMatch[1];
+      }
+    }
+
+    this.logger.debug(`Extracted messageId: ${messageId}`);
+
     return {
-      messageId: payload.messageId || payload['message-id'] || '',
-      from: payload.from || payload.fromEmail || '',
-      to: this.parseEmailList(payload.to || payload.toEmail || ''),
+      messageId,
+      from: payload.from || payload.email || '',
+      to: this.parseEmailList(payload.to || ''),
       cc: this.parseEmailList(payload.cc || ''),
       bcc: this.parseEmailList(payload.bcc || ''),
       subject: payload.subject || '',
@@ -322,7 +487,10 @@ export class EmailController {
       htmlBody: payload.html || payload['body-html'],
       receivedDate: payload.timestamp || new Date().toISOString(),
       headers: payload.headers || {},
-      attachments: this.convertSendGridAttachments(payload.attachments || []),
+      attachments: this.convertSendGridAttachments(
+        payload.attachments || [],
+        files,
+      ),
     };
   }
 
@@ -340,7 +508,8 @@ export class EmailController {
       subject: payload.Subject || payload.subject || '',
       textBody: payload['body-plain'] || payload.text,
       htmlBody: payload['body-html'] || payload.html,
-      receivedDate: payload.Date || payload.timestamp || new Date().toISOString(),
+      receivedDate:
+        payload.Date || payload.timestamp || new Date().toISOString(),
       headers: this.parseMailgunHeaders(payload),
       attachments: this.convertMailgunAttachments(payload.attachments || []),
     };
@@ -351,14 +520,34 @@ export class EmailController {
    */
   private parseEmailList(emailString: string): string[] {
     if (!emailString) return [];
-    return emailString.split(',').map(email => email.trim()).filter(Boolean);
+    return emailString
+      .split(',')
+      .map((email) => email.trim())
+      .filter(Boolean);
   }
 
   /**
    * Convert SendGrid attachments format
+   * SendGrid sends attachments as uploaded files via multipart/form-data
    */
-  private convertSendGridAttachments(attachments: any[]): EmailWebhookAttachment[] {
-    return attachments.map(att => ({
+  private convertSendGridAttachments(
+    attachments: any[],
+    files?: Array<Express.Multer.File>,
+  ): EmailWebhookAttachment[] {
+    // If we have uploaded files from multer, use those
+    if (files && files.length > 0) {
+      this.logger.debug(`Processing ${files.length} uploaded files`);
+      return files.map((file) => ({
+        filename: file.originalname,
+        contentType: file.mimetype,
+        size: file.size,
+        content: file.buffer.toString('base64'),
+        disposition: 'attachment' as const,
+      }));
+    }
+
+    // Fallback to attachments array if provided
+    return attachments.map((att) => ({
       filename: att.filename || att.name || 'unknown',
       contentType: att.contentType || att.type || 'application/octet-stream',
       size: att.size || 0,
@@ -371,10 +560,13 @@ export class EmailController {
   /**
    * Convert Mailgun attachments format
    */
-  private convertMailgunAttachments(attachments: any[]): EmailWebhookAttachment[] {
-    return attachments.map(att => ({
+  private convertMailgunAttachments(
+    attachments: any[],
+  ): EmailWebhookAttachment[] {
+    return attachments.map((att) => ({
       filename: att.filename || att.name || 'unknown',
-      contentType: att.contentType || att['content-type'] || 'application/octet-stream',
+      contentType:
+        att.contentType || att['content-type'] || 'application/octet-stream',
       size: att.size || 0,
       contentId: att['content-id'],
       disposition: att.disposition || 'attachment',
@@ -387,7 +579,7 @@ export class EmailController {
    */
   private parseMailgunHeaders(payload: any): Record<string, string> {
     const headers: Record<string, string> = {};
-    
+
     // Common Mailgun headers
     if (payload['Message-Id']) headers['message-id'] = payload['Message-Id'];
     if (payload['From']) headers['from'] = payload['From'];

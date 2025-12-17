@@ -1,8 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ClaudeService, type ContentAnalysisResponse } from './claude.service';
+import * as chrono from 'chrono-node';
 
 export interface ExtractedEntity {
-  type: 'date' | 'time' | 'location' | 'person' | 'organization' | 'amount' | 'phone' | 'email' | 'url';
+  type:
+    | 'date'
+    | 'time'
+    | 'location'
+    | 'person'
+    | 'organization'
+    | 'amount'
+    | 'phone'
+    | 'email'
+    | 'url';
   value: string;
   confidence: number;
   context: string;
@@ -16,7 +26,7 @@ export interface EntityExtractionRequest {
   content: string;
   contentType?: 'text' | 'voice' | 'image' | 'document';
   context?: {
-    source: 'telegram' | 'whatsapp';
+    source: 'telegram' | 'whatsapp' | 'email' | 'api';
     userId?: string;
     timestamp: Date;
   };
@@ -51,17 +61,26 @@ export class EntityExtractionService {
   // Common patterns for entity recognition
   private readonly patterns = {
     email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
-    phone: /(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b/g,
-    url: /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g,
-    currency: /[$€£¥₹]\s*[\d,]+(?:\.\d{2})?|\b\d+(?:\.\d{2})?\s*(?:dollars?|euros?|pounds?|yen|rupees?)\b/gi,
-    date: /\b(?:(?:january|february|march|april|may|june|july|august|september|october|november|december)\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?|\d{1,2}[\/\-\.]\d{1,2}[\/\-\.](?:\d{4}|\d{2})|\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})\b/gi,
+    phone:
+      /(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b/g,
+    url: /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/g,
+    currency:
+      /[$€£¥₹]\s*[\d,]+(?:\.\d{2})?|\b\d+(?:\.\d{2})?\s*(?:dollars?|euros?|pounds?|yen|rupees?)\b/gi,
+    date: /\b(?:(?:january|february|march|april|may|june|july|august|september|october|november|december)\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?|\d{1,2}[-/.]\d{1,2}[-/.](?:\d{4}|\d{2})|\d{4}[-/.]\d{1,2}[-/.]\d{1,2})\b/gi,
     time: /\b(?:1[0-2]|0?[1-9]):(?:[0-5][0-9])\s*(?:am|pm|AM|PM)\b|\b(?:2[0-3]|[01]?[0-9]):(?:[0-5][0-9])\b/g,
   };
 
   constructor(private readonly claudeService: ClaudeService) {}
 
-  async extractEntities(request: EntityExtractionRequest): Promise<EntityExtractionResult> {
-    this.logger.log(`Extracting entities from content: ${request.content.substring(0, 100)}...`);
+  async extractEntities(
+    request: EntityExtractionRequest,
+  ): Promise<EntityExtractionResult> {
+    this.logger.log(
+      `Extracting entities from content: ${request.content.substring(0, 100)}...`,
+    );
+
+    // Use provided timestamp as reference for relative date/time normalization
+    const referenceDate = request.context?.timestamp || new Date();
 
     try {
       // Combine pattern-based and AI-based extraction
@@ -69,7 +88,10 @@ export class EntityExtractionService {
       const aiEntities = await this.extractWithAI(request);
 
       // Merge and deduplicate entities
-      const allEntities = this.mergeEntities(patternEntities, aiEntities);
+      const mergedEntities = this.mergeEntities(patternEntities, aiEntities);
+
+      // Normalize dates and times to absolute values
+      const allEntities = this.normalizeEntities(mergedEntities, referenceDate);
 
       // Structure the data for easy consumption
       const structuredData = this.structureEntities(allEntities);
@@ -77,7 +99,9 @@ export class EntityExtractionService {
       // Calculate summary statistics
       const summary = this.calculateSummary(allEntities);
 
-      this.logger.log(`Extracted ${allEntities.length} entities with avg confidence ${summary.averageConfidence}`);
+      this.logger.log(
+        `Extracted ${allEntities.length} entities with avg confidence ${summary.averageConfidence}`,
+      );
 
       return {
         entities: allEntities,
@@ -86,14 +110,18 @@ export class EntityExtractionService {
       };
     } catch (error) {
       this.logger.error('Error extracting entities:', error);
-      
+
       // Fallback to pattern-based extraction only
       const fallbackEntities = this.extractWithPatterns(request.content);
-      const structuredData = this.structureEntities(fallbackEntities);
-      const summary = this.calculateSummary(fallbackEntities);
+      const normalizedEntities = this.normalizeEntities(
+        fallbackEntities,
+        referenceDate,
+      );
+      const structuredData = this.structureEntities(normalizedEntities);
+      const summary = this.calculateSummary(normalizedEntities);
 
       return {
-        entities: fallbackEntities,
+        entities: normalizedEntities,
         summary,
         structuredData,
       };
@@ -105,90 +133,92 @@ export class EntityExtractionService {
 
     // Extract emails
     const emailMatches = Array.from(content.matchAll(this.patterns.email));
-    emailMatches.forEach(match => {
+    emailMatches.forEach((match) => {
       entities.push({
         type: 'email',
         value: match[0],
         confidence: 0.9,
-        context: this.getContext(content, match.index!, match[0].length),
+        context: this.getContext(content, match.index, match[0].length),
         position: {
-          start: match.index!,
-          end: match.index! + match[0].length,
+          start: match.index,
+          end: match.index + match[0].length,
         },
       });
     });
 
     // Extract phone numbers
     const phoneMatches = Array.from(content.matchAll(this.patterns.phone));
-    phoneMatches.forEach(match => {
+    phoneMatches.forEach((match) => {
       entities.push({
         type: 'phone',
         value: match[0],
         confidence: 0.8,
-        context: this.getContext(content, match.index!, match[0].length),
+        context: this.getContext(content, match.index, match[0].length),
         position: {
-          start: match.index!,
-          end: match.index! + match[0].length,
+          start: match.index,
+          end: match.index + match[0].length,
         },
       });
     });
 
     // Extract URLs
     const urlMatches = Array.from(content.matchAll(this.patterns.url));
-    urlMatches.forEach(match => {
+    urlMatches.forEach((match) => {
       entities.push({
         type: 'url',
         value: match[0],
         confidence: 0.95,
-        context: this.getContext(content, match.index!, match[0].length),
+        context: this.getContext(content, match.index, match[0].length),
         position: {
-          start: match.index!,
-          end: match.index! + match[0].length,
+          start: match.index,
+          end: match.index + match[0].length,
         },
       });
     });
 
     // Extract currency amounts
-    const currencyMatches = Array.from(content.matchAll(this.patterns.currency));
-    currencyMatches.forEach(match => {
+    const currencyMatches = Array.from(
+      content.matchAll(this.patterns.currency),
+    );
+    currencyMatches.forEach((match) => {
       entities.push({
         type: 'amount',
         value: match[0],
         confidence: 0.8,
-        context: this.getContext(content, match.index!, match[0].length),
+        context: this.getContext(content, match.index, match[0].length),
         position: {
-          start: match.index!,
-          end: match.index! + match[0].length,
+          start: match.index,
+          end: match.index + match[0].length,
         },
       });
     });
 
     // Extract dates
     const dateMatches = Array.from(content.matchAll(this.patterns.date));
-    dateMatches.forEach(match => {
+    dateMatches.forEach((match) => {
       entities.push({
         type: 'date',
         value: match[0],
         confidence: 0.7,
-        context: this.getContext(content, match.index!, match[0].length),
+        context: this.getContext(content, match.index, match[0].length),
         position: {
-          start: match.index!,
-          end: match.index! + match[0].length,
+          start: match.index,
+          end: match.index + match[0].length,
         },
       });
     });
 
     // Extract times
     const timeMatches = Array.from(content.matchAll(this.patterns.time));
-    timeMatches.forEach(match => {
+    timeMatches.forEach((match) => {
       entities.push({
         type: 'time',
         value: match[0],
         confidence: 0.8,
-        context: this.getContext(content, match.index!, match[0].length),
+        context: this.getContext(content, match.index, match[0].length),
         position: {
-          start: match.index!,
-          end: match.index! + match[0].length,
+          start: match.index,
+          end: match.index + match[0].length,
         },
       });
     });
@@ -196,7 +226,9 @@ export class EntityExtractionService {
     return entities;
   }
 
-  private async extractWithAI(request: EntityExtractionRequest): Promise<ExtractedEntity[]> {
+  private async extractWithAI(
+    request: EntityExtractionRequest,
+  ): Promise<ExtractedEntity[]> {
     const prompt = `
       Extract entities from this content and return them in a structured format.
       
@@ -231,85 +263,120 @@ export class EntityExtractionService {
       // Parse AI response to extract entities
       return this.parseAIEntities(analysis, request.content);
     } catch (error) {
-      this.logger.warn('AI entity extraction failed, using pattern-based only:', error);
+      this.logger.warn(
+        'AI entity extraction failed, using pattern-based only:',
+        error,
+      );
       return [];
     }
   }
 
-  private parseAIEntities(analysis: ContentAnalysisResponse, originalContent: string): ExtractedEntity[] {
+  private parseAIEntities(
+    analysis: ContentAnalysisResponse,
+    originalContent: string,
+  ): ExtractedEntity[] {
     const entities: ExtractedEntity[] = [];
+
+    // Helper to extract string value from either string or object
+    const extractStringValue = (item: any): string | null => {
+      if (typeof item === 'string') {
+        return item;
+      }
+      if (typeof item === 'object' && item !== null && 'value' in item) {
+        return typeof item.value === 'string' ? item.value : String(item.value);
+      }
+      return null;
+    };
 
     // Extract from the structured entities in the analysis
     if (analysis.extractedEntities) {
       // People
       if (analysis.extractedEntities.people) {
-        analysis.extractedEntities.people.forEach(person => {
-          entities.push({
-            type: 'person',
-            value: person,
-            confidence: 0.7,
-            context: this.findContextForValue(originalContent, person),
-          });
+        analysis.extractedEntities.people.forEach((person) => {
+          const stringValue = extractStringValue(person);
+          if (stringValue) {
+            entities.push({
+              type: 'person',
+              value: stringValue,
+              confidence: 0.7,
+              context: this.findContextForValue(originalContent, stringValue),
+            });
+          }
         });
       }
 
       // Organizations
       if (analysis.extractedEntities.organizations) {
-        analysis.extractedEntities.organizations.forEach(org => {
-          entities.push({
-            type: 'organization',
-            value: org,
-            confidence: 0.7,
-            context: this.findContextForValue(originalContent, org),
-          });
+        analysis.extractedEntities.organizations.forEach((org) => {
+          const stringValue = extractStringValue(org);
+          if (stringValue) {
+            entities.push({
+              type: 'organization',
+              value: stringValue,
+              confidence: 0.7,
+              context: this.findContextForValue(originalContent, stringValue),
+            });
+          }
         });
       }
 
       // Locations
       if (analysis.extractedEntities.locations) {
-        analysis.extractedEntities.locations.forEach(location => {
-          entities.push({
-            type: 'location',
-            value: location,
-            confidence: 0.7,
-            context: this.findContextForValue(originalContent, location),
-          });
+        analysis.extractedEntities.locations.forEach((location) => {
+          const stringValue = extractStringValue(location);
+          if (stringValue) {
+            entities.push({
+              type: 'location',
+              value: stringValue,
+              confidence: 0.7,
+              context: this.findContextForValue(originalContent, stringValue),
+            });
+          }
         });
       }
 
       // Dates
       if (analysis.extractedEntities.dates) {
-        analysis.extractedEntities.dates.forEach(date => {
-          entities.push({
-            type: 'date',
-            value: date,
-            confidence: 0.6,
-            context: this.findContextForValue(originalContent, date),
-          });
+        analysis.extractedEntities.dates.forEach((date) => {
+          const stringValue = extractStringValue(date);
+          if (stringValue) {
+            entities.push({
+              type: 'date',
+              value: stringValue,
+              confidence: 0.6,
+              context: this.findContextForValue(originalContent, stringValue),
+            });
+          }
         });
       }
 
       // Times
       if (analysis.extractedEntities.times) {
-        analysis.extractedEntities.times.forEach(time => {
-          entities.push({
-            type: 'time',
-            value: time,
-            confidence: 0.6,
-            context: this.findContextForValue(originalContent, time),
-          });
+        analysis.extractedEntities.times.forEach((time) => {
+          const stringValue = extractStringValue(time);
+          if (stringValue) {
+            entities.push({
+              type: 'time',
+              value: stringValue,
+              confidence: 0.6,
+              context: this.findContextForValue(originalContent, stringValue),
+            });
+          }
         });
       }
 
       // Amounts
       if (analysis.extractedEntities.amounts) {
-        analysis.extractedEntities.amounts.forEach(amount => {
-          entities.push({
-            type: 'amount',
-            value: amount,
-            confidence: 0.6,
-            context: this.findContextForValue(originalContent, amount),
-          });
+        analysis.extractedEntities.amounts.forEach((amount) => {
+          const stringValue = extractStringValue(amount);
+          if (stringValue) {
+            entities.push({
+              type: 'amount',
+              value: stringValue,
+              confidence: 0.6,
+              context: this.findContextForValue(originalContent, stringValue),
+            });
+          }
         });
       }
     }
@@ -317,15 +384,18 @@ export class EntityExtractionService {
     return entities;
   }
 
-  private mergeEntities(patternEntities: ExtractedEntity[], aiEntities: ExtractedEntity[]): ExtractedEntity[] {
+  private mergeEntities(
+    patternEntities: ExtractedEntity[],
+    aiEntities: ExtractedEntity[],
+  ): ExtractedEntity[] {
     const allEntities = [...patternEntities];
-    
+
     // Add AI entities that don't overlap with pattern entities
-    aiEntities.forEach(aiEntity => {
-      const hasOverlap = patternEntities.some(patternEntity => 
-        this.entitiesOverlap(aiEntity, patternEntity)
+    aiEntities.forEach((aiEntity) => {
+      const hasOverlap = patternEntities.some((patternEntity) =>
+        this.entitiesOverlap(aiEntity, patternEntity),
       );
-      
+
       if (!hasOverlap) {
         allEntities.push(aiEntity);
       }
@@ -340,7 +410,10 @@ export class EntityExtractionService {
     });
   }
 
-  private entitiesOverlap(entity1: ExtractedEntity, entity2: ExtractedEntity): boolean {
+  private entitiesOverlap(
+    entity1: ExtractedEntity,
+    entity2: ExtractedEntity,
+  ): boolean {
     // Check if values are similar (case-insensitive)
     if (entity1.value.toLowerCase() === entity2.value.toLowerCase()) {
       return true;
@@ -349,11 +422,137 @@ export class EntityExtractionService {
     // Check if one value contains the other
     const val1 = entity1.value.toLowerCase();
     const val2 = entity2.value.toLowerCase();
-    
+
     return val1.includes(val2) || val2.includes(val1);
   }
 
-  private structureEntities(entities: ExtractedEntity[]): EntityExtractionResult['structuredData'] {
+  /**
+   * Normalize a date string to ISO 8601 format (YYYY-MM-DD)
+   * Handles relative dates like "tomorrow", "next week", etc.
+   */
+  private normalizeDate(dateStr: string, referenceDate: Date): string {
+    try {
+      // Try parsing with chrono-node (handles natural language dates)
+      const parsed = chrono.parseDate(dateStr, referenceDate);
+
+      if (parsed) {
+        // Return ISO date format (YYYY-MM-DD)
+        return parsed.toISOString().split('T')[0];
+      }
+
+      // If chrono fails, try basic date parsing
+      const basicParsed = new Date(dateStr);
+      if (!isNaN(basicParsed.getTime())) {
+        return basicParsed.toISOString().split('T')[0];
+      }
+
+      // Return original if normalization fails
+      this.logger.warn(`Could not normalize date: ${dateStr}`);
+      return dateStr;
+    } catch (error) {
+      this.logger.warn(`Error normalizing date "${dateStr}": ${error.message}`);
+      return dateStr;
+    }
+  }
+
+  /**
+   * Normalize a time string to 24-hour format (HH:MM)
+   * Handles relative times like "noon", "early morning", "evening", etc.
+   */
+  private normalizeTime(timeStr: string, referenceDate: Date): string {
+    try {
+      const lowerTime = timeStr.toLowerCase().trim();
+
+      // Handle common relative time expressions
+      const relativeTimeMap: Record<string, string> = {
+        midnight: '00:00',
+        'early morning': '08:00',
+        morning: '09:00',
+        'late morning': '11:00',
+        noon: '12:00',
+        midday: '12:00',
+        afternoon: '14:00',
+        'late afternoon': '16:00',
+        evening: '18:00',
+        night: '20:00',
+        'late night': '22:00',
+      };
+
+      // Check for exact matches in relative time map
+      if (relativeTimeMap[lowerTime]) {
+        return relativeTimeMap[lowerTime];
+      }
+
+      // Check for partial matches (e.g., "in the morning", "this evening")
+      for (const [key, value] of Object.entries(relativeTimeMap)) {
+        if (lowerTime.includes(key)) {
+          return value;
+        }
+      }
+
+      // Try parsing with chrono-node (handles times with dates)
+      const parsed = chrono.parseDate(timeStr, referenceDate);
+
+      if (parsed) {
+        const hours = String(parsed.getHours()).padStart(2, '0');
+        const minutes = String(parsed.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+      }
+
+      // Try direct time parsing for formats like "14:30", "2:30pm", etc.
+      const timeRegex = /(\d{1,2}):?(\d{2})?\s*(am|pm)?/i;
+      const match = lowerTime.match(timeRegex);
+
+      if (match) {
+        let hours = parseInt(match[1], 10);
+        const minutes = match[2] ? parseInt(match[2], 10) : 0;
+        const meridiem = match[3]?.toLowerCase();
+
+        // Convert to 24-hour format if needed
+        if (meridiem === 'pm' && hours < 12) {
+          hours += 12;
+        } else if (meridiem === 'am' && hours === 12) {
+          hours = 0;
+        }
+
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+      }
+
+      // Return original if normalization fails
+      this.logger.warn(`Could not normalize time: ${timeStr}`);
+      return timeStr;
+    } catch (error) {
+      this.logger.warn(`Error normalizing time "${timeStr}": ${error.message}`);
+      return timeStr;
+    }
+  }
+
+  /**
+   * Normalize entities by converting relative dates/times to absolute values
+   */
+  private normalizeEntities(
+    entities: ExtractedEntity[],
+    referenceDate: Date,
+  ): ExtractedEntity[] {
+    return entities.map((entity) => {
+      if (entity.type === 'date') {
+        return {
+          ...entity,
+          value: this.normalizeDate(entity.value, referenceDate),
+        };
+      } else if (entity.type === 'time') {
+        return {
+          ...entity,
+          value: this.normalizeTime(entity.value, referenceDate),
+        };
+      }
+      return entity;
+    });
+  }
+
+  private structureEntities(
+    entities: ExtractedEntity[],
+  ): EntityExtractionResult['structuredData'] {
     const structured = {
       dates: [] as string[],
       times: [] as string[],
@@ -368,34 +567,39 @@ export class EntityExtractionService {
       },
     };
 
-    entities.forEach(entity => {
+    entities.forEach((entity) => {
+      // At this point, entity.value should always be a string due to parseAIEntities fix
+      // But we keep this safety check just in case
+      const stringValue =
+        typeof entity.value === 'string' ? entity.value : String(entity.value);
+
       switch (entity.type) {
         case 'date':
-          structured.dates.push(entity.value);
+          structured.dates.push(stringValue);
           break;
         case 'time':
-          structured.times.push(entity.value);
+          structured.times.push(stringValue);
           break;
         case 'location':
-          structured.locations.push(entity.value);
+          structured.locations.push(stringValue);
           break;
         case 'person':
-          structured.people.push(entity.value);
+          structured.people.push(stringValue);
           break;
         case 'organization':
-          structured.organizations.push(entity.value);
+          structured.organizations.push(stringValue);
           break;
         case 'amount':
-          structured.amounts.push(entity.value);
+          structured.amounts.push(stringValue);
           break;
         case 'phone':
-          structured.contacts.phones.push(entity.value);
+          structured.contacts.phones.push(stringValue);
           break;
         case 'email':
-          structured.contacts.emails.push(entity.value);
+          structured.contacts.emails.push(stringValue);
           break;
         case 'url':
-          structured.contacts.urls.push(entity.value);
+          structured.contacts.urls.push(stringValue);
           break;
       }
     });
@@ -403,11 +607,13 @@ export class EntityExtractionService {
     return structured;
   }
 
-  private calculateSummary(entities: ExtractedEntity[]): EntityExtractionResult['summary'] {
+  private calculateSummary(
+    entities: ExtractedEntity[],
+  ): EntityExtractionResult['summary'] {
     const entitiesByType: Record<string, number> = {};
     let totalConfidence = 0;
 
-    entities.forEach(entity => {
+    entities.forEach((entity) => {
       entitiesByType[entity.type] = (entitiesByType[entity.type] || 0) + 1;
       totalConfidence += entity.confidence;
     });
@@ -415,24 +621,58 @@ export class EntityExtractionService {
     return {
       totalEntities: entities.length,
       entitiesByType,
-      averageConfidence: entities.length > 0 ? totalConfidence / entities.length : 0,
+      averageConfidence:
+        entities.length > 0 ? totalConfidence / entities.length : 0,
     };
   }
 
-  private getContext(content: string, position: number, length: number): string {
+  private getContext(
+    content: string,
+    position: number,
+    length: number,
+  ): string {
     const contextRadius = 30;
     const start = Math.max(0, position - contextRadius);
     const end = Math.min(content.length, position + length + contextRadius);
-    
+
     return content.slice(start, end).trim();
   }
 
-  private findContextForValue(content: string, value: string): string {
-    const index = content.toLowerCase().indexOf(value.toLowerCase());
-    if (index === -1) {
-      return `Related to: ${value}`;
+  private findContextForValue(content: string, value: unknown): string {
+    // Type guard: handle objects with 'value' property (nested entity objects)
+    if (typeof value === 'object' && value !== null && 'value' in value) {
+      this.logger.warn(
+        `Received nested entity object instead of string value: ${JSON.stringify(value)}`,
+      );
+      // Extract the actual value from the nested object
+      const nestedValue = (value as any).value;
+      if (typeof nestedValue === 'string') {
+        return this.findContextForValue(content, nestedValue);
+      }
     }
-    
-    return this.getContext(content, index, value.length);
+
+    // Type guard: ensure value is a string
+    if (typeof value !== 'string') {
+      this.logger.warn(
+        `Expected string value for entity but got ${typeof value}: ${JSON.stringify(value)}`,
+      );
+      return `Entity: ${String(value)}`;
+    }
+
+    // Trim whitespace and check for empty strings
+    const trimmedValue = value.trim();
+    if (!trimmedValue) {
+      this.logger.warn('Empty string value provided for entity extraction');
+      return 'No context available';
+    }
+
+    // Try to find exact match (case-insensitive)
+    const index = content.toLowerCase().indexOf(trimmedValue.toLowerCase());
+    if (index === -1) {
+      // Value not found in original content - might be AI-inferred or translated
+      return `Entity: ${trimmedValue}`;
+    }
+
+    return this.getContext(content, index, trimmedValue.length);
   }
 }

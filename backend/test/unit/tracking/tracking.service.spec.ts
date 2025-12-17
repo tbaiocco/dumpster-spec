@@ -55,7 +55,9 @@ describe('TrackingService', () => {
 
   describe('createTrackableItem', () => {
     it('should create trackable item with reminders', async () => {
-      reminderService.createReminder.mockResolvedValue({ id: 'reminder-123' } as any);
+      reminderService.createReminder.mockResolvedValue({
+        id: 'reminder-123',
+      } as any);
 
       const result = await service.createTrackableItem('user-123', 'dump-123', {
         type: 'package' as any,
@@ -73,7 +75,9 @@ describe('TrackingService', () => {
     });
 
     it('should set up multiple reminder checkpoints', async () => {
-      reminderService.createReminder.mockResolvedValue({ id: 'reminder-123' } as any);
+      reminderService.createReminder.mockResolvedValue({
+        id: 'reminder-123',
+      } as any);
 
       await service.createTrackableItem('user-123', 'dump-123', {
         type: 'subscription' as any,
@@ -120,7 +124,9 @@ describe('TrackingService', () => {
         id: 'reminder-123',
         status: 'pending',
       } as any);
-      reminderService.updateReminder.mockResolvedValue({ id: 'reminder-123' } as any);
+      reminderService.updateReminder.mockResolvedValue({
+        id: 'reminder-123',
+      } as any);
 
       await service.updateTrackingStatus(item.id, {
         status: 'delivered',
@@ -152,12 +158,16 @@ describe('TrackingService', () => {
 
   describe('getTrackableItem', () => {
     it('should retrieve item by id', async () => {
-      const created = await service.createTrackableItem('user-123', 'dump-123', {
-        type: 'package' as any,
-        title: 'Test package',
-        description: 'Test',
-        expectedEndDate: new Date('2025-12-15'),
-      });
+      const created = await service.createTrackableItem(
+        'user-123',
+        'dump-123',
+        {
+          type: 'package' as any,
+          title: 'Test package',
+          description: 'Test',
+          expectedEndDate: new Date('2025-12-15'),
+        },
+      );
 
       const result = await service.getTrackableItem(created.id);
 
@@ -205,11 +215,11 @@ describe('TrackingService', () => {
         status: 'delivered',
       });
 
-      const pending = await service.getUserTrackableItems('user-123', { 
-        status: 'pending' as any 
+      const pending = await service.getUserTrackableItems('user-123', {
+        status: 'pending' as any,
       });
-      const completed = await service.getUserTrackableItems('user-123', { 
-        status: 'completed' as any 
+      const completed = await service.getUserTrackableItems('user-123', {
+        status: 'completed' as any,
       });
 
       expect(completed.length).toBeGreaterThanOrEqual(0);

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -19,10 +20,21 @@ import { TrackingModule } from './modules/tracking/tracking.module';
 import { HealthModule } from './health/health.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { ReviewModule } from './modules/review/review.module';
+import { MetricsModule } from './modules/metrics/metrics.module';
 import { DatabaseInitService } from './database/database-init.service';
 
 @Module({
   imports: [
+    // Global event emitter for async operations
+    EventEmitterModule.forRoot({
+      wildcard: false,
+      delimiter: '.',
+      newListener: false,
+      removeListener: false,
+      maxListeners: 10,
+      verboseMemoryLeak: true,
+      ignoreErrors: false,
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [
@@ -55,6 +67,7 @@ import { DatabaseInitService } from './database/database-init.service';
     BotsModule,
     FeedbackModule,
     EmailModule,
+    MetricsModule, // Production Analytics System
     // Phase 7 modules
     ReminderModule,
     NotificationModule,

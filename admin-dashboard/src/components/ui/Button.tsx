@@ -10,12 +10,12 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-primary-600 text-white hover:bg-primary-700 hover:shadow-glow-sm focus-visible:ring-primary-600',
+        default: 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg focus-visible:ring-blue-600',
         destructive: 'bg-red-600 text-white hover:bg-red-700 hover:shadow-lg focus-visible:ring-red-600',
-        outline: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-primary-300 focus-visible:ring-primary-600',
+        outline: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-blue-300 focus-visible:ring-blue-600',
         secondary: 'bg-slate-100 text-slate-900 hover:bg-slate-200 focus-visible:ring-slate-600',
         ghost: 'hover:bg-slate-100 hover:text-slate-900',
-        link: 'text-primary-600 underline-offset-4 hover:underline hover:text-primary-700',
+        link: 'text-blue-600 underline-offset-4 hover:underline hover:text-blue-700',
         success: 'bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-lg focus-visible:ring-emerald-600',
       },
       size: {

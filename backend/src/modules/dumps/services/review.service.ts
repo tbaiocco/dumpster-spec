@@ -67,9 +67,9 @@ export class ReviewService {
     try {
       // Validate that the dump exists and belongs to the user
       const dump = await this.dumpRepository.findOne({
-        where: { 
-          id: request.dumpId, 
-          user_id: request.userId 
+        where: {
+          id: request.dumpId,
+          user_id: request.userId,
         },
         relations: ['user', 'category'],
       });
@@ -104,10 +104,11 @@ export class ReviewService {
         });
       }
 
-      this.logger.log(`Review flagged: ${reviewId} for dump ${request.dumpId} by ${request.reportedBy}`);
+      this.logger.log(
+        `Review flagged: ${reviewId} for dump ${request.dumpId} by ${request.reportedBy}`,
+      );
 
       return reviewId;
-
     } catch (error) {
       this.logger.error('Error flagging dump for review:', error);
       throw error;
@@ -119,7 +120,7 @@ export class ReviewService {
    */
   async getUserReviews(userId: string): Promise<ReviewItem[]> {
     const userReviews = Array.from(this.reviewItems.values())
-      .filter(item => item.userId === userId)
+      .filter((item) => item.userId === userId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
     return userReviews;
@@ -130,17 +131,17 @@ export class ReviewService {
    */
   async getPendingReviews(): Promise<ReviewItem[]> {
     const pendingReviews = Array.from(this.reviewItems.values())
-      .filter(item => item.status === 'pending')
+      .filter((item) => item.status === 'pending')
       .sort((a, b) => {
         // Sort by priority first, then by creation time
         const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
         const aPriority = priorityOrder[a.priority];
         const bPriority = priorityOrder[b.priority];
-        
+
         if (aPriority !== bPriority) {
           return bPriority - aPriority;
         }
-        
+
         return b.createdAt.getTime() - a.createdAt.getTime();
       });
 
@@ -151,9 +152,9 @@ export class ReviewService {
    * Resolve a review item
    */
   async resolveReview(
-    reviewId: string, 
-    resolution: string, 
-    resolvedBy: string
+    reviewId: string,
+    resolution: string,
+    resolvedBy: string,
   ): Promise<boolean> {
     try {
       const reviewItem = this.reviewItems.get(reviewId);
@@ -171,9 +172,8 @@ export class ReviewService {
       await this.applyResolution(reviewItem);
 
       this.logger.log(`Review resolved: ${reviewId} by ${resolvedBy}`);
-      
-      return true;
 
+      return true;
     } catch (error) {
       this.logger.error('Error resolving review:', error);
       throw error;
@@ -206,13 +206,14 @@ export class ReviewService {
           reportedBy: 'confidence_check',
         });
 
-        this.logger.log(`Auto-flagged dump ${dumpId} for review due to low confidence: ${dump.ai_confidence}`);
-        
+        this.logger.log(
+          `Auto-flagged dump ${dumpId} for review due to low confidence: ${dump.ai_confidence}`,
+        );
+
         return reviewId;
       }
 
       return null;
-
     } catch (error) {
       this.logger.error('Error checking confidence threshold:', error);
       return null;
@@ -230,7 +231,7 @@ export class ReviewService {
     byPriority: Record<ReviewPriority, number>;
   }> {
     const allReviews = Array.from(this.reviewItems.values());
-    
+
     const stats = {
       pending: 0,
       inProgress: 0,
@@ -252,7 +253,7 @@ export class ReviewService {
       if (review.status === 'pending') stats.pending++;
       else if (review.status === 'in_progress') stats.inProgress++;
       else if (review.status === 'resolved') stats.resolved++;
-      
+
       stats.byFlag[review.flag]++;
       stats.byPriority[review.priority]++;
     }
@@ -288,7 +289,9 @@ export class ReviewService {
       if (reviewItem.suggestedCategory) {
         // In a real implementation, we'd look up the category ID
         // For now, just log the suggestion
-        this.logger.log(`Suggested category change for dump ${reviewItem.dumpId}: ${reviewItem.suggestedCategory}`);
+        this.logger.log(
+          `Suggested category change for dump ${reviewItem.dumpId}: ${reviewItem.suggestedCategory}`,
+        );
       }
 
       if (reviewItem.suggestedSummary) {
@@ -300,9 +303,10 @@ export class ReviewService {
 
       if (Object.keys(updates).length > 0) {
         await this.dumpRepository.update(reviewItem.dumpId, updates);
-        this.logger.log(`Applied resolution changes to dump ${reviewItem.dumpId}`);
+        this.logger.log(
+          `Applied resolution changes to dump ${reviewItem.dumpId}`,
+        );
       }
-
     } catch (error) {
       this.logger.error('Error applying resolution:', error);
       // Don't throw here - the review is still marked as resolved
