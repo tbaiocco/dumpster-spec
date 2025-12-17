@@ -46,7 +46,8 @@ export const ProfilePage: React.FC = () => {
       setInstantNotifications(data.notification_preferences?.instant_notifications ?? true);
       setReminderAlerts(data.notification_preferences?.reminder_alerts ?? true);
     } catch (err: any) {
-      setError(err.message || 'Failed to load profile');
+      console.error('Failed to load profile:', err);
+      setError(err.message || 'Failed to load profile. The profile API endpoint may not be available yet.');
     } finally {
       setLoading(false);
     }
@@ -84,6 +85,29 @@ export const ProfilePage: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <LoadingSpinner />
+      </div>
+    );
+  }
+
+  // If there's an error and no profile data, show error state with option to use form anyway
+  if (error && !profile) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-2xl">
+        <h1 className="text-3xl font-outfit font-bold text-stone-900 mb-8">
+          Profile Settings
+        </h1>
+        <div className="mb-6 p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <h2 className="text-lg font-semibold text-yellow-900 mb-2">
+            Profile API Not Available
+          </h2>
+          <p className="text-yellow-800 mb-4">
+            {error}
+          </p>
+          <p className="text-sm text-yellow-700">
+            The <code className="bg-yellow-100 px-2 py-1 rounded">/auth/profile</code> endpoint needs to be implemented in the backend.
+            This is a Phase 11 feature (T119-T121) that requires backend support.
+          </p>
+        </div>
       </div>
     );
   }
