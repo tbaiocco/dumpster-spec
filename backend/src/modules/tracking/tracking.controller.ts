@@ -18,7 +18,7 @@ import {
   TrackingStatus,
 } from '../../entities/trackable-item.entity';
 
-@Controller('tracking')
+@Controller('api/tracking')
 @UseGuards(JwtAuthGuard)
 export class TrackingController {
   constructor(
