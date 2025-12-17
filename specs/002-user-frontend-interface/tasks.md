@@ -303,11 +303,11 @@
 
 ### Cross-Cutting Testing
 
-- [ ] T107 Test error handling across all API calls: 401/403 redirects to login, 500 shows error toast with retry
-- [ ] T108 Test optimistic UI updates across Accept/Reject flows: immediate update, rollback on failure, retry button works (SC-005)
-- [ ] T109 Test authentication flow: login redirects to dashboard, logout clears state and redirects to login, protected routes enforce auth
-- [ ] T110 Verify userId filtering on all data operations: user can only see their own dumps/feedback/search results
-- [ ] T111 Test empty states across all views: Dashboard with no dumps, Search with no results, Tracking with no items, Feedback with no submissions
+- [X] T107 Test error handling across all API calls: 401/403 redirects to login, 500 shows error toast with retry
+- [X] T108 Test optimistic UI updates across Accept/Reject flows: immediate update, rollback on failure, retry button works (SC-005)
+- [X] T109 Test authentication flow: login redirects to dashboard, logout clears state and redirects to login, protected routes enforce auth
+- [X] T110 Verify userId filtering on all data operations: user can only see their own dumps/feedback/search results
+- [X] T111 Test empty states across all views: Dashboard with no dumps, Search with no results, Tracking with no items, Feedback with no submissions
 
 ### Documentation & Final QA
 
@@ -315,8 +315,8 @@
 - [X] T113 Create user-client/Dockerfile for containerized deployment
 - [X] T114 Verify .env.example includes all required variables: REACT_APP_API_URL
 - [ ] T115 Run final QA against all 10 success criteria from spec.md (SC-001 through SC-010)
-- [ ] T116 Verify no breaking changes to existing admin-dashboard functionality (admin app still runs independently on port 3001)
-- [ ] T117 Test deployment readiness: build succeeds, assets optimized, environment variables configurable
+- [X] T116 Verify no breaking changes to existing admin-dashboard functionality (admin app still runs independently on port 3001)
+- [X] T117 Test deployment readiness: build succeeds, assets optimized, environment variables configurable
 
 **Checkpoint**: All 10 success criteria pass, feature production-ready for independent deployment.
 
