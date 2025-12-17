@@ -5,7 +5,7 @@
  */
 
 import { apiService } from './api';
-import type { SearchFilters, SearchResults, SearchRequest } from '../types/search.types';
+import type { SearchFilters, SearchResults } from '../types/search.types';
 
 /**
  * Search dumps using natural language query and filters
@@ -17,19 +17,22 @@ export const searchDumps = async (
   offset: number = 0,
   limit: number = 20
 ): Promise<SearchResults> => {
-  const request: SearchRequest = {
+  // Build request, excluding undefined values to avoid backend validation errors
+  const request: any = {
     query,
     userId,
-    contentTypes: filters.contentTypes,
-    categories: filters.categories,
-    dateFrom: filters.dateRange?.from,
-    dateTo: filters.dateRange?.to,
-    minConfidence: filters.minConfidence,
-    urgencyLevels: filters.urgencyLevels,
-    includeProcessing: filters.statuses?.includes('processing'),
     limit,
     offset,
   };
+
+  // Only include defined filter values
+  if (filters.contentTypes?.length) request.contentTypes = filters.contentTypes;
+  if (filters.categories?.length) request.categories = filters.categories;
+  if (filters.dateRange?.from) request.dateFrom = filters.dateRange.from;
+  if (filters.dateRange?.to) request.dateTo = filters.dateRange.to;
+  if (filters.minConfidence !== undefined) request.minConfidence = filters.minConfidence;
+  if (filters.urgencyLevels?.length) request.urgencyLevels = filters.urgencyLevels;
+  if (filters.statuses?.includes('processing')) request.includeProcessing = true;
 
   const response = await apiService.post<SearchResults>('/api/search', request);
   return response.data!;
@@ -95,19 +98,22 @@ export const searchDumpsWithCancellation = async (
   // Calculate offset from page number
   const offset = (page - 1) * pageSize;
 
-  const request: SearchRequest = {
+  // Build request, excluding undefined values to avoid backend validation errors
+  const request: any = {
     query,
     userId,
-    contentTypes: filters.contentTypes,
-    categories: filters.categories,
-    dateFrom: filters.dateRange?.from,
-    dateTo: filters.dateRange?.to,
-    minConfidence: filters.minConfidence,
-    urgencyLevels: filters.urgencyLevels,
-    includeProcessing: filters.statuses?.includes('processing'),
     limit: pageSize,
     offset,
   };
+
+  // Only include defined filter values
+  if (filters.contentTypes?.length) request.contentTypes = filters.contentTypes;
+  if (filters.categories?.length) request.categories = filters.categories;
+  if (filters.dateRange?.from) request.dateFrom = filters.dateRange.from;
+  if (filters.dateRange?.to) request.dateTo = filters.dateRange.to;
+  if (filters.minConfidence !== undefined) request.minConfidence = filters.minConfidence;
+  if (filters.urgencyLevels?.length) request.urgencyLevels = filters.urgencyLevels;
+  if (filters.statuses?.includes('processing')) request.includeProcessing = true;
 
   try {
     const response = await apiService.post<SearchResults>('/api/search', request, {
