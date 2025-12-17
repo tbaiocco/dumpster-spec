@@ -44,10 +44,11 @@ export const TrackingPage: React.FC = () => {
       const data = await getUserReminders({ 
         status: ReminderStatus.PENDING 
       });
-      setReminders(data);
+      setReminders(Array.isArray(data) ? data : []);
     } catch (err: any) {
       console.error('Failed to fetch reminders:', err);
       setErrorReminders(err.message || 'Failed to load reminders');
+      setReminders([]);
     } finally {
       setLoadingReminders(false);
     }
@@ -63,10 +64,11 @@ export const TrackingPage: React.FC = () => {
       const data = await getUserTrackableItems({ 
         activeOnly: true 
       });
-      setTrackableItems(data);
+      setTrackableItems(Array.isArray(data) ? data : []);
     } catch (err: any) {
       console.error('Failed to fetch trackable items:', err);
       setErrorTracking(err.message || 'Failed to load tracking items');
+      setTrackableItems([]);
     } finally {
       setLoadingTracking(false);
     }
@@ -108,7 +110,7 @@ export const TrackingPage: React.FC = () => {
 
   // Loading state - show while both are loading
   const isLoading = loadingReminders || loadingTracking;
-  const hasNoData = reminders.length === 0 && trackableItems.length === 0;
+  const hasNoData = (!reminders || reminders.length === 0) && (!trackableItems || trackableItems.length === 0);
 
   if (isLoading && hasNoData) {
     return (
@@ -157,7 +159,7 @@ export const TrackingPage: React.FC = () => {
               Reminders
             </h2>
             <span className="text-sm text-slate-500">
-              ({reminders.length})
+              ({reminders?.length || 0})
             </span>
           </div>
           {loadingReminders && (
@@ -183,7 +185,7 @@ export const TrackingPage: React.FC = () => {
           </div>
         )}
 
-        {reminders.length > 0 && (
+        {reminders && reminders.length > 0 && (
           <div className="space-y-3">
             {reminders.map(reminder => (
               <ReminderCard
@@ -206,7 +208,7 @@ export const TrackingPage: React.FC = () => {
               Trackable Items
             </h2>
             <span className="text-sm text-slate-500">
-              ({trackableItems.length})
+              ({trackableItems?.length || 0})
             </span>
           </div>
           {loadingTracking && (
@@ -232,7 +234,7 @@ export const TrackingPage: React.FC = () => {
           </div>
         )}
 
-        {trackableItems.length > 0 && (
+        {trackableItems && trackableItems.length > 0 && (
           <div className="space-y-3">
             {trackableItems.map(item => (
               <PackageTrackingCard

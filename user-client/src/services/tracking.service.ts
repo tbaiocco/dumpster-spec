@@ -82,7 +82,7 @@ export const getUserTrackableItems = async (params?: {
   const response = await apiService.get<TrackableItem[]>(
     `/api/tracking${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
   );
-  return response.data!;
+  return Array.isArray(response.data) ? response.data : [];
 };
 
 /**

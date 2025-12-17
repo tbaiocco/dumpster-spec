@@ -78,7 +78,7 @@ export const getUserReminders = async (params?: {
   const response = await apiService.get<Reminder[]>(
     `/api/reminders${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
   );
-  return response.data!;
+  return Array.isArray(response.data) ? response.data : [];
 };
 
 /**
