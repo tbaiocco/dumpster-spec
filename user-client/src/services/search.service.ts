@@ -30,7 +30,7 @@ export const searchDumps = async (
   if (filters.categories?.length) request.categories = filters.categories;
   if (filters.dateRange?.from) request.dateFrom = filters.dateRange.from;
   if (filters.dateRange?.to) request.dateTo = filters.dateRange.to;
-  if (filters.minConfidence !== undefined) request.minConfidence = filters.minConfidence;
+  if (filters.minConfidence !== undefined && filters.minConfidence >= 1) request.minConfidence = filters.minConfidence;
   if (filters.urgencyLevels?.length) request.urgencyLevels = filters.urgencyLevels;
   if (filters.statuses?.includes('processing')) request.includeProcessing = true;
 
@@ -111,7 +111,7 @@ export const searchDumpsWithCancellation = async (
   if (filters.categories?.length) request.categories = filters.categories;
   if (filters.dateRange?.from) request.dateFrom = filters.dateRange.from;
   if (filters.dateRange?.to) request.dateTo = filters.dateRange.to;
-  if (filters.minConfidence !== undefined) request.minConfidence = filters.minConfidence;
+  if (filters.minConfidence !== undefined && filters.minConfidence >= 1) request.minConfidence = filters.minConfidence;
   if (filters.urgencyLevels?.length) request.urgencyLevels = filters.urgencyLevels;
   if (filters.statuses?.includes('processing')) request.includeProcessing = true;
 
