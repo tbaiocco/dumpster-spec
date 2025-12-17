@@ -7,28 +7,79 @@
 import { apiService } from './api';
 
 /**
- * Reminder entity
+ * Reminder type (matches backend)
+ */
+export const ReminderType = {
+  FOLLOW_UP: 'follow_up',
+  DEADLINE: 'deadline',
+  RECURRING: 'recurring',
+  LOCATION_BASED: 'location_based',
+} as const;
+
+export type ReminderType = typeof ReminderType[keyof typeof ReminderType];
+
+/**
+ * Reminder status (matches backend)
+ */
+export const ReminderStatus = {
+  PENDING: 'pending',
+  SENT: 'sent',
+  DISMISSED: 'dismissed',
+  SNOOZED: 'snoozed',
+} as const;
+
+export type ReminderStatus = typeof ReminderStatus[keyof typeof ReminderStatus];
+
+/**
+ * Reminder entity (matches backend structure)
  */
 export interface Reminder {
   id: string;
-  userId: string;
-  dumpId: string;
-  reminderText: string;
-  reminderDate: string; // ISO 8601 datetime
-  status: 'active' | 'snoozed' | 'dismissed' | 'completed';
-  snoozedUntil?: string; // ISO 8601 datetime
-  createdAt?: string;
-  updatedAt?: string;
+  user_id: string;
+  dump_id?: string;
+  message: string;
+  reminder_type: ReminderType;
+  scheduled_for: string; // ISO 8601 datetime
+  status: ReminderStatus;
+  location_data?: Record<string, any>;
+  recurrence_pattern?: Record<string, any>;
+  ai_confidence?: number;
+  created_at: string;
+  sent_at?: string;
 }
 
 /**
  * Reminder update request
  */
 export interface ReminderUpdateRequest {
-  reminderText?: string;
-  reminderDate?: string;
-  status?: 'active' | 'snoozed' | 'dismissed' | 'completed';
+  message?: string;
+  scheduled_for?: string;
+  status?: ReminderStatus;
+  reminder_type?: ReminderType;
 }
+
+/**
+ * Get user's reminders with optional filters
+ */
+export const getUserReminders = async (params?: {
+  status?: ReminderStatus;
+  type?: ReminderType;
+  startDate?: string;
+  endDate?: string;
+  includeRecurring?: boolean;
+}): Promise<Reminder[]> => {
+  const queryParams = new URLSearchParams();
+  if (params?.status) queryParams.append('status', params.status);
+  if (params?.type) queryParams.append('type', params.type);
+  if (params?.startDate) queryParams.append('startDate', params.startDate);
+  if (params?.endDate) queryParams.append('endDate', params.endDate);
+  if (params?.includeRecurring !== undefined) queryParams.append('includeRecurring', String(params.includeRecurring));
+
+  const response = await apiService.get<Reminder[]>(
+    `/api/reminders${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+  );
+  return response.data!;
+};
 
 /**
  * Snooze reminder until specified date/time
@@ -64,16 +115,6 @@ export const updateReminder = async (
   const response = await apiService.put<Reminder>(
     `/api/reminders/${reminderId}`,
     updates
-  );
-  return response.data!;
-};
-
-/**
- * Get reminders for a specific dump
- */
-export const getRemindersForDump = async (dumpId: string): Promise<Reminder[]> => {
-  const response = await apiService.get<Reminder[]>(
-    `/api/reminders?dumpId=${dumpId}`
   );
   return response.data!;
 };

@@ -1,91 +1,116 @@
 /**
  * Tracking Page
  * 
- * Dedicated view for dumps with reminders or package tracking
- * Filters and organizes items by type (Reminders vs Tracking)
+ * Dedicated view for reminders and trackable items
+ * Fetches from separate endpoints: /api/reminders and /api/tracking
  */
 
-import React, { useEffect, useMemo } from 'react';
-import { Bell, Package } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Bell, Package, Calendar, Loader2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { useDumps } from '../hooks/useDumps';
-import { useSearchParams } from 'react-router-dom';
-import type { DumpDerived } from '../types/dump.types';
-import { enrichDump } from '../utils/time-buckets';
-import { DumpDetailModal } from '../components/DumpDetailModal';
-import { Timeline } from '../components/Timeline';
+import { getUserReminders, type Reminder, ReminderStatus } from '../services/reminders.service';
+import { getUserTrackableItems, type TrackableItem } from '../services/tracking.service';
+import { ReminderCard } from '../components/ReminderCard';
+import { PackageTrackingCard } from '../components/PackageTrackingCard';
+import { EditReminderModal } from '../components/EditReminderModal';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { EmptyState } from '../components/EmptyState';
 import { Button } from '../components/ui/Button';
 
 export const TrackingPage: React.FC = () => {
   const { user } = useAuth();
-  const { dumps, loading, error, fetchDumps, refetchDumps, clearError } = useDumps();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [selectedDump, setSelectedDump] = React.useState<DumpDerived | null>(null);
-  const [modalMode, setModalMode] = React.useState<'view' | 'reject'>('view');
+  
+  // Separate state for reminders and tracking
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [trackableItems, setTrackableItems] = useState<TrackableItem[]>([]);
+  
+  const [loadingReminders, setLoadingReminders] = useState(true);
+  const [loadingTracking, setLoadingTracking] = useState(true);
+  
+  const [errorReminders, setErrorReminders] = useState<string | null>(null);
+  const [errorTracking, setErrorTracking] = useState<string | null>(null);
+  
+  // Edit modal state
+  const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  // Enrich dumps with derived properties
-  const enrichedDumps = useMemo(() => dumps.map(enrichDump), [dumps]);
+  // Fetch reminders
+  const fetchReminders = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoadingReminders(true);
+      setErrorReminders(null);
+      const data = await getUserReminders({ 
+        status: ReminderStatus.PENDING 
+      });
+      setReminders(data);
+    } catch (err: any) {
+      console.error('Failed to fetch reminders:', err);
+      setErrorReminders(err.message || 'Failed to load reminders');
+    } finally {
+      setLoadingReminders(false);
+    }
+  };
 
-  // Fetch dumps on mount
+  // Fetch trackable items
+  const fetchTrackableItems = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoadingTracking(true);
+      setErrorTracking(null);
+      const data = await getUserTrackableItems({ 
+        activeOnly: true 
+      });
+      setTrackableItems(data);
+    } catch (err: any) {
+      console.error('Failed to fetch trackable items:', err);
+      setErrorTracking(err.message || 'Failed to load tracking items');
+    } finally {
+      setLoadingTracking(false);
+    }
+  };
+
+  // Initial fetch on mount
   useEffect(() => {
     if (user?.id) {
-      fetchDumps(user.id);
+      fetchReminders();
+      fetchTrackableItems();
     }
   }, [user?.id]);
 
-  // Handle modal routing via query param
-  useEffect(() => {
-    const dumpId = searchParams.get('dumpId');
-    if (dumpId && enrichedDumps.length > 0) {
-      const dump = enrichedDumps.find(d => d.id === dumpId);
-      if (dump) {
-        setSelectedDump(dump);
-      }
-    } else {
-      setSelectedDump(null);
-    }
-  }, [searchParams, enrichedDumps]);
-
-  // Filter dumps: hasReminder=true OR hasTracking=true
-  const reminderDumps = enrichedDumps.filter(dump => dump.hasReminder && dump.status === 'Pending');
-  const trackingDumps = enrichedDumps.filter(dump => dump.hasTracking && dump.status === 'Pending');
-  const allFilteredDumps = enrichedDumps.filter(dump => 
-    (dump.hasReminder || dump.hasTracking) && dump.status === 'Pending'
-  );
-
-  // Handle dump card click - open modal with URL routing
-  const handleDumpClick = (dump: DumpDerived, mode: 'view' | 'reject' = 'view') => {
-    setModalMode(mode);
-    setSearchParams({ dumpId: dump.id });
+  // Edit reminder handlers
+  const handleEditReminder = (reminder: Reminder) => {
+    setEditingReminder(reminder);
+    setIsEditModalOpen(true);
   };
 
-  // Handle modal close - clear URL param
-  const handleModalClose = () => {
-    setSearchParams({});
-    setModalMode('view');
+  const handleEditModalClose = () => {
+    setIsEditModalOpen(false);
+    setEditingReminder(null);
   };
 
-  // Handle successful accept/reject - refetch data
-  const handleAccept = () => {
-    refetchDumps();
+  const handleReminderUpdate = () => {
+    fetchReminders();
   };
 
-  const handleReject = () => {
-    refetchDumps();
+  // Retry handlers
+  const handleRetryReminders = () => {
+    setErrorReminders(null);
+    fetchReminders();
   };
 
-  // Retry on error
-  const handleRetry = () => {
-    clearError();
-    if (user?.id) {
-      refetchDumps();
-    }
+  const handleRetryTracking = () => {
+    setErrorTracking(null);
+    fetchTrackableItems();
   };
 
-  // Loading state
-  if (loading && dumps.length === 0) {
+  // Loading state - show while both are loading
+  const isLoading = loadingReminders || loadingTracking;
+  const hasNoData = reminders.length === 0 && trackableItems.length === 0;
+
+  if (isLoading && hasNoData) {
     return (
       <div className="flex items-center justify-center h-96">
         <LoadingSpinner size="xl" text="Loading reminders and tracking..." />
@@ -93,45 +118,13 @@ export const TrackingPage: React.FC = () => {
     );
   }
 
-  // Error state
-  if (error) {
-    return (
-      <div className="max-w-2xl mx-auto mt-12">
-        <EmptyState
-          title="Failed to load items"
-          message={error}
-          icon={
-            <svg
-              className="h-12 w-12 text-red-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          }
-          action={
-            <Button onClick={handleRetry} variant="default">
-              Retry
-            </Button>
-          }
-        />
-      </div>
-    );
-  }
-
   // Empty state - no reminders or tracking items
-  if (allFilteredDumps.length === 0) {
+  if (hasNoData && !errorReminders && !errorTracking) {
     return (
       <div className="max-w-2xl mx-auto mt-12">
         <EmptyState
           title="No reminders or tracking items"
-          message="Items with reminders or package tracking will appear here."
+          message="Your active reminders and trackable items will appear here."
           icon={
             <div className="flex gap-3">
               <Bell className="h-12 w-12 text-orange-300" />
@@ -144,74 +137,122 @@ export const TrackingPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-heading font-bold text-slate-900">
           Reminders & Tracking
         </h1>
         <p className="text-slate-600 mt-1">
-          {allFilteredDumps.length} item{allFilteredDumps.length === 1 ? '' : 's'} requiring attention
+          Manage your active reminders and trackable items
         </p>
       </div>
 
       {/* Reminders Section */}
-      {reminderDumps.length > 0 && (
-        <div className="space-y-4">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-orange-600" />
             <h2 className="text-xl font-heading font-semibold text-slate-900">
               Reminders
             </h2>
             <span className="text-sm text-slate-500">
-              ({reminderDumps.length} {reminderDumps.length === 1 ? 'item' : 'items'})
+              ({reminders.length})
             </span>
           </div>
-          <Timeline
-            dumps={reminderDumps}
-            showActions={true}
-            onDumpClick={handleDumpClick}
-          />
+          {loadingReminders && (
+            <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+          )}
         </div>
-      )}
+
+        {errorReminders && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-red-800">{errorReminders}</p>
+              <Button onClick={handleRetryReminders} variant="outline" size="sm">
+                Retry
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {!loadingReminders && !errorReminders && reminders.length === 0 && (
+          <div className="p-8 bg-slate-50 rounded-lg text-center">
+            <Calendar className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+            <p className="text-slate-600">No active reminders</p>
+          </div>
+        )}
+
+        {reminders.length > 0 && (
+          <div className="space-y-3">
+            {reminders.map(reminder => (
+              <ReminderCard
+                key={reminder.id}
+                reminder={reminder}
+                onEdit={handleEditReminder}
+                onUpdate={handleReminderUpdate}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Tracking Section */}
-      {trackingDumps.length > 0 && (
-        <div className="space-y-4">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Package className="h-5 w-5 text-cyan-600" />
             <h2 className="text-xl font-heading font-semibold text-slate-900">
-              Package Tracking
+              Trackable Items
             </h2>
             <span className="text-sm text-slate-500">
-              ({trackingDumps.length} {trackingDumps.length === 1 ? 'item' : 'items'})
+              ({trackableItems.length})
             </span>
           </div>
-          <Timeline
-            dumps={trackingDumps}
-            showActions={true}
-            onDumpClick={handleDumpClick}
-          />
+          {loadingTracking && (
+            <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+          )}
         </div>
-      )}
 
-      {/* Dump Detail Modal */}
-      <DumpDetailModal
-        dump={selectedDump}
-        isOpen={!!selectedDump}
-        onClose={handleModalClose}
-        onAccept={handleAccept}
-        onReject={handleReject}
-        initialMode={modalMode}
-      />
-
-      {/* Loading Overlay (refetching) */}
-      {loading && dumps.length > 0 && (
-        <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
-          <div className="bg-white rounded-charming-xl p-6 shadow-glow">
-            <LoadingSpinner size="lg" text="Refreshing..." />
+        {errorTracking && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-red-800">{errorTracking}</p>
+              <Button onClick={handleRetryTracking} variant="outline" size="sm">
+                Retry
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
+
+        {!loadingTracking && !errorTracking && trackableItems.length === 0 && (
+          <div className="p-8 bg-slate-50 rounded-lg text-center">
+            <Package className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+            <p className="text-slate-600">No active trackable items</p>
+          </div>
+        )}
+
+        {trackableItems.length > 0 && (
+          <div className="space-y-3">
+            {trackableItems.map(item => (
+              <PackageTrackingCard
+                key={item.id}
+                tracking={item}
+                onUpdate={fetchTrackableItems}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Edit Reminder Modal */}
+      {editingReminder && (
+        <EditReminderModal
+          reminder={editingReminder}
+          isOpen={isEditModalOpen}
+          onClose={handleEditModalClose}
+          onSuccess={handleReminderUpdate}
+        />
       )}
     </div>
   );

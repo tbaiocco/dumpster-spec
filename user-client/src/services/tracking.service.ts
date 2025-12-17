@@ -1,100 +1,134 @@
 /**
  * Tracking Service
  * 
- * API service for package tracking management
+ * API service for tracking management (TrackableItems)
  */
 
 import { apiService } from './api';
 
 /**
- * Package tracking entity
+ * Tracking type (matches backend)
  */
-export interface PackageTracking {
+export const TrackingType = {
+  PACKAGE: 'package',
+  APPLICATION: 'application',
+  SUBSCRIPTION: 'subscription',
+  WARRANTY: 'warranty',
+  LOAN: 'loan',
+  INSURANCE: 'insurance',
+  OTHER: 'other',
+} as const;
+
+export type TrackingType = typeof TrackingType[keyof typeof TrackingType];
+
+/**
+ * Tracking status (matches backend)
+ */
+export const TrackingStatus = {
+  PENDING: 'pending',
+  IN_PROGRESS: 'in_progress',
+  COMPLETED: 'completed',
+  EXPIRED: 'expired',
+  CANCELLED: 'cancelled',
+} as const;
+
+export type TrackingStatus = typeof TrackingStatus[keyof typeof TrackingStatus];
+
+/**
+ * Tracking checkpoint interface
+ */
+export interface TrackingCheckpoint {
+  timestamp: Date;
+  status: string;
+  location?: string;
+  notes?: string;
+  source?: string;
+}
+
+/**
+ * TrackableItem entity (matches backend structure)
+ */
+export interface TrackableItem {
   id: string;
-  userId: string;
-  dumpId?: string;
-  trackingNumber: string;
-  carrier?: string;
-  status: string;
-  currentLocation?: string;
-  estimatedDelivery?: string;
-  notes?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  user_id: string;
+  dump_id?: string;
+  type: TrackingType;
+  title: string;
+  description?: string;
+  status: TrackingStatus;
+  start_date: string;
+  expected_end_date?: string;
+  actual_end_date?: string;
+  metadata: Record<string, any>;
+  checkpoints: TrackingCheckpoint[];
+  reminder_ids: string[];
+  created_at: string;
+  updated_at: string;
 }
 
 /**
- * Track package request
+ * Get user's trackable items with optional filters
  */
-export interface TrackPackageRequest {
-  trackingNumber: string;
-  carrier?: string;
-  notes?: string;
-}
+export const getUserTrackableItems = async (params?: {
+  type?: TrackingType;
+  status?: TrackingStatus;
+  activeOnly?: boolean;
+}): Promise<TrackableItem[]> => {
+  const queryParams = new URLSearchParams();
+  if (params?.type) queryParams.append('type', params.type);
+  if (params?.status) queryParams.append('status', params.status);
+  if (params?.activeOnly !== undefined) queryParams.append('activeOnly', String(params.activeOnly));
 
-/**
- * Tracking status update request
- */
-export interface TrackingStatusUpdate {
-  status: string;
-  currentLocation?: string;
-  notes?: string;
-}
-
-/**
- * Track new package manually
- */
-export const trackPackage = async (
-  request: TrackPackageRequest
-): Promise<PackageTracking> => {
-  const response = await apiService.post<PackageTracking>(
-    '/api/tracking/package',
-    request
+  const response = await apiService.get<TrackableItem[]>(
+    `/api/tracking${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
   );
   return response.data!;
 };
 
 /**
- * Auto-detect tracking numbers from dump content
+ * Create new trackable item
  */
-export const detectTracking = async (dumpId: string): Promise<PackageTracking[]> => {
-  const response = await apiService.post<PackageTracking[]>(
-    '/api/tracking/detect',
-    { dumpId }
-  );
+export const createTrackableItem = async (
+  item: Partial<TrackableItem>
+): Promise<TrackableItem> => {
+  const response = await apiService.post<TrackableItem>('/api/tracking', item);
   return response.data!;
 };
 
 /**
- * Update package tracking status
+ * Update trackable item
  */
-export const updateTrackingStatus = async (
+export const updateTrackableItem = async (
   trackingId: string,
-  update: TrackingStatusUpdate
-): Promise<PackageTracking> => {
-  const response = await apiService.put<PackageTracking>(
-    `/api/tracking/${trackingId}/status`,
-    update
+  updates: Partial<TrackableItem>
+): Promise<TrackableItem> => {
+  const response = await apiService.put<TrackableItem>(
+    `/api/tracking/${trackingId}`,
+    updates
   );
   return response.data!;
 };
 
 /**
- * Mark package as delivered/completed
+ * Add checkpoint to tracking item
  */
-export const completeTracking = async (trackingId: string): Promise<PackageTracking> => {
-  const response = await apiService.put<PackageTracking>(
+export const addCheckpoint = async (
+  trackingId: string,
+  checkpoint: Omit<TrackingCheckpoint, 'timestamp'>
+): Promise<TrackableItem> => {
+  const response = await apiService.post<TrackableItem>(
+    `/api/tracking/${trackingId}/checkpoint`,
+    checkpoint
+  );
+  return response.data!;
+};
+
+/**
+ * Mark tracking item as completed
+ */
+export const completeTracking = async (trackingId: string): Promise<TrackableItem> => {
+  const response = await apiService.put<TrackableItem>(
     `/api/tracking/${trackingId}/complete`
-  );
-  return response.data!;
-};
-
-/**
- * Get tracking details for a package
- */
-export const getTracking = async (trackingId: string): Promise<PackageTracking> => {
-  const response = await apiService.get<PackageTracking>(
-    `/api/tracking/${trackingId}`
   );
   return response.data!;
 };

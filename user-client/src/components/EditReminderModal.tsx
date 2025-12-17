@@ -10,7 +10,8 @@ import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { TextArea } from './ui/TextArea';
 import type { Reminder, ReminderUpdateRequest } from '../services/reminders.service';
-import { updateReminder } from '../services/reminders.service';
+import { updateReminder, ReminderType, ReminderStatus } from '../services/reminders.service';
+import { format } from 'date-fns';
 
 interface EditReminderModalProps {
   reminder: Reminder;
@@ -25,17 +26,19 @@ export const EditReminderModal: React.FC<EditReminderModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const [reminderText, setReminderText] = useState('');
-  const [reminderDate, setReminderDate] = useState('');
-  const [status, setStatus] = useState<'active' | 'snoozed' | 'dismissed' | 'completed'>('active');
+  const [message, setMessage] = useState('');
+  const [scheduledFor, setScheduledFor] = useState('');
+  const [reminderType, setReminderType] = useState<ReminderType>(ReminderType.FOLLOW_UP);
+  const [status, setStatus] = useState<ReminderStatus>(ReminderStatus.PENDING);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Initialize form with reminder data
   useEffect(() => {
     if (reminder) {
-      setReminderText(reminder.reminderText);
-      setReminderDate(reminder.reminderDate);
+      setMessage(reminder.message);
+      setScheduledFor(format(new Date(reminder.scheduled_for), "yyyy-MM-dd'T'HH:mm"));
+      setReminderType(reminder.reminder_type);
       setStatus(reminder.status);
     }
   }, [reminder]);
@@ -44,12 +47,12 @@ export const EditReminderModal: React.FC<EditReminderModalProps> = ({
     e.preventDefault();
     setError(null);
 
-    if (!reminderText.trim()) {
-      setError('Reminder text is required');
+    if (!message.trim()) {
+      setError('Reminder message is required');
       return;
     }
 
-    if (!reminderDate) {
+    if (!scheduledFor) {
       setError('Reminder date is required');
       return;
     }
@@ -57,8 +60,9 @@ export const EditReminderModal: React.FC<EditReminderModalProps> = ({
     try {
       setLoading(true);
       const updates: ReminderUpdateRequest = {
-        reminderText,
-        reminderDate,
+        message,
+        scheduled_for: scheduledFor,
+        reminder_type: reminderType,
         status,
       };
       await updateReminder(reminder.id, updates);
@@ -81,30 +85,47 @@ export const EditReminderModal: React.FC<EditReminderModalProps> = ({
         )}
 
         <div>
-          <label htmlFor="reminderText" className="block text-sm font-medium text-stone-700 mb-1">
-            Reminder Text
+          <label htmlFor="message" className="block text-sm font-medium text-stone-700 mb-1">
+            Reminder Message
           </label>
           <TextArea
-            id="reminderText"
-            value={reminderText}
-            onChange={(e) => setReminderText(e.target.value)}
-            placeholder="Enter reminder text..."
+            id="message"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Enter reminder message..."
             rows={3}
             required
           />
         </div>
 
         <div>
-          <label htmlFor="reminderDate" className="block text-sm font-medium text-stone-700 mb-1">
-            Reminder Date & Time
+          <label htmlFor="scheduledFor" className="block text-sm font-medium text-stone-700 mb-1">
+            Scheduled Date & Time
           </label>
           <Input
-            id="reminderDate"
+            id="scheduledFor"
             type="datetime-local"
-            value={reminderDate.slice(0, 16)} // Format for datetime-local input
-            onChange={(e) => setReminderDate(e.target.value)}
+            value={scheduledFor.slice(0, 16)} // Format for datetime-local input
+            onChange={(e) => setScheduledFor(e.target.value)}
             required
           />
+        </div>
+
+        <div>
+          <label htmlFor="reminderType" className="block text-sm font-medium text-stone-700 mb-1">
+            Reminder Type
+          </label>
+          <select
+            id="reminderType"
+            value={reminderType}
+            onChange={(e) => setReminderType(e.target.value as ReminderType)}
+            className="w-full px-3 py-2 border border-stone-300 rounded-charming focus:outline-none focus:ring-2 focus:ring-purple-500"
+          >
+            <option value={ReminderType.FOLLOW_UP}>Follow Up</option>
+            <option value={ReminderType.DEADLINE}>Deadline</option>
+            <option value={ReminderType.RECURRING}>Recurring</option>
+            <option value={ReminderType.LOCATION_BASED}>Location Based</option>
+          </select>
         </div>
 
         <div>
@@ -114,13 +135,13 @@ export const EditReminderModal: React.FC<EditReminderModalProps> = ({
           <select
             id="status"
             value={status}
-            onChange={(e) => setStatus(e.target.value as any)}
+            onChange={(e) => setStatus(e.target.value as ReminderStatus)}
             className="w-full px-3 py-2 border border-stone-300 rounded-charming focus:outline-none focus:ring-2 focus:ring-purple-500"
           >
-            <option value="active">Active</option>
-            <option value="snoozed">Snoozed</option>
-            <option value="dismissed">Dismissed</option>
-            <option value="completed">Completed</option>
+            <option value={ReminderStatus.PENDING}>Pending</option>
+            <option value={ReminderStatus.SENT}>Sent</option>
+            <option value={ReminderStatus.DISMISSED}>Dismissed</option>
+            <option value={ReminderStatus.SNOOZED}>Snoozed</option>
           </select>
         </div>
 

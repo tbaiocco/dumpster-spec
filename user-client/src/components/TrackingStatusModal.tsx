@@ -1,19 +1,19 @@
 /**
  * Tracking Status Modal
  * 
- * Modal for updating package tracking status
+ * Modal for adding checkpoints to trackable items
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { TextArea } from './ui/TextArea';
-import type { PackageTracking, TrackingStatusUpdate } from '../services/tracking.service';
-import { updateTrackingStatus } from '../services/tracking.service';
+import type { TrackableItem, TrackingCheckpoint } from '../services/tracking.service';
+import { addCheckpoint, TrackingStatus } from '../services/tracking.service';
 
 interface TrackingStatusModalProps {
-  tracking: PackageTracking;
+  tracking: TrackableItem;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
@@ -25,49 +25,40 @@ export const TrackingStatusModal: React.FC<TrackingStatusModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const [status, setStatus] = useState('');
-  const [currentLocation, setCurrentLocation] = useState('');
+  const [status, setStatus] = useState<TrackingStatus>(tracking.status);
+  const [location, setLocation] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Initialize form with tracking data
-  useEffect(() => {
-    if (tracking) {
-      setStatus(tracking.status || '');
-      setCurrentLocation(tracking.currentLocation || '');
-      setNotes(tracking.notes || '');
-    }
-  }, [tracking]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!status.trim()) {
-      setError('Status is required');
-      return;
-    }
-
     try {
       setLoading(true);
-      const update: TrackingStatusUpdate = {
+      const checkpoint: Omit<TrackingCheckpoint, 'timestamp'> = {
         status,
-        currentLocation: currentLocation || undefined,
+        location: location || undefined,
         notes: notes || undefined,
+        source: 'manual',
       };
-      await updateTrackingStatus(tracking.id, update);
+      await addCheckpoint(tracking.id, checkpoint);
       onSuccess();
       onClose();
+      // Reset form
+      setLocation('');
+      setNotes('');
+      setStatus(tracking.status);
     } catch (err: any) {
-      setError(err.message || 'Failed to update tracking status');
+      setError(err.message || 'Failed to add checkpoint');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Update Tracking Status">
+    <Modal isOpen={isOpen} onClose={onClose} title="Add Tracking Checkpoint">
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
@@ -77,11 +68,11 @@ export const TrackingStatusModal: React.FC<TrackingStatusModalProps> = ({
 
         <div>
           <label className="block text-sm font-medium text-stone-700 mb-1">
-            Tracking Number
+            Item
           </label>
           <Input
             type="text"
-            value={tracking.trackingNumber}
+            value={tracking.title}
             disabled
             className="bg-stone-50"
           />
@@ -91,26 +82,31 @@ export const TrackingStatusModal: React.FC<TrackingStatusModalProps> = ({
           <label htmlFor="status" className="block text-sm font-medium text-stone-700 mb-1">
             Status *
           </label>
-          <Input
+          <select
             id="status"
-            type="text"
             value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            placeholder="e.g., In Transit, Out for Delivery, Delivered"
+            onChange={(e) => setStatus(e.target.value as TrackingStatus)}
+            className="w-full px-3 py-2 border border-stone-300 rounded-charming focus:outline-none focus:ring-2 focus:ring-purple-500"
             required
-          />
+          >
+            <option value={TrackingStatus.PENDING}>Pending</option>
+            <option value={TrackingStatus.IN_PROGRESS}>In Progress</option>
+            <option value={TrackingStatus.COMPLETED}>Completed</option>
+            <option value={TrackingStatus.EXPIRED}>Expired</option>
+            <option value={TrackingStatus.CANCELLED}>Cancelled</option>
+          </select>
         </div>
 
         <div>
           <label htmlFor="location" className="block text-sm font-medium text-stone-700 mb-1">
-            Current Location
+            Location
           </label>
           <Input
             id="location"
             type="text"
-            value={currentLocation}
-            onChange={(e) => setCurrentLocation(e.target.value)}
-            placeholder="e.g., Memphis, TN"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="e.g., Memphis, TN or Processing Center"
           />
         </div>
 
@@ -122,7 +118,7 @@ export const TrackingStatusModal: React.FC<TrackingStatusModalProps> = ({
             id="notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Additional tracking information..."
+            placeholder="Additional checkpoint information..."
             rows={3}
           />
         </div>
@@ -133,7 +129,7 @@ export const TrackingStatusModal: React.FC<TrackingStatusModalProps> = ({
             disabled={loading}
             className="flex-1"
           >
-            {loading ? 'Updating...' : 'Update Status'}
+            {loading ? 'Adding...' : 'Add Checkpoint'}
           </Button>
           <Button
             type="button"

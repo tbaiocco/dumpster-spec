@@ -9,7 +9,7 @@ import { Clock, Edit2, X } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import type { Reminder } from '../services/reminders.service';
-import { snoozeReminder, dismissReminder } from '../services/reminders.service';
+import { snoozeReminder, dismissReminder, ReminderStatus } from '../services/reminders.service';
 import { format } from 'date-fns';
 
 interface ReminderCardProps {
@@ -68,15 +68,18 @@ export const ReminderCard: React.FC<ReminderCardProps> = ({
           <div className="flex items-center gap-2 mb-2">
             <Clock className="h-4 w-4 text-orange-600" />
             <span className="text-sm font-medium text-stone-700">
-              {format(new Date(reminder.reminderDate), 'PPp')}
+              {format(new Date(reminder.scheduled_for), 'PPp')}
             </span>
-            {reminder.status === 'snoozed' && reminder.snoozedUntil && (
-              <span className="text-xs text-stone-500">
-                (snoozed until {format(new Date(reminder.snoozedUntil), 'PPp')})
+            {reminder.status === ReminderStatus.SNOOZED && (
+              <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full">
+                Snoozed
               </span>
             )}
           </div>
-          <p className="text-stone-900">{reminder.reminderText}</p>
+          <p className="text-stone-900">{reminder.message}</p>
+          <div className="mt-1 text-xs text-stone-500">
+            Type: {reminder.reminder_type.replace('_', ' ')}
+          </div>
         </div>
 
         <div className="flex gap-2">

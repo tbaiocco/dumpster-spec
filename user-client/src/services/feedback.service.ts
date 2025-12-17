@@ -32,5 +32,5 @@ export async function submitFeedback(
 export async function fetchMyFeedback(
   userId: string
 ): Promise<ApiResponse<{ feedback: Feedback[]; total: number }>> {
-  return apiService.get(`/api/feedback?userId=${userId}`);
+  return apiService.get(`/feedback/user/${userId}`);
 }
