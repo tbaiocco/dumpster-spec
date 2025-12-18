@@ -1,14 +1,5 @@
 # User Client - Railway Deployment Guide
 
-## ⚠️ Important: Monorepo Configuration
-
-This project is part of a monorepo containing multiple services:
-- `backend/` - NestJS API (separate Railway service)
-- `user-client/` - React frontend (this service)
-- `admin-dashboard/` - Admin interface (separate Railway service)
-
-**You must create a separate Railway service for user-client** and configure its root directory.
-
 ## Prerequisites
 
 1. Railway account (https://railway.app)
@@ -29,14 +20,12 @@ Set these in Railway dashboard or via CLI:
 
 ### Method 1: Railway Dashboard (Recommended)
 
-1. Go to your existing Railway project (where backend is deployed)
-2. Click **"+ New"** → **"Service"** → **"GitHub Repo"**
-3. Select the same repository (monorepo)
-4. **Configure the new service:**
-   - **Service Name**: `user-client` (or your preferred name)
-   - **Root Directory**: `user-client` ⚠️ **CRITICAL - This separates it from backend**
+1. Go to https://railway.app/new
+2. Select **"Deploy from GitHub repo"**
+3. Connect your GitHub account and select the user-client repository
+4. **Configure deployment:**
    - **Builder**: Dockerfile (should auto-detect)
-   - **Branch**: `002-user-frontend-interface` (or your branch)
+   - **Branch**: `main` (or your preferred branch)
 5. Add environment variables:
    - `VITE_API_URL=https://your-backend-api.railway.app`
 6. Deploy!
@@ -49,29 +38,21 @@ Railway will automatically:
 
 ### Method 2: Railway CLI
 
+### Method 2: Railway CLI
+
 ```bash
 # Login to Railway
 railway login
 
-# Link to your project
+# Link to project (or create new)
 railway link
 
-# Select or create the user-client service
-# Railway will prompt you to select a service
-
-# IMPORTANT: If creating a new service, you must set root directory
-# This must be done in Railway Dashboard under Service Settings → Root Directory → user-client
-
-# Set environment variables (for the user-client service)
+# Set environment variables
 railway variables set VITE_API_URL=https://your-backend-api.railway.app
 
-# Deploy (from repo root, Railway uses root directory config)
+# Deploy
 railway up
 ```
-
-**Note**: The CLI respects the root directory setting from your Railway service configuration.
-
-### Method 3: GitHub Integration (CI/CD)
 
 1. Connect repository to Railway project
 2. Enable automatic deployments from `002-user-frontend-interface` branch
@@ -79,11 +60,11 @@ railway up
 
 ## Build Process
 
-The Dockerfile uses multi-stage build:
+### Method 3: GitHub Integration (CI/CD)
 
-**Stage 1: Builder**
-- Install dependencies
-- Build React app with Vite
+1. Connect repository to Railway project
+2. Enable automatic deployments from `main` branch (or your preferred branch)
+3. Every push will trigger automatic deployment
 - Uses `VITE_API_URL` build arg
 
 **Stage 2: Production**
@@ -164,26 +145,6 @@ Already configured:
 - Non-root nginx process
 
 ## Common Issues
-
-### "Supabase configuration missing" or Backend Errors
-
-**Symptom**: Railway is trying to deploy the backend instead of user-client
-
-**Cause**: Monorepo without proper root directory configuration
-
-**Solution**:
-1. In Railway Dashboard, go to your service settings
-2. Find **"Root Directory"** under **"Service Settings"**
-3. Set it to: `user-client`
-4. Redeploy
-
-**Alternative**: Create a new service specifically for user-client (recommended approach above)
-
-### Build Fails - Cannot Find Dockerfile
-
-**Cause**: Root directory not set correctly
-
-**Solution**: Verify root directory is `user-client` in service settings
 
 ### App Shows "Unable to connect to API"
 
