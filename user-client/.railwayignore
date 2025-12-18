@@ -1,0 +1,43 @@
+# Railway-specific ignore file
+# Reduces upload size and build time
+
+# Development
+node_modules/
+.git/
+.github/
+
+# Build artifacts (will be rebuilt)
+dist/
+
+# Documentation
+*.md
+!README.md
+!RAILWAY_DEPLOY.md
+
+# Local environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test files
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__/
+coverage/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Backup files
+*.backup
+tailwind.config.js.backup

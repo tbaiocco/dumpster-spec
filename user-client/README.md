@@ -48,6 +48,32 @@ This is a standalone React application built with Vite, TypeScript, and Tailwind
    # Edit .env to set VITE_API_URL if backend is not on localhost:3001
    ```
 
+## Deployment
+
+### Railway (Recommended)
+
+See [RAILWAY_DEPLOY.md](./RAILWAY_DEPLOY.md) for detailed deployment instructions.
+
+**Quick Deploy:**
+1. Connect GitHub repo to Railway
+2. Set root directory: `user-client`
+3. Add environment variable: `VITE_API_URL=https://your-backend.railway.app`
+4. Railway auto-detects Dockerfile and deploys
+
+**Build Options:**
+- **Dockerfile** (default): Multi-stage build with Nginx
+- **Nixpacks**: Alternative using `nixpacks.toml` with serve
+
+### Docker (Manual)
+
+```bash
+# Build with API URL
+docker build --build-arg VITE_API_URL=https://api.example.com -t user-client .
+
+# Run
+docker run -p 80:80 user-client
+```
+
 3. **Start development server**:
    ```bash
    npm run dev

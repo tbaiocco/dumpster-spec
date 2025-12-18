@@ -1,0 +1,14 @@
+# Nixpacks configuration for Railway
+# Alternative to Dockerfile - Railway's native builder
+
+[phases.setup]
+nixPkgs = ["nodejs-18_x"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npx serve -s dist -l 80"
