@@ -28,12 +28,14 @@ export class ReviewController {
     @Query('status') status?: string,
     @Query('priority') priority?: string,
     @Query('limit') limit?: string,
+    @Query('userId') userId?: string,
   ) {
     const limitNum = limit ? Number.parseInt(limit, 10) : 50;
     const flagged = await this.adminService.getFlaggedContent(
       status,
       priority,
       limitNum,
+      userId,
     );
 
     return {
