@@ -7,6 +7,22 @@
 import type { ContentType, Dump, UrgencyLevel } from './dump.types';
 
 // ============================================================================
+// Search Result
+// ============================================================================
+
+/**
+ * Individual search result with relevance scoring
+ */
+export interface SearchResult {
+  dump: Dump;
+  relevanceScore: number;
+  matchType: 'semantic' | 'fuzzy' | 'exact' | 'hybrid';
+  matchedFields: string[];
+  highlightedContent?: string;
+  explanation?: string;
+}
+
+// ============================================================================
 // Search Filters
 // ============================================================================
 
@@ -46,7 +62,7 @@ export const DEFAULT_SEARCH_FILTERS: SearchFilters = {
  * Matches backend SearchResponse structure
  */
 export interface SearchResults {
-  results: Dump[];               // Matching dumps (backend uses 'results' not 'dumps')
+  results: SearchResult[];       // Search results with relevance scores
   total: number;                 // Total matches
   query: {
     original: string;

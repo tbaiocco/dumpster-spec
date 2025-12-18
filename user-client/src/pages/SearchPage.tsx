@@ -49,7 +49,10 @@ export const SearchPage: React.FC = () => {
     const totalPages = Math.ceil(results.total / DEFAULT_PAGINATION.pageSize);
     return {
       ...results,
-      results: results.results.map(enrichDump),
+      results: results.results.map(result => ({
+        ...result,
+        dump: enrichDump(result.dump),
+      })),
       totalPages,
     };
   }, [results]);
@@ -63,9 +66,9 @@ export const SearchPage: React.FC = () => {
   useEffect(() => {
     const dumpId = searchParams.get('dumpId');
     if (dumpId && enrichedResults) {
-      const dump = enrichedResults.results.find(d => d.id === dumpId);
-      if (dump) {
-        setSelectedDump(dump);
+      const result = enrichedResults.results.find(r => r.dump.id === dumpId);
+      if (result) {
+        setSelectedDump(result.dump);
       }
     } else {
       setSelectedDump(null);
@@ -78,8 +81,8 @@ export const SearchPage: React.FC = () => {
   };
 
   // Handle dump card click - open modal with URL routing
-  const handleDumpClick = (dump: DumpDerived) => {
-    setSearchParams({ ...Object.fromEntries(searchParams), dumpId: dump.id });
+  const handleDumpClick = (dumpId: string) => {
+    setSearchParams({ ...Object.fromEntries(searchParams), dumpId });
   };
 
   // Handle modal close - clear dumpId param
@@ -224,13 +227,13 @@ export const SearchPage: React.FC = () => {
 
             {/* Results Grid */}
             <div className="space-y-3">
-              {enrichedResults.results.map(dump => (
+              {enrichedResults.results.map(result => (
                 <DumpCard
-                  key={dump.id}
-                  dump={dump}
+                  key={result.dump.id}
+                  dump={result.dump}
                   showActions={true}
                   onUpdate={handleDumpUpdate}
-                  onClick={handleDumpClick}
+                  onClick={() => handleDumpClick(result.dump.id)}
                 />
               ))}
             </div>
