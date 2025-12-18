@@ -6,6 +6,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Clock, Eye, CheckCircle, XCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { LoadingSpinner } from './LoadingSpinner';
@@ -23,6 +24,7 @@ export interface MyFeedbackListProps {
  * MyFeedbackList Component
  */
 export const MyFeedbackList: React.FC<MyFeedbackListProps> = ({ refreshTrigger = 0 }) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [feedback, setFeedback] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,11 +113,11 @@ export const MyFeedbackList: React.FC<MyFeedbackListProps> = ({ refreshTrigger =
     return (
       <Card>
         <CardHeader>
-          <CardTitle>My Feedback</CardTitle>
+          <CardTitle>{t('feedback.myFeedback')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
-            <LoadingSpinner size="lg" text="Loading your feedback..." />
+            <LoadingSpinner size="lg" text={t('myFeedback.loading')} />
           </div>
         </CardContent>
       </Card>
@@ -127,7 +129,7 @@ export const MyFeedbackList: React.FC<MyFeedbackListProps> = ({ refreshTrigger =
     return (
       <Card>
         <CardHeader>
-          <CardTitle>My Feedback</CardTitle>
+          <CardTitle>{t('feedback.myFeedback')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center text-red-600 py-4">
@@ -143,12 +145,12 @@ export const MyFeedbackList: React.FC<MyFeedbackListProps> = ({ refreshTrigger =
     return (
       <Card>
         <CardHeader>
-          <CardTitle>My Feedback</CardTitle>
+          <CardTitle>{t('feedback.myFeedback')}</CardTitle>
         </CardHeader>
         <CardContent>
           <EmptyState
-            title="No feedback yet"
-            message="Your submitted feedback will appear here."
+            title={t('myFeedback.noFeedbackYet')}
+            message={t('myFeedback.noFeedbackMessage')}
             icon={
               <svg
                 className="h-12 w-12 text-slate-300"

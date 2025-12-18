@@ -12,7 +12,6 @@
 import React from 'react';
 import { Bell, Package, Target } from 'lucide-react';
 import { Badge } from './ui/Badge';
-import { Button } from './ui/Button';
 import type { DumpDerived } from '../types/dump.types';
 import type { SearchResult } from '../types/search.types';
 import { formatDisplayDate, truncateText, formatCategory } from '../utils/formatting';
@@ -20,7 +19,6 @@ import { cn } from '../lib/utils';
 
 export interface SearchResultCardProps {
   result: SearchResult & { dump: DumpDerived };
-  showActions?: boolean;
   onUpdate?: (dumpId: string, updates: Partial<DumpDerived>) => void;
   onClick?: (dumpId: string) => void;
 }
@@ -30,20 +28,9 @@ export interface SearchResultCardProps {
  */
 export const SearchResultCard: React.FC<SearchResultCardProps> = ({ 
   result, 
-  showActions = false, 
   onClick 
 }) => {
   const { dump, relevanceScore, matchType, explanation, highlightedContent } = result;
-
-  const handleAccept = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onClick?.(dump.id);
-  };
-
-  const handleReject = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onClick?.(dump.id);
-  };
 
   // Status badge variant mapping
   const statusVariants: Record<string, 'overdue' | 'pending' | 'approved' | 'rejected' | 'processing'> = {
@@ -191,26 +178,6 @@ export const SearchResultCard: React.FC<SearchResultCardProps> = ({
             </span>
           )}
         </div>
-
-        {/* Action Buttons */}
-        {showActions && dump.status === 'received' && (
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="success"
-              onClick={handleAccept}
-            >
-              ✓ Accept
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={handleReject}
-            >
-              ✗ Reject
-            </Button>
-          </div>
-        )}
       </div>
 
       {/* Notes (if present) */}

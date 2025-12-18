@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { TimeBucketGroup, DumpDerived } from '../types/dump.types';
 import { DumpCard } from './DumpCard';
 import { EmptyState } from './EmptyState';
@@ -13,7 +14,6 @@ import { cn } from '../lib/utils';
 
 export interface TimeBucketProps {
   timeBucket: TimeBucketGroup;
-  showActions?: boolean;
   onDumpUpdate?: (dumpId: string, updates: Partial<DumpDerived>) => void;
   onDumpClick?: (dump: DumpDerived, mode?: 'view' | 'reject') => void;
 }
@@ -23,10 +23,10 @@ export interface TimeBucketProps {
  */
 export const TimeBucket: React.FC<TimeBucketProps> = ({
   timeBucket,
-  showActions = false,
   onDumpUpdate,
   onDumpClick,
 }) => {
+  const { t } = useTranslation();
   const localStorageKey = `timeBucket_${timeBucket.bucket}_expanded`;
   
   // Initialize from localStorage or default value
@@ -109,7 +109,7 @@ export const TimeBucket: React.FC<TimeBucketProps> = ({
 
         {/* Expand/Collapse Text */}
         <span className="text-sm text-slate-500">
-          {isExpanded ? 'Collapse' : 'Expand'}
+          {isExpanded ? t('common.close') : t('common.next')}
         </span>
       </button>
 
@@ -119,8 +119,8 @@ export const TimeBucket: React.FC<TimeBucketProps> = ({
           {timeBucket.dumps.length === 0 ? (
             <div className="py-6">
               <EmptyState
-                title="No items"
-                message={emptyMessages[timeBucket.bucket] || 'No items in this time bucket.'}
+                title={t('time.noItems')}
+                message={emptyMessages[timeBucket.bucket] || t('time.noItems')}
                 icon={
                   <svg
                     className="h-10 w-10 text-slate-300"
@@ -143,7 +143,6 @@ export const TimeBucket: React.FC<TimeBucketProps> = ({
               <DumpCard
                 key={dump.id}
                 dump={dump}
-                showActions={showActions}
                 onUpdate={onDumpUpdate}
                 onClick={onDumpClick}
               />

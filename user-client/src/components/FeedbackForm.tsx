@@ -5,6 +5,7 @@
  */
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Star } from 'lucide-react';
 import { Button } from './ui/Button';
 import { TextArea } from './ui/TextArea';
@@ -22,6 +23,7 @@ export interface FeedbackFormProps {
  * FeedbackForm Component
  */
 export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onSuccess }) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { addToast } = useToast();
   
@@ -35,15 +37,15 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onSuccess }) => {
   // Form validation
   const validateForm = (): boolean => {
     if (!category) {
-      setValidationError('Please select a feedback category');
+      setValidationError(t('feedbackForm.pleaseSelectCategory'));
       return false;
     }
     if (message.trim().length < 10) {
-      setValidationError('Message must be at least 10 characters');
+      setValidationError(t('feedbackForm.messageTooShort'));
       return false;
     }
     if (rating < 1 || rating > 5) {
-      setValidationError('Please provide a rating between 1 and 5 stars');
+      setValidationError(t('feedbackForm.pleaseProvideRating'));
       return false;
     }
     setValidationError(null);
@@ -56,7 +58,7 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onSuccess }) => {
 
     if (!validateForm()) return;
     if (!user?.id) {
-      addToast('error', 'You must be logged in to submit feedback');
+      addToast('error', t('feedback.loginRequired'));
       return;
     }
 
@@ -71,7 +73,7 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onSuccess }) => {
       });
 
       if (response.success) {
-        addToast('success', "Feedback submitted! We'll review it soon.");
+        addToast('success', t('feedback.submitted'));
         
         // Clear form
         setCategory('');
@@ -84,10 +86,10 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onSuccess }) => {
           onSuccess();
         }
       } else {
-        addToast('error', response.error?.message || 'Failed to submit feedback');
+        addToast('error', response.error?.message || t('feedback.failed'));
       }
     } catch (err: any) {
-      addToast('error', err?.message || 'An unexpected error occurred');
+      addToast('error', err?.message || t('feedback.error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -101,14 +103,14 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onSuccess }) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Share Your Feedback</CardTitle>
+        <CardTitle>{t('feedbackForm.title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Category Dropdown */}
           <div>
             <label htmlFor="category" className="block text-sm font-medium text-slate-700 mb-2">
-              Category *
+              {t('feedbackForm.category')} *
             </label>
             <select
               id="category"
@@ -122,17 +124,17 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onSuccess }) => {
               )}
               disabled={isSubmitting}
             >
-              <option value="">Select a category...</option>
-              <option value="bug">Bug Report</option>
-              <option value="feature_request">Feature Request</option>
-              <option value="general">General Feedback</option>
+              <option value="">{t('feedbackForm.selectCategory')}</option>
+              <option value="bug">{t('feedbackForm.bugReport')}</option>
+              <option value="feature_request">{t('feedbackForm.featureRequest')}</option>
+              <option value="general">{t('feedbackForm.generalFeedback')}</option>
             </select>
           </div>
 
           {/* Rating Stars */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Rating *
+              {t('feedbackForm.rating')} *
             </label>
             <div className="flex items-center gap-2">
               {[1, 2, 3, 4, 5].map(star => (
@@ -157,7 +159,7 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onSuccess }) => {
               ))}
               {rating > 0 && (
                 <span className="text-sm text-slate-600 ml-2">
-                  {rating} star{rating !== 1 ? 's' : ''}
+                  {rating} {rating === 1 ? t('feedbackForm.star') : t('feedbackForm.stars')}
                 </span>
               )}
             </div>
@@ -166,12 +168,12 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onSuccess }) => {
           {/* Message Textarea */}
           <div>
             <TextArea
-              label="Message *"
+              label={`${t('feedbackForm.message')} *`}
               value={message}
               onChange={e => setMessage(e.target.value)}
-              placeholder="Tell us what you think... (minimum 10 characters)"
+              placeholder={t('feedback.placeholder')}
               rows={5}
-              helperText={`${message.length} characters (minimum 10 required)`}
+              helperText={t('feedbackForm.charactersCount', { count: message.length })}
               error={validationError?.includes('Message') ? validationError : undefined}
               disabled={isSubmitting}
             />
@@ -192,7 +194,7 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onSuccess }) => {
               loading={isSubmitting}
               className="flex-1"
             >
-              Submit Feedback
+              {t('feedbackForm.submitFeedback')}
             </Button>
             
             {validationError && (
@@ -202,7 +204,7 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({ onSuccess }) => {
                 variant="outline"
                 disabled={isSubmitting}
               >
-                Retry
+                {t('common.retry')}
               </Button>
             )}
           </div>

@@ -8,14 +8,12 @@
 import React from 'react';
 import { Bell, Package } from 'lucide-react';
 import { Badge } from './ui/Badge';
-import { Button } from './ui/Button';
 import type { DumpDerived } from '../types/dump.types';
 import { formatDisplayDate, truncateText, formatCategory } from '../utils/formatting';
 import { cn } from '../lib/utils';
 
 export interface DumpCardProps {
   dump: DumpDerived;
-  showActions?: boolean;
   onUpdate?: (dumpId: string, updates: Partial<DumpDerived>) => void;
   onClick?: (dump: DumpDerived, mode?: 'view' | 'reject') => void;
 }
@@ -23,17 +21,7 @@ export interface DumpCardProps {
 /**
  * DumpCard Component
  */
-export const DumpCard: React.FC<DumpCardProps> = ({ dump, showActions = false, onClick }) => {
-
-  const handleAccept = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card click
-    onClick?.(dump, 'view'); // Open in view mode for accept
-  };
-
-  const handleReject = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card click
-    onClick?.(dump, 'reject');
-  };
+export const DumpCard: React.FC<DumpCardProps> = ({ dump, onClick }) => {
 
   // Status badge variant mapping
   const statusVariants: Record<string, 'overdue' | 'pending' | 'approved' | 'rejected' | 'processing'> = {
@@ -129,26 +117,6 @@ export const DumpCard: React.FC<DumpCardProps> = ({ dump, showActions = false, o
             </span>
           )}
         </div>
-
-        {/* Action Buttons */}
-        {showActions && dump.status === 'received' && (
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="success"
-              onClick={handleAccept}
-            >
-              ✓ Accept
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={handleReject}
-            >
-              ✗ Reject
-            </Button>
-          </div>
-        )}
       </div>
 
       {/* Notes (if present) */}

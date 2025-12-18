@@ -7,6 +7,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { useDumps } from '../hooks/useDumps';
 import { useTimeBuckets } from '../hooks/useTimeBuckets';
@@ -18,6 +19,7 @@ import { EmptyState } from '../components/EmptyState';
 import { Button } from '../components/ui/Button';
 
 export const DashboardPage: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { dumps, loading, error, fetchDumps, refetchDumps, updateDumpLocally, clearError } = useDumps();
   const timeBuckets = useTimeBuckets(dumps);
@@ -85,7 +87,7 @@ export const DashboardPage: React.FC = () => {
   if (loading && dumps.length === 0) {
     return (
       <div className="flex items-center justify-center h-96">
-        <LoadingSpinner size="xl" text="Loading your action items..." />
+        <LoadingSpinner size="xl" text={t('dashboard.loading')} />
       </div>
     );
   }
@@ -95,7 +97,7 @@ export const DashboardPage: React.FC = () => {
     return (
       <div className="max-w-2xl mx-auto mt-12">
         <EmptyState
-          title="Failed to load items"
+          title={t('dashboard.failedToLoad')}
           message={error}
           icon={
             <svg
@@ -114,7 +116,7 @@ export const DashboardPage: React.FC = () => {
           }
           action={
             <Button onClick={handleRetry} variant="default">
-              Retry
+              {t('common.retry')}
             </Button>
           }
         />
@@ -127,8 +129,8 @@ export const DashboardPage: React.FC = () => {
     return (
       <div className="max-w-2xl mx-auto mt-12">
         <EmptyState
-          title="No items yet"
-          message="You're all caught up! New action items will appear here."
+          title={t('dashboard.noItemsYet')}
+          message={t('dashboard.allCaughtUp')}
           icon={
             <svg
               className="h-12 w-12 text-slate-300"
@@ -155,10 +157,10 @@ export const DashboardPage: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-heading font-bold text-slate-900">
-            Daily Action Items
+            {t('dashboardTitle.dailyActionItems')}
           </h1>
           <p className="text-slate-600 mt-1">
-            {dumps.length} item{dumps.length === 1 ? '' : 's'} to review
+            {t('dashboardTitle.itemsToReview', { count: dumps.length })}
           </p>
         </div>
 
@@ -184,7 +186,7 @@ export const DashboardPage: React.FC = () => {
               }
             />
           </svg>
-          {showActions ? 'Hide Actions' : 'Show Actions'}
+          {showActions ? t('dashboardTitle.hideActions') : t('dashboardTitle.showActions')}
         </Button>
       </div>
 
@@ -194,7 +196,6 @@ export const DashboardPage: React.FC = () => {
           <TimeBucket
             key={bucket.bucket}
             timeBucket={bucket}
-            showActions={showActions}
             onDumpUpdate={handleDumpUpdate}
             onDumpClick={handleDumpClick}
           />
@@ -215,7 +216,7 @@ export const DashboardPage: React.FC = () => {
       {loading && dumps.length > 0 && (
         <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
           <div className="bg-white rounded-charming-xl p-6 shadow-glow">
-            <LoadingSpinner size="lg" text="Refreshing..." />
+            <LoadingSpinner size="lg" text={t('dashboard.refreshing')} />
           </div>
         </div>
       )}

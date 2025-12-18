@@ -7,6 +7,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useDebouncedSearch } from '../hooks/useSearch';
 import { getFilterEnums } from '../services/search.service';
 import { DEFAULT_PAGINATION } from '../types/search.types';
@@ -22,6 +23,7 @@ import { enrichDump } from '../utils/time-buckets';
 import type { DumpDerived } from '../types/dump.types';
 
 export const SearchPage: React.FC = () => {
+  const { t } = useTranslation();
   const {
     query,
     filters,
@@ -109,10 +111,10 @@ export const SearchPage: React.FC = () => {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-heading font-bold text-slate-900">
-          Search Your Information
+          {t('search.title')}
         </h1>
         <p className="text-slate-600 mt-1">
-          Use natural language to find anything in your dumps
+          {t('search.description')}
         </p>
       </div>
 
@@ -121,7 +123,6 @@ export const SearchPage: React.FC = () => {
         value={query}
         onChange={setQuery}
         onSearch={executeSearch}
-        placeholder="Ask anything about your dumps..."
       />
 
       {/* Filter Panel */}
@@ -143,7 +144,7 @@ export const SearchPage: React.FC = () => {
         {/* Error State */}
         {error && !loading && (
           <EmptyState
-            title="Search failed"
+            title={t('search.searchFailed')}
             message={error}
             icon={
               <svg
@@ -162,7 +163,7 @@ export const SearchPage: React.FC = () => {
             }
             action={
               <Button onClick={handleRetry} variant="default">
-                Retry
+                {t('common.retry')}
               </Button>
             }
           />
@@ -171,8 +172,8 @@ export const SearchPage: React.FC = () => {
         {/* Empty State - No Query */}
         {!query && !results && !loading && !error && (
           <EmptyState
-            title="Start searching"
-            message="Enter a query to search your dumps. Try asking natural language questions like 'Show me urgent emails from last week' or 'Find all bills due this month'."
+            title={t('search.startSearching')}
+            message={t('search.startSearchingDescription')}
             icon={
               <svg
                 className="h-12 w-12 text-bright-cyan"
@@ -194,8 +195,8 @@ export const SearchPage: React.FC = () => {
         {/* Empty State - No Results */}
         {query && enrichedResults && enrichedResults.results.length === 0 && !loading && !error && (
           <EmptyState
-            title="No results found"
-            message={`No dumps match "${query}". Try adjusting your search or filters.`}
+            title={t('search.noResults')}
+            message={t('capture.noResults', { query })}
             icon={
               <svg
                 className="h-12 w-12 text-slate-300"
@@ -220,7 +221,7 @@ export const SearchPage: React.FC = () => {
             {/* Results Header */}
             <div className="flex items-center justify-between">
               <p className="text-sm text-slate-600">
-                Showing {enrichedResults.results.length} of {enrichedResults.total} results
+                {t('common.showing')} {enrichedResults.results.length} of {enrichedResults.total} results
                 {enrichedResults.query?.processingTime && ` in ${enrichedResults.query.processingTime}ms`}
               </p>
             </div>
@@ -231,7 +232,6 @@ export const SearchPage: React.FC = () => {
                 <SearchResultCard
                   key={result.dump.id}
                   result={result}
-                  showActions={true}
                   onUpdate={handleDumpUpdate}
                   onClick={handleDumpClick}
                 />
@@ -246,7 +246,7 @@ export const SearchPage: React.FC = () => {
                   disabled={page === 1}
                   variant="outline"
                 >
-                  Previous
+                  {t('common.previous')}
                 </Button>
                 <span className="text-sm text-slate-600">
                   Page {page} of {enrichedResults.totalPages}
@@ -256,7 +256,7 @@ export const SearchPage: React.FC = () => {
                   disabled={page >= enrichedResults.totalPages}
                   variant="outline"
                 >
-                  Next
+                  {t('common.next')}
                 </Button>
               </div>
             )}

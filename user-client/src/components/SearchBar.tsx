@@ -5,6 +5,7 @@
  */
 
 import React, { type ChangeEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
 
 export interface SearchBarProps {
@@ -22,9 +23,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   value,
   onChange,
   onSearch,
-  placeholder = 'Ask anything about your dumps...',
+  placeholder,
   className,
 }) => {
+  const { t } = useTranslation();
+  const defaultPlaceholder = placeholder || t('search.placeholder');
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
   };
@@ -63,7 +66,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             value={value}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            placeholder={placeholder}
+            placeholder={defaultPlaceholder}
             className={cn(
               'w-full pl-14 pr-4 py-4 text-lg',
               'bg-transparent',

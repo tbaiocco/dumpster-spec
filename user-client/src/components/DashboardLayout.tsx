@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from './ui/Button';
 
@@ -12,6 +13,7 @@ export interface DashboardLayoutProps {
  * Main layout wrapper for authenticated user pages
  */
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -22,11 +24,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   };
 
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: '📋' },
-    { path: '/search', label: 'Search', icon: '🔍' },
-    { path: '/tracking', label: 'Tracking', icon: '📦' },
-    { path: '/feedback', label: 'Feedback', icon: '💬' },
-    { path: '/profile', label: 'Profile', icon: '⚙️' },
+    { path: '/', label: t('nav.dashboard'), icon: '📋' },
+    { path: '/search', label: t('nav.search'), icon: '🔍' },
+    { path: '/tracking', label: t('nav.tracking'), icon: '📦' },
+    { path: '/review', label: t('nav.review'), icon: '✓' },
+    { path: '/feedback', label: t('nav.feedback'), icon: '💬' },
+    { path: '/profile', label: t('nav.profile'), icon: '⚙️' },
   ];
 
   return (
@@ -73,7 +76,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                 variant="outline"
                 size="sm"
               >
-                Log Out
+                {t('nav.logout')}
               </Button>
             </div>
           </div>

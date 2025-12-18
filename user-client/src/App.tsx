@@ -1,5 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { AuthProvider } from './contexts/AuthContext';
 import { DumpsProvider } from './contexts/DumpsContext';
 import { SearchProvider } from './contexts/SearchContext';
@@ -14,8 +15,17 @@ const LoginPage = lazy(() => import('./pages/auth/LoginPage').then(m => ({ defau
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const SearchPage = lazy(() => import('./pages/SearchPage').then(m => ({ default: m.SearchPage })));
 const TrackingPage = lazy(() => import('./pages/TrackingPage').then(m => ({ default: m.TrackingPage })));
+const ReviewPage = lazy(() => import('./pages/ReviewPage').then(m => ({ default: m.ReviewPage })));
 const FeedbackPage = lazy(() => import('./pages/FeedbackPage').then(m => ({ default: m.FeedbackPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
+
+/**
+ * Loading Fallback Component
+ */
+const LoadingFallback: React.FC = () => {
+  const { t } = useTranslation();
+  return <LoadingSpinner size="lg" text={t('app.loading')} />;
+};
 
 /**
  * App Component
@@ -32,7 +42,7 @@ function App() {
             <Suspense
               fallback={
                 <div className="flex min-h-screen items-center justify-center bg-stone">
-                  <LoadingSpinner size="lg" text="Loading..." />
+                  <LoadingFallback />
                 </div>
               }
             >
@@ -46,6 +56,7 @@ function App() {
                     <Route path="/" element={<DashboardPage />} />
                     <Route path="/search" element={<SearchPage />} />
                     <Route path="/tracking" element={<TrackingPage />} />
+                    <Route path="/review" element={<ReviewPage />} />
                     <Route path="/feedback" element={<FeedbackPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
                   </Route>

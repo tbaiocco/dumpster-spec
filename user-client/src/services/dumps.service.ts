@@ -31,7 +31,7 @@ export async function fetchDumpById(dumpId: string): Promise<ApiResponse<Dump>> 
 }
 
 /**
- * Update a dump (edit category/notes)
+ * Update a dump (edit category/notes/content)
  * 
  * @param dumpId - Dump identifier
  * @param updates - Fields to update
@@ -42,6 +42,8 @@ export async function updateDump(
   updates: {
     category?: string;
     notes?: string;
+    raw_content?: string;
+    ai_summary?: string;
   }
 ): Promise<ApiResponse<Dump>> {
   return apiService.patch(`/api/dumps/${dumpId}`, updates);

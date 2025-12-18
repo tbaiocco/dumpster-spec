@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
+import i18n from '../i18n/config';
 import { apiService } from '../services/api';
 import type { User } from '../types/dump.types';
 
@@ -39,7 +40,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Try to get user from localStorage
           const storedUser = localStorage.getItem('user');
           if (storedUser) {
-            setUser(JSON.parse(storedUser));
+            const userData = JSON.parse(storedUser);
+            setUser(userData);
+            // Set i18n language from user profile
+            if (userData.language) {
+              i18n.changeLanguage(userData.language);
+            }
           } else {
             // Token exists but no user data - clear tokens
             apiService.clearTokens();
@@ -114,6 +120,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(userData);
         // Store user in localStorage for persistence
         localStorage.setItem('user', JSON.stringify(userData));
+        
+        // Set i18n language from user profile
+        if (userData.language) {
+          i18n.changeLanguage(userData.language);
+        }
 
         return true;
       } else {

@@ -5,6 +5,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n/config';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
@@ -12,6 +14,7 @@ import { LoadingSpinner } from '../components/LoadingSpinner';
 import { fetchProfile, updateProfile, type UserProfile, type ProfileUpdateRequest } from '../services/profile.service';
 
 export const ProfilePage: React.FC = () => {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -47,7 +50,7 @@ export const ProfilePage: React.FC = () => {
       setReminderAlerts(data.notification_preferences?.reminder_alerts ?? true);
     } catch (err: any) {
       console.error('Failed to load profile:', err);
-      setError(err.message || 'Failed to load profile. The profile API endpoint may not be available yet.');
+      setError(err.message || t('profile.error'));
     } finally {
       setLoading(false);
     }
@@ -73,9 +76,15 @@ export const ProfilePage: React.FC = () => {
 
       const updated = await updateProfile(updates);
       setProfile(updated);
-      setSuccessMessage('Profile updated successfully!');
+      
+      // Update i18n language if it changed
+      if (language && language !== i18n.language) {
+        i18n.changeLanguage(language);
+      }
+      
+      setSuccessMessage(t('profile.saved'));
     } catch (err: any) {
-      setError(err.message || 'Failed to update profile');
+      setError(err.message || t('profile.failed'));
     } finally {
       setSaving(false);
     }
@@ -115,7 +124,7 @@ export const ProfilePage: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
       <h1 className="text-3xl font-outfit font-bold text-stone-900 mb-8">
-        Profile Settings
+        {t('profile.title')}
       </h1>
 
       {error && (
@@ -166,44 +175,44 @@ export const ProfilePage: React.FC = () => {
           {/* Preferences */}
           <div>
             <h2 className="text-xl font-outfit font-semibold text-stone-900 mb-4">
-              Preferences
+              {t('profile.preferences')}
             </h2>
             <div className="space-y-4">
               <div>
                 <label htmlFor="timezone" className="block text-sm font-medium text-stone-700 mb-1">
-                  Timezone
+                  {t('profile.timezone')}
                 </label>
                 <Input
                   id="timezone"
                   type="text"
                   value={timezone}
                   onChange={(e) => setTimezone(e.target.value)}
-                  placeholder="America/New_York"
+                  placeholder={t('profile.timezonePlaceholder')}
                 />
                 <p className="text-xs text-stone-500 mt-1">
-                  IANA timezone (e.g., America/New_York, Europe/London)
+                  {t('profile.timezoneHelper')}
                 </p>
               </div>
 
               <div>
                 <label htmlFor="language" className="block text-sm font-medium text-stone-700 mb-1">
-                  Language
+                  {t('profile.language')}
                 </label>
                 <Input
                   id="language"
                   type="text"
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
-                  placeholder="en"
+                  placeholder={t('profile.languagePlaceholder')}
                 />
                 <p className="text-xs text-stone-500 mt-1">
-                  Language code (e.g., en, es, fr)
+                  {t('profile.languageHelper')}
                 </p>
               </div>
 
               <div>
                 <label htmlFor="digestTime" className="block text-sm font-medium text-stone-700 mb-1">
-                  Daily Digest Time
+                  {t('profile.digestTime')}
                 </label>
                 <Input
                   id="digestTime"
@@ -212,7 +221,7 @@ export const ProfilePage: React.FC = () => {
                   onChange={(e) => setDigestTime(e.target.value)}
                 />
                 <p className="text-xs text-stone-500 mt-1">
-                  Time to receive your daily digest email
+                  {t('profile.digestTimeHelper')}
                 </p>
               </div>
             </div>
@@ -221,7 +230,7 @@ export const ProfilePage: React.FC = () => {
           {/* Notification Preferences */}
           <div>
             <h2 className="text-xl font-outfit font-semibold text-stone-900 mb-4">
-              Notifications
+              {t('profile.notifications')}
             </h2>
             <div className="space-y-3">
               <label className="flex items-center space-x-3 cursor-pointer">

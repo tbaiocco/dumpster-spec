@@ -7,6 +7,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Bell, Package, Calendar, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { getUserReminders, type Reminder } from '../services/reminders.service';
 import { getUserTrackableItems, type TrackableItem } from '../services/tracking.service';
@@ -18,6 +19,7 @@ import { EmptyState } from '../components/EmptyState';
 import { Button } from '../components/ui/Button';
 
 export const TrackingPage: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   
   // Separate state for reminders and tracking
@@ -114,7 +116,7 @@ export const TrackingPage: React.FC = () => {
   if (isLoading && hasNoData) {
     return (
       <div className="flex items-center justify-center h-96">
-        <LoadingSpinner size="xl" text="Loading reminders and tracking..." />
+        <LoadingSpinner size="xl" text={t('trackingPage.loading')} />
       </div>
     );
   }
@@ -124,8 +126,8 @@ export const TrackingPage: React.FC = () => {
     return (
       <div className="max-w-2xl mx-auto mt-12">
         <EmptyState
-          title="No reminders or tracking items"
-          message="Your active reminders and trackable items will appear here."
+          title={t('trackingPage.noItems')}
+          message={t('trackingPage.noItemsMessage')}
           icon={
             <div className="flex gap-3">
               <Bell className="h-12 w-12 text-orange-300" />
@@ -142,10 +144,10 @@ export const TrackingPage: React.FC = () => {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-heading font-bold text-slate-900">
-          Reminders & Tracking
+          {t('trackingPage.title')}
         </h1>
         <p className="text-slate-600 mt-1">
-          Manage your active reminders and trackable items
+          {t('trackingPage.subtitle')}
         </p>
       </div>
 
@@ -155,7 +157,7 @@ export const TrackingPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-orange-600" />
             <h2 className="text-xl font-heading font-semibold text-slate-900">
-              Reminders
+              {t('trackingPage.reminders')}
             </h2>
             <span className="text-sm text-slate-500">
               ({reminders?.length || 0})
@@ -171,7 +173,7 @@ export const TrackingPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <p className="text-sm text-red-800">{errorReminders}</p>
               <Button onClick={handleRetryReminders} variant="outline" size="sm">
-                Retry
+                {t('common.retry')}
               </Button>
             </div>
           </div>
@@ -180,7 +182,7 @@ export const TrackingPage: React.FC = () => {
         {!loadingReminders && !errorReminders && reminders.length === 0 && (
           <div className="p-8 bg-slate-50 rounded-lg text-center">
             <Calendar className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-600">No active reminders</p>
+            <p className="text-slate-600">{t('trackingPage.noActiveReminders')}</p>
           </div>
         )}
 
@@ -204,7 +206,7 @@ export const TrackingPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <Package className="h-5 w-5 text-cyan-600" />
             <h2 className="text-xl font-heading font-semibold text-slate-900">
-              Trackable Items
+              {t('trackingPage.trackableItems')}
             </h2>
             <span className="text-sm text-slate-500">
               ({trackableItems?.length || 0})
@@ -220,7 +222,7 @@ export const TrackingPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <p className="text-sm text-red-800">{errorTracking}</p>
               <Button onClick={handleRetryTracking} variant="outline" size="sm">
-                Retry
+                {t('common.retry')}
               </Button>
             </div>
           </div>
@@ -229,7 +231,7 @@ export const TrackingPage: React.FC = () => {
         {!loadingTracking && !errorTracking && trackableItems.length === 0 && (
           <div className="p-8 bg-slate-50 rounded-lg text-center">
             <Package className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-600">No active trackable items</p>
+            <p className="text-slate-600">{t('trackingPage.noActiveTracking')}</p>
           </div>
         )}
 

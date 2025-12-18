@@ -13,7 +13,6 @@ import { cn } from '../lib/utils';
 
 export interface TimelineProps {
   dumps: DumpDerived[];
-  showActions?: boolean;
   onDumpClick?: (dump: DumpDerived, mode?: 'view' | 'reject') => void;
 }
 
@@ -30,7 +29,6 @@ interface TimelineGroup {
  */
 export const Timeline: React.FC<TimelineProps> = ({
   dumps,
-  showActions = false,
   onDumpClick,
 }) => {
   // Group dumps by date
@@ -113,7 +111,6 @@ export const Timeline: React.FC<TimelineProps> = ({
                   {/* Dump Card */}
                   <DumpCard
                     dump={dump}
-                    showActions={showActions}
                     onClick={onDumpClick}
                   />
                 </div>

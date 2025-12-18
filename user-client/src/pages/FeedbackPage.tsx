@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FeedbackForm } from '../components/FeedbackForm';
 import { MyFeedbackList } from '../components/MyFeedbackList';
 
@@ -8,6 +9,7 @@ import { MyFeedbackList } from '../components/MyFeedbackList';
  * Page for submitting feedback and viewing submission history
  */
 export const FeedbackPage: React.FC = () => {
+  const { t } = useTranslation();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Callback when feedback is successfully submitted
@@ -21,10 +23,10 @@ export const FeedbackPage: React.FC = () => {
       {/* Page Header */}
       <div>
         <h1 className="font-outfit text-3xl font-bold text-slate-900 mb-2">
-          Feedback
+          {t('feedbackPage.title')}
         </h1>
         <p className="text-slate-600">
-          Help us improve by sharing your thoughts, reporting bugs, or suggesting new features.
+          {t('feedbackPage.subtitle')}
         </p>
       </div>
 

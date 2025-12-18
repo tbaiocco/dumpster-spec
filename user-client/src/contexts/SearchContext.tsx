@@ -6,6 +6,7 @@
  */
 
 import React, { createContext, useState, useCallback, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { SearchFilters, SearchResults } from '../types/search.types';
 import { DEFAULT_SEARCH_FILTERS, DEFAULT_PAGINATION } from '../types/search.types';
 import { searchDumpsWithCancellation, type FilterEnums } from '../services/search.service';
@@ -43,6 +44,7 @@ interface SearchProviderProps {
  * Provides search state and actions to children
  */
 export const SearchProvider: React.FC<SearchProviderProps> = ({ children }) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<SearchFilters>(DEFAULT_SEARCH_FILTERS);
@@ -83,7 +85,7 @@ export const SearchProvider: React.FC<SearchProviderProps> = ({ children }) => {
         // Ignore cancelled requests
         return;
       }
-      setError(err.message || 'Failed to search dumps');
+      setError(err.message || t('search.failedToSearch'));
       setResults(null);
     } finally {
       setLoading(false);

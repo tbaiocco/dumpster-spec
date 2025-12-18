@@ -5,22 +5,24 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { DumpDerived } from '../types/dump.types';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
-import { Input } from './ui/Input';
 import { TextArea } from './ui/TextArea';
 import { Badge } from './ui/Badge';
 import { formatDisplayDate, formatUrgencyWithIcon } from '../utils/formatting';
 import { useDumps } from '../hooks/useDumps';
+import * as dumpsService from '../services/dumps.service';
+import { apiService } from '../services/api';
 import { useToast } from './Toast';
 
 export interface DumpDetailModalProps {
   dump: DumpDerived | null;
   isOpen: boolean;
   onClose: () => void;
-  onAccept?: (dumpId: string) => void;
-  onReject?: (dumpId: string) => void;
+  onAccept?: (dumpId: string, updates?: any) => void;
+  onReject?: (dumpId: string, reason?: string) => void;
   initialMode?: 'view' | 'reject';
 }
 
@@ -35,6 +37,7 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
   onReject,
   initialMode = 'view',
 }) => {
+  const { t } = useTranslation();
   const { acceptDumpWithOptimism, rejectDumpWithOptimism } = useDumps();
   const { addToast } = useToast();
   
@@ -55,6 +58,37 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [filteredCategories, setFilteredCategories] = useState<string[]>([]);
+
+  // Fetch categories on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await apiService.get<Array<{ id: string; name: string }>>('/admin/categories');
+        if (response.success && response.data) {
+          const categoryNames = response.data.map(cat => cat.name).sort();
+          setCategories(categoryNames);
+        }
+      } catch (err) {
+        console.error('Failed to fetch categories:', err);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Filter categories based on input
+  useEffect(() => {
+    if (!category.trim()) {
+      setFilteredCategories(categories);
+    } else {
+      const filtered = categories.filter(cat => 
+        cat.toLowerCase().includes(category.toLowerCase())
+      );
+      setFilteredCategories(filtered);
+    }
+  }, [category, categories]);
 
   // Reset form when dump changes or modal opens
   useEffect(() => {
@@ -108,20 +142,32 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
         }
       }
 
-      const result = await acceptDumpWithOptimism(dump.id, updates);
+      // For received dumps, use the approval workflow
+      // For other dumps, just update directly
+      let result;
+      if (dump.status === 'received') {
+        result = await acceptDumpWithOptimism(dump.id, updates);
+      } else {
+        // Direct update for already-approved dumps
+        const updateResponse = await dumpsService.updateDump(dump.id, updates);
+        result = { 
+          success: updateResponse.success, 
+          error: updateResponse.error?.message 
+        };
+      }
 
       if (result.success) {
-        addToast('success', 'Dump accepted successfully');
+        addToast('success', dump.status === 'received' ? t('capture.accepted') : t('capture.saved'));
         if (onAccept) {
-          onAccept(dump.id);
+          onAccept(dump.id, updates);
         }
         onClose();
       } else {
         // Keep modal open on failure, preserve edits
-        addToast('error', result.error || 'Failed to accept dump');
+        addToast('error', result.error || (dump.status === 'received' ? t('capture.failedToApprove') : t('capture.failedToUpdate')));
       }
     } catch (err: any) {
-      addToast('error', err?.message || 'An unexpected error occurred');
+      addToast('error', err?.message || t('feedback.error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -140,7 +186,7 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
   const handleReject = async () => {
     // Validation: reason must be at least 10 chars
     if (!rejectReason.trim() || rejectReason.trim().length < 10) {
-      setValidationError('Rejection reason must be at least 10 characters');
+      setValidationError(t('review.reasonRequired'));
       return;
     }
 
@@ -151,17 +197,17 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
       const result = await rejectDumpWithOptimism(dump.id, rejectReason.trim());
 
       if (result.success) {
-        addToast('success', 'Dump rejected successfully');
+        addToast('success', t('capture.rejected'));
         if (onReject) {
-          onReject(dump.id);
+          onReject(dump.id, rejectReason.trim());
         }
         onClose();
       } else {
         // Keep modal open on failure, preserve edits
-        addToast('error', result.error || 'Failed to reject dump');
+        addToast('error', result.error || t('capture.failedToReject'));
       }
     } catch (err: any) {
-      addToast('error', err?.message || 'An unexpected error occurred');
+      addToast('error', err?.message || t('feedback.error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -184,7 +230,7 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Review Dump"
+      title={t('capture.update')}
       size="lg"
     >
       <div className="space-y-6">
@@ -243,16 +289,98 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
           </div>
 
           {/* Category */}
-          <div>
-            <Input
-              label="Category"
-              value={category}
-              onChange={e => setCategory(e.target.value)}
-              placeholder="e.g., Work, Personal, Bills"
-              error={validationError?.includes('Category') ? validationError : undefined}
-              required
-              disabled={!isEditing}
-            />
+          <div className="relative">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Category <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                value={category}
+                onChange={e => {
+                  setCategory(e.target.value);
+                  setShowCategoryDropdown(true);
+                }}
+                onFocus={() => setShowCategoryDropdown(true)}
+                onBlur={() => {
+                  // Delay to allow click on dropdown item
+                  setTimeout(() => setShowCategoryDropdown(false), 200);
+                }}
+                placeholder={t('category.placeholder')}
+                disabled={!isEditing}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-electric-purple ${
+                  validationError?.includes('Category') 
+                    ? 'border-red-300 bg-red-50' 
+                    : 'border-slate-300 bg-white'
+                } disabled:bg-slate-100 disabled:cursor-not-allowed`}
+              />
+              {isEditing && showCategoryDropdown && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {/* Existing categories */}
+                  {filteredCategories.length > 0 && (
+                    <div className="py-1">
+                      <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                        {t('category.existing')}
+                      </div>
+                      {filteredCategories.map((cat, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setCategory(cat);
+                            setShowCategoryDropdown(false);
+                          }}
+                          className="w-full text-left px-3 py-2 hover:bg-slate-100 focus:bg-slate-100 focus:outline-none transition-colors"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-slate-900">{cat}</span>
+                            {cat.toLowerCase() === category.toLowerCase() && (
+                              <svg className="w-4 h-4 text-electric-purple" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {/* Create new category option */}
+                  {category.trim() && !categories.some(cat => cat.toLowerCase() === category.toLowerCase()) && (
+                    <div className={filteredCategories.length > 0 ? "border-t border-slate-200" : ""}>
+                      <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                        Create New
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowCategoryDropdown(false)}
+                        className="w-full text-left px-3 py-2 hover:bg-green-50 focus:bg-green-50 focus:outline-none transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          <span className="text-sm text-slate-900">Create "<span className="font-semibold">{category}</span>"</span>
+                        </div>
+                      </button>
+                    </div>
+                  )}
+                  {/* No results message */}
+                  {filteredCategories.length === 0 && (!category.trim() || categories.some(cat => cat.toLowerCase() === category.toLowerCase())) && (
+                    <div className="px-3 py-4 text-sm text-slate-500 text-center">
+                      {!category.trim() ? 'Start typing to search categories...' : 'Category already exists'}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {validationError?.includes('Category') && (
+              <p className="mt-1 text-sm text-red-600">{validationError}</p>
+            )}
+            {isEditing && (
+              <p className="mt-1 text-xs text-slate-500">
+                Select from existing categories or type to create a new one
+              </p>
+            )}
           </div>
 
           {/* Processing Status */}
@@ -525,7 +653,7 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
             <TextArea
               value={rejectReason}
               onChange={e => setRejectReason(e.target.value)}
-              placeholder="Please provide a reason for rejecting this dump (minimum 10 characters)..."
+              placeholder={t('review.reasonPlaceholder')}
               error={validationError?.includes('Rejection') ? validationError : undefined}
               rows={3}
               helperText={`${rejectReason.length} characters (minimum 10 required)`}
@@ -540,7 +668,7 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
             variant="outline"
             disabled={isSubmitting}
           >
-            {showRejectForm ? 'Back' : 'Cancel'}
+            {showRejectForm ? t('common.back') : t('common.cancel')}
           </Button>
           
           {dump.status === 'received' && !showRejectForm && (
@@ -550,14 +678,14 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
                 variant="destructive"
                 disabled={isSubmitting}
               >
-                Reject
+                {t('common.reject')}
               </Button>
               <Button
                 onClick={handleAccept}
                 variant="success"
                 loading={isSubmitting}
               >
-                Accept & Approve
+                {t('common.approve')}
               </Button>
             </>
           )}
@@ -569,6 +697,17 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
               loading={isSubmitting}
             >
               Confirm Reject
+            </Button>
+          )}
+
+          {/* Save Changes button for edit mode when not in approval flow */}
+          {dump.status !== 'received' && isEditing && (
+            <Button
+              onClick={handleAccept}
+              variant="default"
+              loading={isSubmitting}
+            >
+              Save Changes
             </Button>
           )}
           

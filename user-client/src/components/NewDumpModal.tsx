@@ -5,6 +5,7 @@
  */
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 import { TextArea } from './ui/TextArea';
@@ -23,6 +24,7 @@ export const NewDumpModal: React.FC<NewDumpModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [mode, setMode] = useState<'text' | 'file'>('text');
   const [textContent, setTextContent] = useState('');
@@ -43,13 +45,13 @@ export const NewDumpModal: React.FC<NewDumpModalProps> = ({
     setError(null);
 
     if (!user) {
-      setError('User not authenticated');
+      setError(t('newDumpModal.userNotAuthenticated'));
       return;
     }
 
     if (mode === 'text') {
       if (!textContent.trim()) {
-        setError('Please enter some text');
+        setError(t('newDumpModal.pleaseEnterText'));
         return;
       }
 
@@ -60,13 +62,13 @@ export const NewDumpModal: React.FC<NewDumpModalProps> = ({
         onSuccess();
         onClose();
       } catch (err: any) {
-        setError(err.message || 'Failed to create dump');
+        setError(err.message || t('newDumpModal.failedToCreateDump'));
       } finally {
         setLoading(false);
       }
     } else {
       if (!file) {
-        setError('Please select a file');
+        setError(t('newDumpModal.pleaseSelectFile'));
         return;
       }
 
@@ -77,7 +79,7 @@ export const NewDumpModal: React.FC<NewDumpModalProps> = ({
         onSuccess();
         onClose();
       } catch (err: any) {
-        setError(err.message || 'Failed to upload file');
+        setError(err.message || t('newDumpModal.failedToUploadFile'));
       } finally {
         setLoading(false);
       }
@@ -91,7 +93,7 @@ export const NewDumpModal: React.FC<NewDumpModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Create New Dump">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('newDumpModal.title')}>
       <div className="space-y-4">
         {/* Mode Toggle */}
         <div className="flex gap-2 p-1 bg-stone-100 rounded-charming">
@@ -104,7 +106,7 @@ export const NewDumpModal: React.FC<NewDumpModalProps> = ({
                 : 'text-stone-600 hover:text-stone-900'
             }`}
           >
-            Text Input
+            {t('newDumpModal.textInput')}
           </button>
           <button
             type="button"
@@ -115,7 +117,7 @@ export const NewDumpModal: React.FC<NewDumpModalProps> = ({
                 : 'text-stone-600 hover:text-stone-900'
             }`}
           >
-            File Upload
+            {t('newDumpModal.fileUpload')}
           </button>
         </div>
 
@@ -129,18 +131,18 @@ export const NewDumpModal: React.FC<NewDumpModalProps> = ({
           {mode === 'text' ? (
             <div>
               <label htmlFor="textContent" className="block text-sm font-medium text-stone-700 mb-1">
-                Content *
+                {t('newDumpModal.content')} *
               </label>
               <TextArea
                 id="textContent"
                 value={textContent}
                 onChange={(e) => setTextContent(e.target.value)}
-                placeholder="Paste your text, email, or note here..."
+                placeholder={t('newDumpModal.pasteText')}
                 rows={8}
                 required
               />
               <p className="text-xs text-stone-500 mt-1">
-                AI will automatically extract important information
+                {t('newDumpModal.aiExtractInfo')}
               </p>
             </div>
           ) : (
