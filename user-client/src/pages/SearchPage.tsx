@@ -12,7 +12,7 @@ import { getFilterEnums } from '../services/search.service';
 import { DEFAULT_PAGINATION } from '../types/search.types';
 import { SearchBar } from '../components/SearchBar';
 import { FilterPanel } from '../components/FilterPanel';
-import { DumpCard } from '../components/DumpCard';
+import { SearchResultCard } from '../components/SearchResultCard';
 import { DumpDetailModal } from '../components/DumpDetailModal';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { EmptyState } from '../components/EmptyState';
@@ -228,12 +228,12 @@ export const SearchPage: React.FC = () => {
             {/* Results Grid */}
             <div className="space-y-3">
               {enrichedResults.results.map(result => (
-                <DumpCard
+                <SearchResultCard
                   key={result.dump.id}
-                  dump={result.dump}
+                  result={result}
                   showActions={true}
                   onUpdate={handleDumpUpdate}
-                  onClick={() => handleDumpClick(result.dump.id)}
+                  onClick={handleDumpClick}
                 />
               ))}
             </div>

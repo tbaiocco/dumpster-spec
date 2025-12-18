@@ -38,21 +38,35 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
   const { acceptDumpWithOptimism, rejectDumpWithOptimism } = useDumps();
   const { addToast } = useToast();
   
+  // Status badge variant mapping
+  const statusVariants: Record<string, 'overdue' | 'pending' | 'approved' | 'rejected' | 'processing'> = {
+    received: 'pending',
+    processing: 'processing',
+    completed: 'approved',
+    failed: 'rejected',
+  };
+  
   const [category, setCategory] = useState('');
   const [notes, setNotes] = useState('');
+  const [rawContent, setRawContent] = useState('');
+  const [aiSummary, setAiSummary] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
 
   // Reset form when dump changes or modal opens
   useEffect(() => {
     if (dump) {
       setCategory(dump.categoryName || dump.category?.name || '');
       setNotes(dump.notes || '');
+      setRawContent(dump.raw_content || '');
+      setAiSummary(dump.ai_summary || '');
       setRejectReason('');
       setValidationError(null);
       setShowRejectForm(initialMode === 'reject');
+      setIsEditing(false);
     }
   }, [dump, initialMode]);
 
@@ -79,10 +93,22 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      const result = await acceptDumpWithOptimism(dump.id, {
+      const updates: any = {
         category: category.trim(),
         notes: notes.trim() || undefined,
-      });
+      };
+
+      // Include edited fields if in edit mode
+      if (isEditing) {
+        if (rawContent !== dump.raw_content) {
+          updates.raw_content = rawContent;
+        }
+        if (aiSummary !== dump.ai_summary) {
+          updates.ai_summary = aiSummary;
+        }
+      }
+
+      const result = await acceptDumpWithOptimism(dump.id, updates);
 
       if (result.success) {
         addToast('success', 'Dump accepted successfully');
@@ -184,29 +210,139 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
           </div>
         </div>
 
-        {/* Content (Read-only) */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            Content
-          </label>
-          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 text-sm text-slate-700 whitespace-pre-wrap max-h-60 overflow-y-auto">
-            {dump.raw_content}
+        {/* Edit Mode Toggle */}
+        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+          <span className="text-sm font-medium text-slate-700">
+            {isEditing ? 'Editing Mode' : 'View Mode'}
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setIsEditing(!isEditing)}
+          >
+            {isEditing ? 'Cancel Edit' : 'Edit Fields'}
+          </Button>
+        </div>
+
+        {/* Basic Information */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-slate-900">Basic Information</h3>
+          
+          {/* Content Type & AI Confidence */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Content Type</label>
+              <Badge variant="default">{dump.content_type}</Badge>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">AI Confidence</label>
+              <Badge variant={dump.ai_confidence >= 80 ? 'approved' : dump.ai_confidence >= 60 ? 'pending' : 'rejected'}>
+                {dump.ai_confidence}%
+              </Badge>
+            </div>
           </div>
+
+          {/* Category */}
+          <div>
+            <Input
+              label="Category"
+              value={category}
+              onChange={e => setCategory(e.target.value)}
+              placeholder="e.g., Work, Personal, Bills"
+              error={validationError?.includes('Category') ? validationError : undefined}
+              required
+              disabled={!isEditing}
+            />
+          </div>
+
+          {/* Processing Status */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Processing Status</label>
+            <Badge variant={statusVariants[dump.status] || 'default'}>
+              {dump.processing_status}
+            </Badge>
+          </div>
+
+          {/* Urgency Level */}
+          {dump.urgency_level && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Urgency Level</label>
+              <div className="flex items-center gap-2">
+                <Badge variant={dump.urgency_level === 3 ? 'overdue' : dump.urgency_level === 2 ? 'pending' : 'approved'}>
+                  {dump.urgency_level === 3 ? 'High' : dump.urgency_level === 2 ? 'Medium' : 'Low'}
+                </Badge>
+                {dump.extracted_entities?.urgency && (
+                  <span className="text-sm text-slate-600">({dump.extracted_entities.urgency})</span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Category (Editable) */}
+        {/* AI Summary */}
+        {(aiSummary || dump.ai_summary) && (
+          <div>
+            {isEditing ? (
+              <TextArea
+                label="AI Summary"
+                value={aiSummary}
+                onChange={e => setAiSummary(e.target.value)}
+                placeholder="AI-generated summary..."
+                rows={3}
+              />
+            ) : (
+              <>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  AI Summary
+                </label>
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 text-sm text-blue-900">
+                  {dump.ai_summary}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Raw Content */}
         <div>
-          <Input
-            label="Category"
-            value={category}
-            onChange={e => setCategory(e.target.value)}
-            placeholder="e.g., Work, Personal, Bills"
-            error={validationError?.includes('Category') ? validationError : undefined}
-            required
-          />
+          {isEditing ? (
+            <TextArea
+              label="Content"
+              value={rawContent}
+              onChange={e => setRawContent(e.target.value)}
+              placeholder="Content..."
+              rows={6}
+            />
+          ) : (
+            <>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Content
+              </label>
+              <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 text-sm text-slate-700 whitespace-pre-wrap max-h-60 overflow-y-auto">
+                {dump.raw_content}
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Notes (Editable) */}
+        {/* Media URL */}
+        {dump.media_url && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Media
+            </label>
+            <a 
+              href={dump.media_url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-sm text-blue-600 hover:text-blue-800 underline"
+            >
+              View Media File
+            </a>
+          </div>
+        )}
+
+        {/* Notes */}
         <div>
           <TextArea
             label="Notes"
@@ -216,20 +352,41 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
             helperText={`${notes.length}/500 characters`}
             error={validationError?.includes('Notes') ? validationError : undefined}
             rows={4}
+            disabled={!isEditing}
           />
         </div>
 
         {/* Extracted Entities */}
-        {dump.extracted_entities?.entities?.dates && dump.extracted_entities.entities.dates.length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Extracted Information
-            </label>
-            <div className="space-y-2">
-              {/* Dates */}
-              {dump.extracted_entities.entities.dates && dump.extracted_entities.entities.dates.length > 0 && (
+        {dump.extracted_entities && (
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-slate-900">Extracted Information</h3>
+            <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
+              {/* Sentiment */}
+              {dump.extracted_entities.sentiment && (
                 <div className="flex items-start gap-2">
-                  <span className="text-sm font-medium text-slate-600 min-w-[80px]">Dates:</span>
+                  <span className="text-sm font-medium text-slate-600 min-w-[100px]">Sentiment:</span>
+                  <Badge variant={
+                    dump.extracted_entities.sentiment === 'positive' ? 'approved' : 
+                    dump.extracted_entities.sentiment === 'negative' ? 'rejected' : 
+                    'default'
+                  }>
+                    {dump.extracted_entities.sentiment}
+                  </Badge>
+                </div>
+              )}
+
+              {/* Category Confidence */}
+              {dump.extracted_entities.categoryConfidence !== undefined && (
+                <div className="flex items-start gap-2">
+                  <span className="text-sm font-medium text-slate-600 min-w-[100px]">Category Confidence:</span>
+                  <span className="text-sm text-slate-700">{dump.extracted_entities.categoryConfidence}%</span>
+                </div>
+              )}
+
+              {/* Dates */}
+              {dump.extracted_entities.entities?.dates && dump.extracted_entities.entities.dates.length > 0 && (
+                <div className="flex items-start gap-2">
+                  <span className="text-sm font-medium text-slate-600 min-w-[100px]">Dates:</span>
                   <div className="flex flex-wrap gap-1">
                     {dump.extracted_entities.entities.dates.map((date, idx) => (
                       <Badge key={idx} variant="default">
@@ -240,10 +397,70 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
                 </div>
               )}
 
+              {/* Times */}
+              {dump.extracted_entities.entities?.times && dump.extracted_entities.entities.times.length > 0 && (
+                <div className="flex items-start gap-2">
+                  <span className="text-sm font-medium text-slate-600 min-w-[100px]">Times:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {dump.extracted_entities.entities.times.map((time, idx) => (
+                      <Badge key={idx} variant="default">{time}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* People */}
+              {dump.extracted_entities.entities?.people && dump.extracted_entities.entities.people.length > 0 && (
+                <div className="flex items-start gap-2">
+                  <span className="text-sm font-medium text-slate-600 min-w-[100px]">People:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {dump.extracted_entities.entities.people.map((person, idx) => (
+                      <Badge key={idx} variant="default">{person}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Organizations */}
+              {dump.extracted_entities.entities?.organizations && dump.extracted_entities.entities.organizations.length > 0 && (
+                <div className="flex items-start gap-2">
+                  <span className="text-sm font-medium text-slate-600 min-w-[100px]">Organizations:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {dump.extracted_entities.entities.organizations.map((org, idx) => (
+                      <Badge key={idx} variant="default">{org}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Locations */}
+              {dump.extracted_entities.entities?.locations && dump.extracted_entities.entities.locations.length > 0 && (
+                <div className="flex items-start gap-2">
+                  <span className="text-sm font-medium text-slate-600 min-w-[100px]">Locations:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {dump.extracted_entities.entities.locations.map((loc, idx) => (
+                      <Badge key={idx} variant="default">{loc}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Amounts */}
+              {dump.extracted_entities.entities?.amounts && dump.extracted_entities.entities.amounts.length > 0 && (
+                <div className="flex items-start gap-2">
+                  <span className="text-sm font-medium text-slate-600 min-w-[100px]">Amounts:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {dump.extracted_entities.entities.amounts.map((amount, idx) => (
+                      <Badge key={idx} variant="default">{amount}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Action Items */}
               {dump.extracted_entities.actionItems && dump.extracted_entities.actionItems.length > 0 && (
                 <div className="flex items-start gap-2">
-                  <span className="text-sm font-medium text-slate-600 min-w-[80px]">Actions:</span>
+                  <span className="text-sm font-medium text-slate-600 min-w-[100px]">Action Items:</span>
                   <div className="flex flex-col gap-1">
                     {dump.extracted_entities.actionItems.map((item, idx) => (
                       <span key={idx} className="text-sm text-slate-700">• {item}</span>
@@ -254,6 +471,50 @@ export const DumpDetailModal: React.FC<DumpDetailModalProps> = ({
             </div>
           </div>
         )}
+
+        {/* Metadata */}
+        {dump.extracted_entities?.metadata && (
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-slate-900">Metadata</h3>
+            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+              {dump.extracted_entities.metadata.source && (
+                <div className="flex items-start gap-2">
+                  <span className="text-sm font-medium text-slate-600 min-w-[100px]">Source:</span>
+                  <span className="text-sm text-slate-700">{dump.extracted_entities.metadata.source}</span>
+                </div>
+              )}
+              {dump.extracted_entities.metadata.routingInfo && (
+                <div className="flex items-start gap-2">
+                  <span className="text-sm font-medium text-slate-600 min-w-[100px]">Routing Info:</span>
+                  <span className="text-sm text-slate-700">{JSON.stringify(dump.extracted_entities.metadata.routingInfo)}</span>
+                </div>
+              )}
+              <div className="flex items-start gap-2">
+                <span className="text-sm font-medium text-slate-600 min-w-[100px]">Enhanced Processing:</span>
+                <Badge variant={dump.extracted_entities.metadata.enhancedProcessing ? 'approved' : 'default'}>
+                  {dump.extracted_entities.metadata.enhancedProcessing ? 'Yes' : 'No'}
+                </Badge>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Timestamps */}
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold text-slate-900">Timestamps</h3>
+          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+            <div className="flex items-start gap-2">
+              <span className="text-sm font-medium text-slate-600 min-w-[100px]">Created:</span>
+              <span className="text-sm text-slate-700">{formatDisplayDate(new Date(dump.created_at))}</span>
+            </div>
+            {dump.processed_at && (
+              <div className="flex items-start gap-2">
+                <span className="text-sm font-medium text-slate-600 min-w-[100px]">Processed:</span>
+                <span className="text-sm text-slate-700">{formatDisplayDate(new Date(dump.processed_at))}</span>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Reject Form */}
         {showRejectForm && (
