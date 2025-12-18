@@ -1,6 +1,14 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { 
+  LuLayoutDashboard, 
+  LuFileScan, 
+  LuPackageCheck, 
+  LuBadgeCheck, 
+  LuMessageSquareText, 
+  LuLockKeyhole 
+} from 'react-icons/lu';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from './ui/Button';
 
@@ -24,12 +32,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   };
 
   const navItems = [
-    { path: '/', label: t('nav.dashboard'), icon: '📋' },
-    { path: '/search', label: t('nav.search'), icon: '🔍' },
-    { path: '/tracking', label: t('nav.tracking'), icon: '📦' },
-    { path: '/review', label: t('nav.review'), icon: '✓' },
-    { path: '/feedback', label: t('nav.feedback'), icon: '💬' },
-    { path: '/profile', label: t('nav.profile'), icon: '⚙️' },
+    { path: '/', label: t('nav.dashboard'), icon: LuLayoutDashboard },
+    { path: '/search', label: t('nav.search'), icon: LuFileScan },
+    { path: '/tracking', label: t('nav.tracking'), icon: LuPackageCheck },
+    { path: '/review', label: t('nav.review'), icon: LuBadgeCheck },
+    { path: '/feedback', label: t('nav.feedback'), icon: LuMessageSquareText },
+    { path: '/profile', label: t('nav.profile'), icon: LuLockKeyhole },
   ];
 
   return (
@@ -41,29 +49,32 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
               <h1 className="text-2xl font-heading font-bold bg-gradient-primary bg-clip-text text-transparent">
-                Clutter.AI
+                Clutter.App
               </h1>
             </Link>
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-1">
-              {navItems.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`
-                    px-4 py-2 rounded-charming text-sm font-medium transition-all
-                    ${
-                      location.pathname === item.path
-                        ? 'bg-gradient-primary text-white shadow-glow-sm'
-                        : 'text-slate-700 hover:bg-slate-100'
-                    }
-                  `}
-                >
-                  <span className="mr-2">{item.icon}</span>
-                  {item.label}
-                </Link>
-              ))}
+              {navItems.map((item) => {
+                const IconComponent = item.icon;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`
+                      px-4 py-2 rounded-charming text-sm font-medium transition-all flex items-center gap-2
+                      ${
+                        location.pathname === item.path
+                          ? 'bg-gradient-primary text-white shadow-glow-sm'
+                          : 'text-slate-700 hover:bg-slate-100'
+                      }
+                    `}
+                  >
+                    <IconComponent className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
             </nav>
 
             {/* User Menu */}
@@ -86,23 +97,26 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       {/* Mobile Navigation */}
       <nav className="md:hidden sticky top-[73px] z-30 bg-white border-b border-slate-200 px-4 py-2 overflow-x-auto">
         <div className="flex gap-2">
-          {navItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`
-                flex-shrink-0 px-3 py-1.5 rounded-charming text-xs font-medium transition-all whitespace-nowrap
-                ${
-                  location.pathname === item.path
-                    ? 'bg-gradient-primary text-white'
-                    : 'text-slate-700 hover:bg-slate-100'
-                }
-              `}
-            >
-              <span className="mr-1.5">{item.icon}</span>
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            const IconComponent = item.icon;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`
+                  flex-shrink-0 px-3 py-1.5 rounded-charming text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5
+                  ${
+                    location.pathname === item.path
+                      ? 'bg-gradient-primary text-white'
+                      : 'text-slate-700 hover:bg-slate-100'
+                  }
+                `}
+              >
+                <IconComponent className="h-3.5 w-3.5" />
+                {item.label}
+              </Link>
+            );
+          })}
         </div>
       </nav>
 

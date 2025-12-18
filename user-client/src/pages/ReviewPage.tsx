@@ -7,6 +7,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { LuClock, LuCircleCheck, LuCircleX, LuTriangleAlert } from 'react-icons/lu';
 import { apiService } from '../services/api';
 import { SearchResultCard } from '../components/SearchResultCard';
 import { DumpDetailModal } from '../components/DumpDetailModal';
@@ -205,7 +206,7 @@ export const ReviewPage: React.FC = () => {
         <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg p-4 text-white shadow-sm">
           <div className="flex items-center justify-between mb-1">
             <span className="text-yellow-100 text-sm">{t('review.stats.pending')}</span>
-            <span className="text-2xl">⏳</span>
+            <LuClock className="h-6 w-6" />
           </div>
           <div className="text-2xl font-bold">{pendingCount}</div>
         </div>
@@ -213,7 +214,7 @@ export const ReviewPage: React.FC = () => {
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white shadow-sm">
           <div className="flex items-center justify-between mb-1">
             <span className="text-green-100 text-sm">{t('review.stats.approved')}</span>
-            <span className="text-2xl">✓</span>
+            <LuCircleCheck className="h-6 w-6" />
           </div>
           <div className="text-2xl font-bold">{approvedCount}</div>
         </div>
@@ -221,7 +222,7 @@ export const ReviewPage: React.FC = () => {
         <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-4 text-white shadow-sm">
           <div className="flex items-center justify-between mb-1">
             <span className="text-red-100 text-sm">{t('review.stats.rejected')}</span>
-            <span className="text-2xl">✗</span>
+            <LuCircleX className="h-6 w-6" />
           </div>
           <div className="text-2xl font-bold">{rejectedCount}</div>
         </div>
@@ -229,7 +230,7 @@ export const ReviewPage: React.FC = () => {
         <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white shadow-sm">
           <div className="flex items-center justify-between mb-1">
             <span className="text-orange-100 text-sm">{t('review.stats.critical')}</span>
-            <span className="text-2xl">⚠️</span>
+            <LuTriangleAlert className="h-6 w-6" />
           </div>
           <div className="text-2xl font-bold">{criticalCount}</div>
         </div>
