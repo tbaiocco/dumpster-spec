@@ -1,7 +1,16 @@
 {
   "folders": [
     {
+      "name": "dumpster (backend)",
       "path": "."
+    },
+    {
+      "name": "user-client",
+      "path": "/home/baiocte/personal/dumpster-user-client"
+    },
+    {
+      "name": "admin-dashboard",
+      "path": "/home/baiocte/personal/dumpster-admin-dashboard"
     }
   ],
   "settings": {
@@ -21,6 +30,7 @@
       "**/node_modules": true,
       "**/dist": true,
       "**/build": true
-    }
+    },
+    "git.ignoreLimitWarning": true
   }
 }

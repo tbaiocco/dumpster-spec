@@ -170,6 +170,7 @@ export class AdminService {
     status?: string,
     priority?: string,
     limit: number = 50,
+    userId?: string,
   ) {
     const queryBuilder = this.dumpRepository
       .createQueryBuilder('dump')
@@ -178,6 +179,11 @@ export class AdminService {
       .where('dump.ai_confidence < :threshold', { threshold: 70 })
       .orderBy('dump.ai_confidence', 'ASC')
       .limit(limit);
+
+    // Filter by userId if provided
+    if (userId) {
+      queryBuilder.andWhere('dump.user_id = :userId', { userId });
+    }
 
     const flaggedDumps = await queryBuilder.getMany();
 
