@@ -52,6 +52,18 @@ Authorization: Bearer <your-jwt-token>
 
 ### Base Path: `/auth`
 
+### Endpoints Overview
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `POST` | [`/auth/send-code`](#post-authsend-code) | Send verification code to phone number | No |
+| `POST` | [`/auth/login`](#post-authlogin) | Login with phone number and verification code | No |
+| `GET` | [`/auth/profile`](#get-authprofile) | Get authenticated user profile | Yes (JWT) |
+| `PATCH` | [`/auth/profile`](#patch-authprofile) | Update user profile settings | Yes (JWT) |
+| `POST` | [`/auth/link-chat`](#post-authlink-chat) | Link Telegram/WhatsApp chat ID to user account | Yes (JWT) |
+
+---
+
 #### POST `/auth/send-code`
 Send a verification code to user's phone number.
 
@@ -196,6 +208,21 @@ Link Telegram or WhatsApp chat ID to user account.
 ---
 
 ## Health & System
+
+### Endpoints Overview
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `GET` | [`/health`](#get-health) | Basic health check | No |
+| `GET` | [`/health/db`](#get-healthdb) | Database connectivity check | No |
+| `GET` | [`/health/detailed`](#get-healthdetailed) | Detailed system health with memory and database metrics | No |
+| `GET` | [`/`](#get-) | Root endpoint - welcome message | No |
+| `POST` | [`/admin/recreate-vector-index`](#post-adminrecreate-vector-index) | Recreate pgvector index for semantic search | No |
+| `GET` | [`/admin/vector-health`](#get-adminvector-health) | Check vector search system health | No |
+| `POST` | [`/admin/test-claude`](#post-admintest-claude) | Test Claude AI integration | No |
+| `GET` | [`/admin/env-check`](#get-adminenv-check) | Check environment variables configuration | No |
+
+---
 
 ### GET `/health`
 Basic health check.
@@ -351,6 +378,18 @@ Check environment variables configuration.
 
 ### Base Path: `/users`
 
+### Endpoints Overview
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `POST` | [`/users`](#post-users) | Create a new user | No |
+| `GET` | [`/users`](#get-users) | List all users with pagination | No |
+| `GET` | [`/users/:id`](#get-usersid) | Get user by ID | No |
+| `PATCH` | [`/users/:id`](#patch-usersid) | Update user information | No |
+| `DELETE` | [`/users/:id`](#delete-usersid) | Delete user | No |
+
+---
+
 #### POST `/users`
 Create a new user.
 
@@ -481,6 +520,22 @@ Delete user.
 ### Base Path: `/api/dumps`
 
 Dumps are content items captured from users through various channels (text, voice, images, documents).
+
+### Endpoints Overview
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `POST` | [`/api/dumps/enhanced`](#post-apidumpsenhanced) | Create dump with enhanced AI processing (recommended) | No |
+| `POST` | [`/api/dumps/upload`](#post-apidumpsupload) | Upload and process media file | No |
+| `POST` | [`/api/dumps/voice`](#post-apidumpsvoice) | Process voice message with transcription | No |
+| `POST` | [`/api/dumps/screenshot`](#post-apidumpsscreenshot) | Process screenshot with OCR text extraction | No |
+| `GET` | [`/api/dumps/user/:userId`](#get-apidumpsuseruserid) | Get all dumps for a user (without pagination) | No |
+| `GET` | [`/api/dumps/user/:userId/recent`](#get-apidumpsuseruseridrecent) | Get recent dumps for a user | No |
+| `GET` | [`/api/dumps/:id`](#get-apidumpsid) | Get dump by ID | No |
+| `PATCH` | [`/api/dumps/:id`](#patch-apidumpsid) | Update dump (partial update) | No |
+| `DELETE` | [`/api/dumps/:id`](#delete-apidumpsid) | Delete dump | No |
+
+---
 
 #### POST `/api/dumps/enhanced`
 Create dump with enhanced AI processing (recommended).
@@ -813,6 +868,15 @@ Delete dump.
 
 Semantic search with pgvector and AI-enhanced queries.
 
+### Endpoints Overview
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `POST` | [`/api/search`](#post-apisearch) | Perform advanced search with filters | No |
+| `GET` | [`/api/search/quick`](#get-apisearchquick) | Quick search with simple query | Yes (JWT) |
+
+---
+
 #### POST `/api/search`
 Perform advanced search with filters.
 
@@ -889,6 +953,18 @@ Quick search with simple query.
 ### Base Path: `/api/reminders`
 
 All reminder endpoints require JWT authentication.
+
+### Endpoints Overview
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `POST` | [`/api/reminders`](#post-apireminders) | Create a new reminder | Yes (JWT) |
+| `GET` | [`/api/reminders`](#get-apireminders) | Get all reminders with filters | Yes (JWT) |
+| `GET` | [`/api/reminders/upcoming`](#get-apiremindersupcoming) | Get upcoming reminders for the next N hours | Yes (JWT) |
+| `POST` | [`/api/reminders/:id/snooze`](#post-apiremindersidsnooze) | Snooze a reminder | Yes (JWT) |
+| `POST` | [`/api/reminders/:id/dismiss`](#post-apiremindersiddismiss) | Dismiss a reminder | Yes (JWT) |
+
+---
 
 #### POST `/api/reminders`
 Create a new reminder.
@@ -1055,6 +1131,18 @@ All tracking endpoints require JWT authentication.
 - `completed` - Successfully completed
 - `expired` - Deadline passed
 - `cancelled` - Tracking cancelled
+
+### Endpoints Overview
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `POST` | [`/api/tracking`](#post-apitracking) | Create trackable item | Yes (JWT) |
+| `GET` | [`/api/tracking`](#get-apitracking) | Get user's trackable items with filters | Yes (JWT) |
+| `GET` | [`/api/tracking/stats`](#get-apitrackingstats) | Get tracking statistics | Yes (JWT) |
+| `POST` | [`/api/tracking/package`](#post-apitrackingpackage) | Quick track package by tracking number | Yes (JWT) |
+| `PUT` | [`/api/tracking/:id/status`](#put-apitrackingidstatus) | Update tracking status (add checkpoint) | Yes (JWT) |
+| `PUT` | [`/api/tracking/:id/complete`](#put-apitrackingidcomplete) | Mark tracking item as completed | Yes (JWT) |
+| `POST` | [`/api/tracking/detect`](#post-apitrackingdetect) | Detect tracking opportunities in a dump | Yes (JWT) |
 
 ---
 
@@ -1317,6 +1405,17 @@ Content moderation for flagged dumps with low AI confidence.
 
 All review endpoints require JWT authentication.
 
+### Endpoints Overview
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `GET` | [`/review/flagged`](#get-reviewflagged) | Get all flagged content for review | Yes (JWT) |
+| `GET` | [`/review/flagged/:dumpId`](#get-reviewflaggerdumpid) | Get specific flagged item details | Yes (JWT) |
+| `POST` | [`/review/:dumpId/approve`](#post-reviewdumpidapprove) | Approve flagged dump with optional corrections | Yes (JWT) |
+| `POST` | [`/review/:dumpId/reject`](#post-reviewdumpidreject) | Reject flagged dump (deletes it) | Yes (JWT) |
+
+---
+
 #### GET `/review/flagged`
 Get all flagged content for review.
 
@@ -1461,6 +1560,20 @@ Reject flagged dump (deletes it).
 ### Base Path: `/feedback`
 
 User feedback and feature requests system.
+
+### Endpoints Overview
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `POST` | [`/feedback/submit`](#post-feedbacksubmit) | Submit new feedback | No |
+| `GET` | [`/feedback`](#get-feedback) | Get all feedback with filters | No |
+| `PUT` | [`/feedback/:feedbackId/status`](#put-feedbackfeedbackidstatus) | Update feedback status | No |
+| `POST` | [`/feedback/:feedbackId/notes`](#post-feedbackfeedbackidnotes) | Add internal admin note to feedback | No |
+| `POST` | [`/feedback/:feedbackId/upvote`](#post-feedbackfeedbackidupvote) | Upvote feedback to indicate importance | No |
+| `GET` | [`/feedback/stats/overview`](#get-feedbackstatsoverview) | Get feedback statistics | No |
+| `GET` | [`/feedback/options/metadata`](#get-feedbackoptionsmetadata) | Get feedback metadata options | No |
+
+---
 
 #### POST `/feedback/submit`
 Submit new feedback.
@@ -1713,6 +1826,20 @@ Get feedback metadata options (types, priorities, statuses).
 
 All admin endpoints require JWT authentication and ADMIN role.
 
+### Endpoints Overview
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `GET` | [`/admin/analytics/system`](#get-adminanalyticssystem) | Get system-wide metrics and statistics | Yes (JWT + ADMIN) |
+| `GET` | [`/admin/analytics/search`](#get-adminanalyticssearch) | Get search analytics and metrics | Yes (JWT + ADMIN) |
+| `GET` | [`/admin/analytics/ai`](#get-adminanalyticsai) | Get AI processing metrics | Yes (JWT + ADMIN) |
+| `GET` | [`/admin/analytics/users`](#get-adminanalyticsusers) | Get user statistics | Yes (JWT + ADMIN) |
+| `GET` | [`/admin/analytics/features`](#get-adminanalyticsfeatures) | Get feature usage statistics | Yes (JWT + ADMIN) |
+| `GET` | [`/admin/dumps`](#get-admindumps) | Get all dumps (admin overview with pagination) | Yes (JWT + ADMIN) |
+| `GET` | [`/admin/categories`](#get-admincategories) | Get all categories | Yes (JWT + ADMIN) |
+
+---
+
 #### GET `/admin/analytics/system`
 Get system-wide metrics and statistics.
 
@@ -1930,6 +2057,15 @@ Get all categories.
 
 Email ingestion webhooks for processing emails as dumps.
 
+### Endpoints Overview
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `POST` | [`/api/email/webhook/sendgrid`](#post-apiemailwebhooksendgrid) | SendGrid inbound parse webhook | No (webhook signature validation) |
+| `POST` | [`/api/email/webhook/health`](#post-apiemailwebhookhealth) | Email webhook health check | No |
+
+---
+
 #### POST `/api/email/webhook/sendgrid`
 SendGrid inbound parse webhook.
 
@@ -1977,6 +2113,15 @@ Email webhook health check.
 ---
 
 ## Bot Webhooks
+
+### Endpoints Overview
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `POST` | [`/api/webhooks/telegram`](#post-apiwebhookstelegram) | Receive Telegram webhook updates | No (webhook validation) |
+| `POST` | [`/api/webhooks/whatsapp`](#post-apiwebhookswhatsapp) | Receive Twilio WhatsApp webhook | No (Twilio signature validation) |
+
+---
 
 ### Telegram Bot
 
