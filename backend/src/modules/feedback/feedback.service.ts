@@ -24,6 +24,9 @@ export interface FeedbackRequest {
   expectedBehavior?: string;
   actualBehavior?: string;
   additionalContext?: Record<string, any>;
+  metadata?: Record<string, any>;
+  context?: Record<string, any>;
+  rating?: number;
 }
 
 export interface FeedbackItem {
@@ -41,6 +44,9 @@ export interface FeedbackItem {
   expectedBehavior?: string;
   actualBehavior?: string;
   additionalContext?: Record<string, any>;
+  metadata?: Record<string, any>;
+  context?: Record<string, any>;
+  rating?: number;
   createdAt: Date;
   updatedAt: Date;
   resolvedAt?: Date;
@@ -81,6 +87,9 @@ export class FeedbackService {
         expected_behavior: request.expectedBehavior,
         actual_behavior: request.actualBehavior,
         additional_context: request.additionalContext,
+        metadata: request.metadata,
+        context: request.context,
+        rating: request.rating,
         internal_notes: [],
         upvotes: 0,
         tags: this.generateTags(request),
@@ -457,6 +466,9 @@ export class FeedbackService {
       expectedBehavior: feedback.expected_behavior,
       actualBehavior: feedback.actual_behavior,
       additionalContext: feedback.additional_context,
+      metadata: feedback.metadata,
+      context: feedback.context,
+      rating: feedback.rating,
       createdAt: feedback.created_at,
       updatedAt: feedback.updated_at,
       resolvedAt: feedback.resolved_at,

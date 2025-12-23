@@ -1602,6 +1602,26 @@ Submit new feedback.
 }
 ```
 
+**Example payload (new):**
+```json
+{
+  "type":"bug",
+  "severity":"medium",
+  "title":"teste de bug",
+  "rating":4,
+  "description":"test de bug report",
+  "context":{
+    "platform":"webapp",
+    "feature":"reminder",
+    "timestamp":"2025-12-23T10:45:58.069Z"
+  },
+  "metadata":{
+    "userAgent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "language":"pt"
+  }
+}
+```
+
 **Response:**
 ```json
 {

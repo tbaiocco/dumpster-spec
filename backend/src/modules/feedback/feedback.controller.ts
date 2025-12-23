@@ -18,6 +18,7 @@ import {
   IsObject,
   IsUUID,
 } from 'class-validator';
+import { IsInt, IsNumber } from 'class-validator';
 import {
   FeedbackService,
   FeedbackType,
@@ -40,6 +41,11 @@ export class SubmitFeedbackDto {
   @IsEnum(FeedbackPriority)
   priority?: FeedbackPriority;
 
+  // legacy alias accepted from clients
+  @IsOptional()
+  @IsEnum(FeedbackPriority)
+  severity?: FeedbackPriority;
+
   @IsOptional()
   @IsUUID()
   dumpId?: string;
@@ -47,6 +53,10 @@ export class SubmitFeedbackDto {
   @IsOptional()
   @IsString()
   userAgent?: string;
+
+  @IsOptional()
+  @IsNumber()
+  rating?: number;
 
   @IsOptional()
   @IsString()
@@ -68,6 +78,14 @@ export class SubmitFeedbackDto {
   @IsOptional()
   @IsObject()
   additionalContext?: Record<string, any>;
+
+  @IsOptional()
+  @IsObject()
+  metadata?: Record<string, any>;
+
+  @IsOptional()
+  @IsObject()
+  context?: Record<string, any>;
 }
 
 export class UpdateFeedbackStatusDto {
@@ -104,9 +122,26 @@ export class FeedbackController {
         `Submitting feedback: ${submitFeedbackDto.type} from user ${userId}`,
       );
 
+      // normalize payload: allow `severity` as alias for `priority`
+      const priority = submitFeedbackDto.priority || submitFeedbackDto.severity;
+
       const feedbackRequest: FeedbackRequest = {
-        ...submitFeedbackDto,
         userId,
+        type: submitFeedbackDto.type,
+        title: submitFeedbackDto.title,
+        description: submitFeedbackDto.description,
+        priority,
+        dumpId: submitFeedbackDto.dumpId,
+        userAgent:
+          submitFeedbackDto.userAgent || submitFeedbackDto?.metadata?.userAgent,
+        url: submitFeedbackDto.url,
+        reproductionSteps: submitFeedbackDto.reproductionSteps,
+        expectedBehavior: submitFeedbackDto.expectedBehavior,
+        actualBehavior: submitFeedbackDto.actualBehavior,
+        additionalContext: submitFeedbackDto.additionalContext,
+        metadata: submitFeedbackDto.metadata,
+        context: submitFeedbackDto.context,
+        rating: submitFeedbackDto.rating,
       };
 
       const feedbackId =

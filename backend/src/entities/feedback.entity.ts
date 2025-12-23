@@ -93,6 +93,15 @@ export class Feedback {
   @Column({ type: 'jsonb', nullable: true })
   additional_context: Record<string, any>;
 
+  @Column({ type: 'jsonb', nullable: true })
+  metadata: Record<string, any>;
+
+  @Column({ type: 'jsonb', nullable: true })
+  context: Record<string, any>;
+
+  @Column({ type: 'integer', nullable: true })
+  rating: number;
+
   @CreateDateColumn()
   created_at: Date;
 
