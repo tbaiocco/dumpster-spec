@@ -81,6 +81,7 @@ Send a verification code to user's phone number.
   "message": "Verification code sent successfully"
 }
 ```
+**Note:** The `/auth/send-code` endpoint returns a simple message object. It does not wrap the response in the standard `success/data` envelope.
 
 **Notes:**
 - Phone number must be in E.164 format
@@ -103,19 +104,16 @@ Login with phone number and verification code.
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "user": {
-      "id": "uuid",
-      "phone_number": "+351964938153",
-      "verified_at": "2025-12-19T10:00:00Z",
-      "chat_id_telegram": "123456789",
-      "chat_id_whatsapp": null,
-      "timezone": "Europe/Lisbon",
-      "language": "pt",
-      "role": "USER"
-    }
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "uuid",
+    "phone_number": "+351964938153",
+    "verified_at": "2025-12-19T10:00:00Z",
+    "chat_id_telegram": "123456789",
+    "chat_id_whatsapp": null,
+    "timezone": "Europe/Lisbon",
+    "language": "pt",
+    "role": "USER"
   }
 }
 ```
@@ -130,18 +128,15 @@ Get authenticated user's profile.
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "phone_number": "+351964938153",
-    "email": "user@example.com",
-    "timezone": "Europe/Lisbon",
-    "language": "pt",
-    "role": "USER",
-    "digest_time": "09:00",
-    "notification_preferences": {},
-    "created_at": "2025-01-01T00:00:00Z"
-  }
+  "id": "uuid",
+  "phone_number": "+351964938153",
+  "email": "user@example.com",
+  "timezone": "Europe/Lisbon",
+  "language": "pt",
+  "role": "USER",
+  "digest_time": "09:00",
+  "notification_preferences": {},
+  "created_at": "2025-01-01T00:00:00Z"
 }
 ```
 
@@ -168,13 +163,10 @@ Update user profile settings.
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "timezone": "Europe/Lisbon",
-    "language": "pt",
-    "digest_time": "09:00"
-  }
+  "id": "uuid",
+  "timezone": "Europe/Lisbon",
+  "language": "pt",
+  "digest_time": "09:00"
 }
 ```
 
@@ -196,12 +188,9 @@ Link Telegram or WhatsApp chat ID to user account.
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "chat_id_telegram": "123456789",
-    "chat_id_whatsapp": null
-  }
+  "id": "uuid",
+  "chat_id_telegram": "123456789",
+  "chat_id_whatsapp": null
 }
 ```
 
@@ -1566,7 +1555,9 @@ User feedback and feature requests system.
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
 | `POST` | [`/feedback/submit`](#post-feedbacksubmit) | Submit new feedback | No |
-| `GET` | [`/feedback`](#get-feedback) | Get all feedback with filters | No |
+| `GET` | [`/feedback/user/:userId`](#get-feedbackuseruserid) | Get feedback history for a user | No |
+| `GET` | [`/feedback/:feedbackId`](#get-feedbackfeedbackid) | Get feedback by ID | No |
+| `GET` | [`/feedback`](#get-feedback) | Get all feedback with filters (paginated) | No |
 | `PUT` | [`/feedback/:feedbackId/status`](#put-feedbackfeedbackidstatus) | Update feedback status | No |
 | `POST` | [`/feedback/:feedbackId/notes`](#post-feedbackfeedbackidnotes) | Add internal admin note to feedback | No |
 | `POST` | [`/feedback/:feedbackId/upvote`](#post-feedbackfeedbackidupvote) | Upvote feedback to indicate importance | No |
@@ -1625,15 +1616,8 @@ Submit new feedback.
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "type": "bug",
-    "severity": "medium",
-    "title": "Search not working for voice messages",
-    "status": "open",
-    "created_at": "2025-12-19T10:00:00Z"
-  }
+  "feedbackId": "uuid",
+  "message": "Feedback submitted successfully"
 }
 ```
 
@@ -1657,18 +1641,84 @@ Get all feedback with filters.
 **Response:**
 ```json
 {
-  "success": true,
-  "data": [
+  "items": [
     {
       "id": "uuid",
+      "userId": "uuid",
       "type": "bug",
-      "severity": "medium",
       "title": "Search issue",
-      "status": "open",
+      "description": "Short description",
+      "priority": "medium",
+      "status": "acknowledged",
+      "rating": 4,
       "upvotes": 5,
-      "created_at": "2025-12-19T10:00:00Z"
+      "tags": ["search", "bug"],
+      "createdAt": "2025-12-19T10:00:00Z"
     }
-  ]
+  ],
+  "total": 123
+}
+```
+
+---
+
+#### GET `/feedback/user/:userId`
+Get feedback history for a specific user.
+
+**Auth Required:** No
+
+**URL Parameters:**
+- `userId` - User UUID
+
+**Response:**
+```json
+{
+  "feedback": [
+    {
+      "id": "uuid",
+      "userId": "uuid",
+      "type": "bug",
+      "title": "Search issue",
+      "description": "Short description",
+      "priority": "medium",
+      "status": "acknowledged",
+      "rating": 4,
+      "upvotes": 5,
+      "tags": ["search", "bug"],
+      "createdAt": "2025-12-19T10:00:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+---
+
+#### GET `/feedback/:feedbackId`
+Get a single feedback item by its ID.
+
+**Auth Required:** No
+
+**URL Parameters:**
+- `feedbackId` - Feedback UUID
+
+**Response:**
+```json
+{
+  "feedback": {
+    "id": "uuid",
+    "userId": "uuid",
+    "type": "bug",
+    "title": "Search issue",
+    "description": "Detailed description",
+    "priority": "medium",
+    "status": "acknowledged",
+    "rating": 4,
+    "upvotes": 5,
+    "internalNotes": [],
+    "tags": ["search", "bug"],
+    "createdAt": "2025-12-19T10:00:00Z"
+  }
 }
 ```
 
@@ -1696,12 +1746,7 @@ Update feedback status.
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "status": "in_progress",
-    "updated_at": "2025-12-19T10:30:00Z"
-  }
+  "message": "Feedback status updated successfully"
 }
 ```
 
@@ -1725,16 +1770,7 @@ Add internal admin note to feedback.
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "internal_notes": [
-      {
-        "timestamp": "2025-12-19T10:30:00Z",
-        "note": "Investigating the issue. Will update soon."
-      }
-    ]
-  }
+  "message": "Internal note added successfully"
 }
 ```
 
@@ -1751,11 +1787,7 @@ Upvote feedback to indicate importance.
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "upvotes": 6
-  }
+  "message": "Feedback upvoted successfully"
 }
 ```
 
@@ -1769,17 +1801,16 @@ Get feedback statistics.
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
+  "stats": {
     "total": 150,
     "byType": {
-      "bug": 50,
-      "feature": 80,
-      "improvement": 20
+      "bug_report": 50,
+      "feature_request": 80,
+      "general_feedback": 20
     },
     "byStatus": {
-      "open": 60,
-      "in_progress": 40,
+      "new": 60,
+      "acknowledged": 40,
       "resolved": 30,
       "closed": 20
     },
@@ -1788,8 +1819,14 @@ Get feedback statistics.
       "medium": 70,
       "high": 30,
       "critical": 10
-    }
-  }
+    },
+    "avgResolutionTimeHours": 12.5,
+    "topTags": [
+      {"tag": "search", "count": 30},
+      {"tag": "ai-related", "count": 20}
+    ]
+  },
+  "timestamp": "2025-12-19T11:00:00.000Z"
 }
 ```
 
@@ -1803,37 +1840,12 @@ Get feedback metadata options (types, priorities, statuses).
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "types": [
-      {
-        "value": "bug",
-        "label": "Bug Report",
-        "description": "Something isn't working as expected"
-      },
-      {
-        "value": "feature",
-        "label": "Feature Request",
-        "description": "Suggest a new feature"
-      },
-      {
-        "value": "improvement",
-        "label": "Improvement",
-        "description": "Suggest an enhancement"
-      }
-    ],
-    "priorities": [
-      {"value": "low", "label": "Low"},
-      {"value": "medium", "label": "Medium"},
-      {"value": "high", "label": "High"},
-      {"value": "critical", "label": "Critical"}
-    ],
-    "statuses": [
-      {"value": "open", "label": "Open"},
-      {"value": "in_progress", "label": "In Progress"},
-      {"value": "resolved", "label": "Resolved"},
-      {"value": "closed", "label": "Closed"}
-    ]
+  "types": ["bug_report","feature_request","ai_error","categorization_error","summary_error","entity_error","urgency_error","general_feedback","content_quality","performance_issue"],
+  "priorities": ["low","medium","high","critical"],
+  "statuses": ["new","acknowledged","in_progress","resolved","closed"],
+  "typeDescriptions": {
+    "bug_report": "Report a bug or error in the application",
+    "feature_request": "Request a new feature or enhancement"
   }
 }
 ```
@@ -2107,11 +2119,10 @@ SendGrid inbound parse webhook.
 ```json
 {
   "success": true,
-  "message": "Email processed successfully",
-  "data": {
-    "dumpsCreated": 3,
-    "attachmentsProcessed": 2
-  }
+  "messageId": "msg_1234",
+  "processedAt": "2025-12-23T11:00:00.000Z",
+  "extractedText": "Extracted email body text...",
+  "attachmentCount": 2
 }
 ```
 
@@ -2125,8 +2136,8 @@ Email webhook health check.
 **Response:**
 ```json
 {
-  "success": true,
-  "message": "Email webhook is operational"
+  "status": "ok",
+  "timestamp": "2025-12-23T11:00:00.000Z"
 }
 ```
 
@@ -2197,6 +2208,7 @@ Receive Telegram webhook updates.
   "message": "Update processed"
 }
 ```
+**Note:** The Telegram webhook handler responds with a simple acknowledgement object. The controller returns `{ "ok": true }` for processed updates.
 
 ---
 
@@ -2231,10 +2243,127 @@ Receive Twilio WhatsApp webhook.
 - `stats` - User statistics
 
 **Response:**
+```text
+OK
+```
+**Note:** The WhatsApp/Twilio webhook endpoint returns a plain `OK` string response to acknowledge receipt. It does not return the standard `success/data` envelope.
+
+---
+
+## Test Notifications
+
+### Base Path: `/test/notifications`
+
+These endpoints are development/testing helpers for triggering notification flows and inspecting configuration. They are intended for use in staging or local environments and should be disabled in production.
+
+### Endpoints Overview
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `POST` | [`/test/notifications/digest/morning/:userId`](#post-testnotificationsdigestmorninguserid) | Trigger morning digest send for a user | No (dev only) |
+| `POST` | [`/test/notifications/digest/evening/:userId`](#post-testnotificationsdigesteveninguserid) | Trigger evening digest send for a user | No (dev only) |
+| `POST` | [`/test/notifications/reminders/check`](#post-testnotificationsreminderscheck) | Trigger reminder check job | No (dev only) |
+| `POST` | [`/test/notifications/send/:userId`](#post-testnotificationssenduserid) | Send a test notification to a user | No (dev only) |
+| `GET` | [`/test/notifications/cron/status`](#get-testnotificationscronstatus) | Get cron job status | No (dev only) |
+| `GET` | [`/test/notifications/config`](#get-testnotificationsconfig) | Get notification delivery configuration | No (dev only) |
+
+---
+
+#### POST `/test/notifications/digest/morning/:userId`
+Trigger a morning digest delivery for the specified user (development testing).
+
+**URL Parameters:**
+- `userId` - User UUID
+
+**Response:**
 ```json
 {
   "success": true,
-  "message": "Message processed"
+  "message": "Morning digest triggered for user <userId>"
+}
+```
+
+---
+
+#### POST `/test/notifications/digest/evening/:userId`
+Trigger an evening digest delivery for the specified user (development testing).
+
+**URL Parameters:**
+- `userId` - User UUID
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Evening digest triggered for user <userId>"
+}
+```
+
+---
+
+#### POST `/test/notifications/reminders/check`
+Trigger the reminder check job which scans pending reminders and sends notifications where appropriate.
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Reminder check triggered"
+}
+```
+
+---
+
+#### POST `/test/notifications/send/:userId`
+Send a test notification to a specific user.
+
+**URL Parameters:**
+- `userId` - User UUID
+
+**Request Body:**
+```json
+{
+  "message": "Test notification",
+  "type": "digest" // optional: 'digest' | 'reminder' | 'alert' | 'update'
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "channel": "email|telegram|whatsapp",
+  "deliveredAt": "2025-12-23T11:00:00.000Z",
+  "messageId": "msg_1234"
+}
+```
+
+---
+
+#### GET `/test/notifications/cron/status`
+Get status of scheduled cron jobs (development/testing).
+
+**Response:**
+```json
+{
+  "jobs": [
+    { "name": "morning-digest", "lastRun": "2025-12-23T08:00:00Z", "status": "ok" },
+    { "name": "reminder-check", "lastRun": "2025-12-23T10:45:00Z", "status": "ok" }
+  ]
+}
+```
+
+---
+
+#### GET `/test/notifications/config`
+Get delivery service configuration and available channels.
+
+**Response:**
+```json
+{
+  "message": "Notification system is configured",
+  "availableChannels": ["email", "telegram", "whatsapp"],
+  "note": "Email is always sent if user has email. Additional channel selected based on availability."
 }
 ```
 
@@ -2244,7 +2373,7 @@ Receive Twilio WhatsApp webhook.
 
 ### Standard Response Format
 
-All API endpoints return responses in this format:
+Most API endpoints return responses in this envelope format:
 
 ```json
 {
@@ -2253,6 +2382,9 @@ All API endpoints return responses in this format:
   "message": "Operation completed successfully"
 }
 ```
+
+Exceptions: a few endpoints intentionally return other shapes:
+- Webhook endpoints (Telegram/WhatsApp) and some low-level auth endpoints return simple acknowledgements or raw objects (see `/api/webhooks/*` and `/auth/*` documentation). These do not always use the standard envelope.
 
 ### Error Response Format
 
