@@ -77,33 +77,130 @@ export class RedisService implements OnModuleDestroy {
       })();
 
       const envForceTls = this.config.get<string>('REDIS_TLS') === 'true';
-      const useTls = connectionUrl.startsWith('rediss:') || envForceTls;
       const connectTimeout = Number(this.config.get<number>('REDIS_CONNECT_TIMEOUT') || 10000);
 
-      this.logger.log(`Redis TLS=${useTls} connectTimeout=${connectTimeout}ms`);
+      this.logger.log(`Redis connectTimeout=${connectTimeout}ms (TLS forced=${envForceTls})`);
 
-      this.client = createClient({
-        url: connectionUrl,
-        socket: {
-          tls: useTls,
-          // allow opt-out of cert verification via REDIS_TLS_REJECT_UNAUTHORIZED=false
-          rejectUnauthorized: this.config.get<string>('REDIS_TLS_REJECT_UNAUTHORIZED') !== 'false',
-          connectTimeout,
-        },
-      });
-      this.client.on('error', (err) => {
-        this.connected = false;
-        this.logger.error('Redis client error', err as any);
-      });
-      this.client.on('connect', () => {
-        this.connected = true;
-        this.logger.log('Redis client connected');
-      });
-      // Connect but don't block constructor if it takes time
-      this.client.connect().catch((err) => {
-        this.logger.error('Failed to connect to Redis', err as any);
+      // Non-blocking async connect flow that tries multiple candidate endpoints and auth modes.
+      (async () => {
+        const tryConnect = async (urlToUse: string, tlsForced: boolean) => {
+          // Determine TLS per-URL
+          const useTlsForThis = urlToUse.startsWith('rediss:') || tlsForced;
+          const c = createClient({
+            url: urlToUse,
+            socket: {
+              tls: useTlsForThis,
+              rejectUnauthorized:
+                this.config.get<string>('REDIS_TLS_REJECT_UNAUTHORIZED') !== 'false',
+              connectTimeout,
+            },
+          });
+
+          c.on('error', (err) => {
+            this.connected = false;
+            this.logger.error('Redis client error', err as any);
+          });
+          c.on('connect', () => {
+            this.connected = true;
+            this.logger.log('Redis client connected');
+          });
+
+          try {
+            await c.connect();
+            this.client = c;
+            return { ok: true } as const;
+          } catch (e) {
+            try {
+              await c.quit();
+            } catch (_) {}
+            return { ok: false, err: e as Error } as const;
+          }
+        };
+
+        // Build ordered list of candidate URLs to try
+        const candidates: Array<{ url: string; reason: string }>
+          = [];
+
+        // Helper to detect unexpanded Railway placeholders like ${{...}}
+        const looksUnexpanded = (s?: string) => !s || s.includes('${{');
+
+        // Prefer explicit host/port/user/password if provided (backend service envs)
+        const beHost = this.config.get<string>('REDIS_HOST') || this.config.get<string>('REDISHOST');
+        const bePort = this.config.get<string>('REDIS_PORT') || this.config.get<string>('REDISPORT');
+        const beUser = this.config.get<string>('REDIS_USER') || this.config.get<string>('REDISUSER');
+        const bePassword = this.config.get<string>('REDIS_PASSWORD') || this.config.get<string>('REDISPASSWORD');
+
+        if (beHost && !looksUnexpanded(beHost)) {
+          const portPart = bePort ? `:${bePort}` : '';
+          if (beUser && bePassword && !looksUnexpanded(bePassword) && !looksUnexpanded(beUser)) {
+            candidates.push({ url: `redis://${encodeURIComponent(beUser)}:${encodeURIComponent(bePassword)}@${beHost}${portPart}`, reason: 'backend env user+pass' });
+          }
+          if (bePassword && !looksUnexpanded(bePassword)) {
+            candidates.push({ url: `redis://${bePassword ? `:${encodeURIComponent(bePassword)}@` : ''}${beHost}${portPart}`, reason: 'backend env password-only' });
+          }
+        }
+
+        // If we have any explicit URL envs, prefer them next
+        if (url && !looksUnexpanded(url)) {
+          candidates.push({ url, reason: 'REDIS_URL' });
+        }
+        const publicUrl = this.config.get<string>('REDIS_PUBLIC_URL');
+        if (publicUrl && !looksUnexpanded(publicUrl)) {
+          candidates.push({ url: publicUrl, reason: 'REDIS_PUBLIC_URL (proxy)' });
+        }
+
+        // Also include the pre-computed connectionUrl if it's different
+        if (connectionUrl && !candidates.some(c => c.url === connectionUrl) && !looksUnexpanded(connectionUrl)) {
+          candidates.push({ url: connectionUrl, reason: 'constructed connectionUrl' });
+        }
+
+        if (candidates.length === 0) {
+          this.logger.warn('No usable Redis endpoints found (envs may contain placeholders or be empty).');
+          return;
+        }
+
+        // Attempt each candidate in order; on WRONGPASS try password-only fallback for same host
+        for (const cand of candidates) {
+          try {
+            this.logger.log(`Trying Redis candidate (${cand.reason}): ${cand.url.replace(/:[^:@]+@/, ':*****@')}`);
+            const res = await tryConnect(cand.url, envForceTls);
+            if (res.ok) {
+              this.logger.log(`Connected to Redis (${cand.reason})`);
+              return;
+            }
+
+            // If auth error, attempt username-less fallback for host:port
+            const errMsg = (res.err && res.err.message) ? String(res.err.message) : '';
+            if (/WRONGPASS|invalid username-password|NOAUTH|ERR invalid password/i.test(errMsg)) {
+              try {
+                const parsed = new URL(cand.url);
+                const host = parsed.hostname;
+                const port = parsed.port ? `:${parsed.port}` : '';
+                const pass = parsed.password || '';
+                if (pass) {
+                  const fallback = `redis://${pass ? `:${encodeURIComponent(pass)}@` : ''}${host}${port}`;
+                  this.logger.log('Auth failed — attempting password-only fallback for same host');
+                  const fbRes = await tryConnect(fallback, envForceTls);
+                  if (fbRes.ok) {
+                    this.logger.log('Redis connected with password-only fallback');
+                    return;
+                  }
+                  this.logger.error('Password-only fallback failed', fbRes.err as any);
+                }
+              } catch (parseErr) {
+                this.logger.error('Failed to parse candidate URL for auth fallback', parseErr as any);
+              }
+            }
+
+            this.logger.error(`Candidate failed (${cand.reason})`, res.err as any);
+          } catch (outer) {
+            this.logger.error('Unexpected error during Redis connect attempts', outer as any);
+          }
+        }
+
+        this.logger.error('All Redis connection candidates failed; Redis disabled for this run.');
         this.client = null;
-      });
+      })();
     } catch (err) {
       this.logger.error('Failed to initialize Redis client', err as any);
       this.client = null;
