@@ -7,7 +7,7 @@ import * as net from 'net';
 @Injectable()
 export class RedisService implements OnModuleDestroy {
   private readonly logger = new Logger(RedisService.name);
-  private client: RedisClientType | null = null;
+  private client: RedisClientType<any, any, any> | null = null;
   private connected = false;
 
   constructor(private readonly config: ConfigService) {
