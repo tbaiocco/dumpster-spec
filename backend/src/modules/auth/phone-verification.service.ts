@@ -38,9 +38,15 @@ export class PhoneVerificationService {
     const ttlSeconds = 60 * 10; // 10 minutes
     if (this.redisService && this.redisService.isAvailable()) {
       await this.redisService.setEx(redisKey, ttlSeconds, code);
+      this.logger.log(
+        `Stored verification code for ${phoneNumber} in Redis (key=${redisKey}, ttl=${ttlSeconds}s)`,
+      );
     } else {
       // Fallback to in-memory map for single-instance or until Redis is available
       this.verificationCodes.set(phoneNumber, { code, expiresAt });
+      this.logger.log(
+        `Stored verification code for ${phoneNumber} in memory (expiresAt=${expiresAt.toISOString()})`,
+      );
     }
 
     // NOTE: In production, integrate with SMS service (Twilio, AWS SNS, etc.)
