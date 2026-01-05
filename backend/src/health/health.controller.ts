@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { RedisService } from '../shared/redis.service';
 
 /**
  * Health Check Controller (T093)
@@ -8,7 +9,10 @@ import { DataSource } from 'typeorm';
  */
 @Controller('health')
 export class HealthController {
-  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+  constructor(
+    @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly redisService?: RedisService,
+  ) {}
 
   /**
    * Basic health check
@@ -71,6 +75,26 @@ export class HealthController {
       },
       database: dbStatus,
       environment: process.env.NODE_ENV || 'development',
+    };
+  }
+
+  /**
+   * Redis connectivity health
+   */
+  @Get('redis')
+  async redis() {
+    if (!this.redisService) {
+      return { status: 'disabled', message: 'RedisService not configured' };
+    }
+
+    const available = this.redisService.isAvailable();
+    const pingOk = await this.redisService.ping();
+
+    return {
+      status: available && pingOk ? 'ok' : 'error',
+      available,
+      pingOk,
+      timestamp: new Date().toISOString(),
     };
   }
 }
