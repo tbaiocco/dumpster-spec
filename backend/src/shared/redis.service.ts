@@ -1,6 +1,8 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, RedisClientType } from 'redis';
+import * as dns from 'dns';
+import * as net from 'net';
 
 @Injectable()
 export class RedisService implements OnModuleDestroy {
@@ -36,6 +38,43 @@ export class RedisService implements OnModuleDestroy {
       } catch (e) {
         this.logger.log(`Attempting Redis connection to ${connectionUrl.replace(/:[^:@]+@/, ':*****@')}`);
       }
+      // Perform a quick network probe (DNS + TCP) to provide clearer logs for connectivity issues
+      (async () => {
+        try {
+          const parsed = new URL(connectionUrl);
+          const host = parsed.hostname;
+          const port = Number(parsed.port) || 6379;
+
+          this.logger.log(`Probing DNS for ${host}...`);
+          try {
+            const lookup = await dns.promises.lookup(host);
+            this.logger.log(`DNS lookup ok: ${host} -> ${lookup.address}`);
+          } catch (dnsErr) {
+            this.logger.error(`DNS lookup failed for ${host}: ${dnsErr}`);
+          }
+
+          this.logger.log(`Attempting TCP connect to ${host}:${port} (timeout 5000ms)...`);
+          await new Promise<void>((resolve, reject) => {
+            const socket = net.createConnection({ host, port }, () => {
+              socket.destroy();
+              this.logger.log(`TCP connect OK to ${host}:${port}`);
+              resolve();
+            });
+            socket.setTimeout(5000, () => {
+              socket.destroy();
+              reject(new Error('TCP connect timeout'));
+            });
+            socket.on('error', (err) => {
+              socket.destroy();
+              reject(err);
+            });
+          }).catch((err) => {
+            this.logger.error(`Pre-connect TCP check failed: ${err}`);
+          });
+        } catch (probeErr) {
+          this.logger.error('Network probe failed', probeErr as any);
+        }
+      })();
 
       const envForceTls = this.config.get<string>('REDIS_TLS') === 'true';
       const useTls = connectionUrl.startsWith('rediss:') || envForceTls;
