@@ -9,12 +9,19 @@ export class RedisService implements OnModuleDestroy {
   private connected = false;
 
   constructor(private readonly config: ConfigService) {
-    const url = this.config.get<string>('REDIS_URL');
-    const host = this.config.get<string>('REDIS_HOST');
-    const port = this.config.get<string>('REDIS_PORT');
-    const password = this.config.get<string>('REDIS_PASSWORD');
+    // Support multiple env var shapes (Railway may expose REDIS_PUBLIC_URL or REDIS_URL or REDISHOST)
+    const publicUrl = this.config.get<string>('REDIS_PUBLIC_URL');
+    const url = this.config.get<string>('REDIS_URL') || publicUrl;
+    const host = this.config.get<string>('REDIS_HOST') || this.config.get<string>('REDISHOST');
+    const port = this.config.get<string>('REDIS_PORT') || this.config.get<string>('REDISPORT');
+    const password =
+      this.config.get<string>('REDIS_PASSWORD') || this.config.get<string>('REDISPASSWORD');
 
-    const connectionUrl = url || (host ? `redis://${password ? `:${encodeURIComponent(password)}@` : ''}${host}${port ? `:${port}` : ''}` : undefined);
+    const connectionUrl =
+      url ||
+      (host
+        ? `redis://${password ? `:${encodeURIComponent(password)}@` : ''}${host}${port ? `:${port}` : ''}`
+        : undefined);
 
     if (!connectionUrl) {
       this.logger.warn('No REDIS_URL/REDIS_HOST configured — Redis disabled.');
@@ -22,6 +29,14 @@ export class RedisService implements OnModuleDestroy {
     }
 
     try {
+      // Log masked host for debugging without revealing password
+      try {
+        const parsed = new URL(connectionUrl);
+        this.logger.log(`Attempting Redis connection to host=${parsed.hostname}${parsed.port ? `:${parsed.port}` : ''} (protocol=${parsed.protocol})`);
+      } catch (e) {
+        this.logger.log(`Attempting Redis connection to ${connectionUrl.replace(/:[^:@]+@/, ':*****@')}`);
+      }
+
       this.client = createClient({ url: connectionUrl });
       this.client.on('error', (err) => {
         this.connected = false;
