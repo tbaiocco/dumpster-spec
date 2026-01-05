@@ -9,18 +9,19 @@ export class TwilioService {
   private readonly fromNumber: string | undefined;
 
   constructor(private readonly config: ConfigService) {
-    const accountSid = this.config.get<string>('TWILIO_ACCOUNT_SID');
-    const authToken = this.config.get<string>('TWILIO_AUTH_TOKEN');
-    this.fromNumber = this.config.get<string>('TWILIO_FROM_NUMBER');
+    const accountSid = this.config.get<string>('WHATSAPP_ACCOUNT_SID');
+    const authToken = this.config.get<string>('WHATSAPP_AUTH_TOKEN');
+    this.fromNumber = this.config.get<string>('WHATSAPP_PHONE_NUMBER');
 
     if (!accountSid || !authToken || !this.fromNumber) {
       this.logger.warn(
-        'Twilio not configured (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER). SMS will be skipped.',
+        'Twilio not configured (WHATSAPP_ACCOUNT_SID, WHATSAPP_AUTH_TOKEN, WHATSAPP_PHONE_NUMBER). SMS will be skipped.',
       );
       this.client = null;
     } else {
       // Twilio returns a factory when imported as * as Twilio
       this.client = (Twilio as any)(accountSid, authToken);
+      this.fromNumber = this.fromNumber.replace('whatsapp:', '');
     }
   }
 
