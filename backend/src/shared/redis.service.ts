@@ -37,7 +37,21 @@ export class RedisService implements OnModuleDestroy {
         this.logger.log(`Attempting Redis connection to ${connectionUrl.replace(/:[^:@]+@/, ':*****@')}`);
       }
 
-      this.client = createClient({ url: connectionUrl });
+      const envForceTls = this.config.get<string>('REDIS_TLS') === 'true';
+      const useTls = connectionUrl.startsWith('rediss:') || envForceTls;
+      const connectTimeout = Number(this.config.get<number>('REDIS_CONNECT_TIMEOUT') || 10000);
+
+      this.logger.log(`Redis TLS=${useTls} connectTimeout=${connectTimeout}ms`);
+
+      this.client = createClient({
+        url: connectionUrl,
+        socket: {
+          tls: useTls,
+          // allow opt-out of cert verification via REDIS_TLS_REJECT_UNAUTHORIZED=false
+          rejectUnauthorized: this.config.get<string>('REDIS_TLS_REJECT_UNAUTHORIZED') !== 'false',
+          connectTimeout,
+        },
+      });
       this.client.on('error', (err) => {
         this.connected = false;
         this.logger.error('Redis client error', err as any);
