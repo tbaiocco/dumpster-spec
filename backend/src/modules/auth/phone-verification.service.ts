@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../entities/user.entity';
 import { TwilioService } from './twilio.service';
+import { RedisService } from '../../shared/redis.service';
 
 @Injectable()
 export class PhoneVerificationService {
@@ -16,6 +17,7 @@ export class PhoneVerificationService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly twilioService?: TwilioService,
+    private readonly redisService?: RedisService,
   ) {}
 
   async sendVerificationCode(
@@ -31,8 +33,15 @@ export class PhoneVerificationService {
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 10); // 10 minutes expiry
 
-    // Store verification code (in production, use Redis or database)
-    this.verificationCodes.set(phoneNumber, { code, expiresAt });
+    // Store verification code (prefer Redis for cross-instance consistency)
+    const redisKey = `verify:${phoneNumber}`;
+    const ttlSeconds = 60 * 10; // 10 minutes
+    if (this.redisService && this.redisService.isAvailable()) {
+      await this.redisService.setEx(redisKey, ttlSeconds, code);
+    } else {
+      // Fallback to in-memory map for single-instance or until Redis is available
+      this.verificationCodes.set(phoneNumber, { code, expiresAt });
+    }
 
     // NOTE: In production, integrate with SMS service (Twilio, AWS SNS, etc.)
     console.log(`Verification code for ${phoneNumber}: ${code}`);
@@ -61,23 +70,24 @@ export class PhoneVerificationService {
     phoneNumber: string,
     code: string,
   ): Promise<{ isValid: boolean; user?: User }> {
-    const stored = this.verificationCodes.get(phoneNumber);
+    const redisKey = `verify:${phoneNumber}`;
+    let storedCode: string | null = null;
 
-    if (!stored) {
-      return { isValid: false };
-    }
-
-    if (new Date() > stored.expiresAt) {
+    if (this.redisService && this.redisService.isAvailable()) {
+      storedCode = await this.redisService.get(redisKey);
+      if (!storedCode) return { isValid: false };
+      if (storedCode !== code) return { isValid: false };
+      await this.redisService.del(redisKey);
+    } else {
+      const stored = this.verificationCodes.get(phoneNumber);
+      if (!stored) return { isValid: false };
+      if (new Date() > stored.expiresAt) {
+        this.verificationCodes.delete(phoneNumber);
+        return { isValid: false };
+      }
+      if (stored.code !== code) return { isValid: false };
       this.verificationCodes.delete(phoneNumber);
-      return { isValid: false };
     }
-
-    if (stored.code !== code) {
-      return { isValid: false };
-    }
-
-    // Remove used code
-    this.verificationCodes.delete(phoneNumber);
 
     // Find or create user
     let user = await this.userRepository.findOne({

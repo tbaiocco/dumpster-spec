@@ -22,6 +22,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { ReviewModule } from './modules/review/review.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
 import { DatabaseInitService } from './database/database-init.service';
+import { RedisService } from './shared/redis.service';
 
 @Module({
   imports: [
@@ -100,6 +101,7 @@ import { DatabaseInitService } from './database/database-init.service';
   providers: [
     AppService,
     DatabaseInitService,
+    RedisService,
     // Global rate limiting guard (T091)
     {
       provide: APP_GUARD,
