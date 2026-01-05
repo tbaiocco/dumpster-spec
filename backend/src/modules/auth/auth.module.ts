@@ -7,6 +7,7 @@ import { User } from '../../entities/user.entity';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PhoneVerificationService } from './phone-verification.service';
+import { TwilioService } from './twilio.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
@@ -35,7 +36,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, PhoneVerificationService, JwtStrategy, JwtAuthGuard],
-  exports: [AuthService, JwtStrategy, JwtAuthGuard, PassportModule],
+  providers: [AuthService, PhoneVerificationService, TwilioService, JwtStrategy, JwtAuthGuard],
+  exports: [AuthService, JwtStrategy, JwtAuthGuard, PassportModule, TwilioService],
 })
 export class AuthModule {}

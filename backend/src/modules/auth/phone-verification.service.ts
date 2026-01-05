@@ -1,7 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../entities/user.entity';
+import { TwilioService } from './twilio.service';
 
 @Injectable()
 export class PhoneVerificationService {
@@ -9,10 +10,12 @@ export class PhoneVerificationService {
     string,
     { code: string; expiresAt: Date }
   >();
+  private readonly logger = new Logger(PhoneVerificationService.name);
 
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly twilioService?: TwilioService,
   ) {}
 
   async sendVerificationCode(
@@ -33,6 +36,21 @@ export class PhoneVerificationService {
 
     // NOTE: In production, integrate with SMS service (Twilio, AWS SNS, etc.)
     console.log(`Verification code for ${phoneNumber}: ${code}`);
+
+    // Build the message using the project's template.
+    const message = `Hello from The Clutter App! Your verification code is: ${code}`;
+
+    // Fire-and-forget send via Twilio (do not block if not configured)
+    try {
+      if (this.twilioService) {
+        await this.twilioService.sendSms(phoneNumber, message);
+      } else {
+        this.logger.log('TwilioService not available; SMS skipped.');
+      }
+    } catch (err) {
+      // Log the error but do not fail the request — code is still valid in server memory.
+      this.logger.error('Failed to send verification SMS', err as any);
+    }
 
     return {
       message: 'Verification code sent successfully',
