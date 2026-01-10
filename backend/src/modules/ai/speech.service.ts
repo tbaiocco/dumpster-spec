@@ -110,41 +110,60 @@ export class SpeechService {
         `Configuring Speech-to-Text with language: ${languageCode}, encoding: ${encoding}`,
       );
 
+      // Use phone_call model for WhatsApp/Telegram voice messages
+      // Testing showed this gives best accuracy for voice messages at 16kHz
       const config: any = {
         encoding,
         languageCode,
-        enableAutomaticPunctuation: true, // Always enable for better parsing
-        enableWordTimeOffsets: request.enableWordTimeOffsets ?? true, // Enable for debugging
-        maxAlternatives: 3, // Optimal number of alternatives
-        useEnhanced: true, // Always use enhanced model
-        model: 'phone_call', // Optimized for mobile voice messages (WhatsApp, Telegram)
+        enableAutomaticPunctuation: request.enableAutomaticPunctuation ?? true,
+        enableWordTimeOffsets: request.enableWordTimeOffsets ?? false, // Disable by default for speed
+        maxAlternatives: request.maxAlternatives ?? 3,
+        useEnhanced: true, // Enhanced model for better accuracy
+        model: 'phone_call', // Optimal for voice messages (tested)
       };
 
       // Audio format specific configurations
+      // Google requires explicit sample rates for all encodings
       if (encoding === 'OGG_OPUS') {
-        config.sampleRateHertz = 48000; // Standard Opus sample rate
-        this.logger.debug('Using OGG_OPUS encoding with 48kHz sample rate');
+        // Opus in WhatsApp/Telegram voice messages typically uses 16kHz
+        // Can also be 48000 for higher quality recordings
+        config.sampleRateHertz = 16000;
+        this.logger.debug('Using OGG_OPUS encoding with 16kHz sample rate');
       } else if (encoding === 'MP3') {
-        config.sampleRateHertz = 16000; // Standard MP3 sample rate for speech
+        // Standard MP3 sample rate for voice
+        config.sampleRateHertz = 16000;
         this.logger.debug('Using MP3 encoding with 16kHz sample rate');
+      } else if (encoding === 'LINEAR16') {
+        config.sampleRateHertz = 16000;
+        this.logger.debug('Using LINEAR16 encoding with 16kHz sample rate');
+      } else if (encoding === 'FLAC' || encoding === 'WEBM_OPUS') {
+        // FLAC and WebM can vary, use 16kHz as default
+        config.sampleRateHertz = 16000;
+        this.logger.debug(`Using ${encoding} encoding with 16kHz sample rate`);
       }
 
-      // Enhanced language configuration for better recognition
-      // Note: phone_call model doesn't support alternativeLanguageCodes
+      // Add alternative language codes for better recognition
+      // This helps when the exact dialect is uncertain
+      // Note: phone_call model does NOT support alternativeLanguageCodes
       if (config.model !== 'phone_call') {
+        const alternativeLanguageCodes: string[] = [];
+        
         if (languageCode.startsWith('pt')) {
-          // Use both Portuguese variants for better recognition
-          config.alternativeLanguageCodes = ['pt-BR', 'pt-PT'];
+          alternativeLanguageCodes.push('pt-BR', 'pt-PT');
           this.logger.debug('Added Portuguese language alternatives');
         } else if (languageCode.startsWith('es')) {
-          // Spanish variants
-          config.alternativeLanguageCodes = ['es-ES', 'es-MX', 'es-AR'];
+          alternativeLanguageCodes.push('es-ES', 'es-US', 'es-MX');
           this.logger.debug('Added Spanish language alternatives');
         } else if (languageCode.startsWith('en')) {
-          // English variants
-          config.alternativeLanguageCodes = ['en-US', 'en-GB', 'en-AU'];
+          alternativeLanguageCodes.push('en-US', 'en-GB');
           this.logger.debug('Added English language alternatives');
         }
+
+        if (alternativeLanguageCodes.length > 0) {
+          config.alternativeLanguageCodes = alternativeLanguageCodes;
+        }
+      } else {
+        this.logger.debug('Skipping alternative languages (not supported by phone_call model)');
       }
 
       const googleRequest: GoogleSpeechRequest = {
@@ -266,7 +285,6 @@ export class SpeechService {
       languageCode: request.config.languageCode,
       sampleRateHertz: request.config.sampleRateHertz,
       audioSize: request.audio.content.length,
-      alternativeLanguageCodes: request.config.alternativeLanguageCodes,
     });
 
     const response = await fetch(url, {

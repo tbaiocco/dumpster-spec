@@ -18,6 +18,8 @@ import { TranslationService } from '../ai/translation.service';
 import { MediaProcessorService } from '../ai/media-processor.service';
 import { ReviewService } from './services/review.service';
 import { ReviewController } from './controllers/review.controller';
+import { SpeechTestController } from '../ai/speech-test.controller';
+import { SpeechAdvancedTestController } from '../ai/speech-advanced-test.controller';
 import { ConfidenceService } from '../ai/confidence.service';
 import { FallbackHandlerService } from '../ai/fallback-handler.service';
 import { DocumentProcessorService } from '../ai/document-processor.service';
@@ -40,7 +42,7 @@ import { MetricsModule } from '../metrics/metrics.module';
     forwardRef(() => BotsModule), // Use forwardRef to resolve circular dependency
     MetricsModule,
   ],
-  controllers: [DumpController, ReviewController],
+  controllers: [DumpController, ReviewController, SpeechTestController, SpeechAdvancedTestController],
   providers: [
     DumpService,
     // AI Services
