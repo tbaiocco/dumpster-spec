@@ -9,6 +9,7 @@ import { User } from '../../entities/user.entity';
 
 // Import all AI services
 import { ClaudeService } from '../ai/claude.service';
+import { GoogleAuthService } from '../ai/google-auth.service';
 import { SpeechService } from '../ai/speech.service';
 import { VisionService } from '../ai/vision.service';
 import { EntityExtractionService } from '../ai/extraction.service';
@@ -43,6 +44,7 @@ import { MetricsModule } from '../metrics/metrics.module';
   providers: [
     DumpService,
     // AI Services
+    GoogleAuthService, // Shared authentication service
     ClaudeService,
     SpeechService,
     VisionService,

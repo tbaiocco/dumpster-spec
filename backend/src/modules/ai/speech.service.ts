@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { resolve } from 'node:path';
-import { GoogleAuth } from 'google-auth-library';
+import { GoogleAuthService } from './google-auth.service';
 
 export interface SpeechTranscriptionRequest {
   audioBuffer: Buffer;
@@ -62,42 +61,19 @@ export interface GoogleSpeechResponse {
 @Injectable()
 export class SpeechService {
   private readonly logger = new Logger(SpeechService.name);
-  private readonly apiKey: string;
-  private readonly keyFilePath: string;
-  private readonly projectId: string;
   private readonly apiUrl = 'https://speech.googleapis.com/v1/speech:recognize';
-  private readonly useServiceAccount: boolean;
 
-  constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('GOOGLE_CLOUD_API_KEY') || '';
-    const keyFilePathRaw =
-      this.configService.get<string>('GOOGLE_CLOUD_KEY_FILE') || '';
-    this.projectId =
-      this.configService.get<string>('GOOGLE_CLOUD_PROJECT_ID') || '';
-
-    // Resolve key file path to absolute path
-    if (keyFilePathRaw) {
-      if (keyFilePathRaw.startsWith('/')) {
-        // Already absolute path
-        this.keyFilePath = keyFilePathRaw;
-      } else {
-        // Relative path - resolve from backend directory
-        this.keyFilePath = resolve(process.cwd(), keyFilePathRaw);
-      }
-    } else {
-      this.keyFilePath = '';
-    }
-
-    // Prefer service account key file over API key
-    this.useServiceAccount = !!this.keyFilePath && !!this.projectId;
-
-    if (!this.useServiceAccount && !this.apiKey) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly googleAuthService: GoogleAuthService,
+  ) {
+    if (!this.googleAuthService.isAuthenticated()) {
       this.logger.warn(
-        'Google Cloud API key or service account key file not configured',
+        'Google Cloud service account not configured for Speech-to-Text',
       );
-    } else if (this.useServiceAccount) {
+    } else {
       this.logger.log(
-        `Using Google Cloud service account authentication with key file: ${this.keyFilePath}`,
+        `Using Google Cloud service account authentication for project: ${this.googleAuthService.getProjectId()}`,
       );
     }
   }
@@ -270,22 +246,19 @@ export class SpeechService {
   private async callGoogleSpeechAPI(
     request: GoogleSpeechRequest,
   ): Promise<GoogleSpeechResponse> {
+    if (!this.googleAuthService.isAuthenticated()) {
+      throw new Error('Google Cloud service account not configured');
+    }
+
+    // Use service account authentication
+    const accessToken = await this.googleAuthService.getAccessToken();
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
     };
 
-    let url = this.apiUrl;
-
-    if (this.useServiceAccount) {
-      // Use service account authentication
-      const accessToken = await this.getAccessToken();
-      headers['Authorization'] = `Bearer ${accessToken}`;
-    } else if (this.apiKey) {
-      // Use API key authentication
-      url = `${this.apiUrl}?key=${this.apiKey}`;
-    } else {
-      throw new Error('Google Cloud API key or service account not configured');
-    }
+    const url = this.apiUrl;
 
     this.logger.debug('Calling Google Speech API with config:', {
       url,
@@ -327,52 +300,7 @@ export class SpeechService {
   private async getAccessToken(): Promise<string> {
     try {
       this.logger.debug(
-        `Attempting to authenticate with key file: ${this.keyFilePath}`,
-      );
-      this.logger.debug(`Project ID: ${this.projectId}`);
-
-      // Check if key file exists and is readable
-      if (!this.keyFilePath) {
-        throw new Error('GOOGLE_CLOUD_KEY_FILE environment variable not set');
-      }
-
-      // Create Google Auth client
-      const auth = new GoogleAuth({
-        keyFile: this.keyFilePath,
-        projectId: this.projectId,
-        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-      });
-
-      this.logger.debug(
-        'Google Auth client created, requesting access token...',
-      );
-
-      // Get access token
-      const accessToken = await auth.getAccessToken();
-
-      if (!accessToken) {
-        throw new Error('No access token returned from Google Cloud');
-      }
-
-      this.logger.debug('Access token obtained successfully');
-      return accessToken;
-    } catch (error) {
-      this.logger.error('Error getting access token:', {
-        error: error.message,
-        keyFilePath: this.keyFilePath,
-        projectId: this.projectId,
-        stack: error.stack,
-      });
-      throw new Error(
-        `Failed to authenticate with Google Cloud service account: ${error.message}`,
-      );
-    }
-  }
-
-  private parseTranscriptionResponse(
-    response: GoogleSpeechResponse,
-  ): SpeechTranscriptionResponse {
-    this.logger.debug(
+        `Aogger.debug(
       'Google Speech API response:',
       JSON.stringify(response, null, 2),
     );
