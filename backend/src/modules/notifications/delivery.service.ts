@@ -362,21 +362,36 @@ export class DeliveryService implements DeliveryService {
         throw new Error('User does not have WhatsApp configured');
       }
 
-      // Format message based on type
-      const formattedMessage = this.formatMessageForWhatsApp(
-        request.message,
-        request.type,
-      );
+      // If template metadata present on the request, prefer sending a WhatsApp template
+      const asAny = request as any;
+      if (asAny.templateName && Array.isArray(asAny.templateVars)) {
+        this.logger.debug(
+          `Sending WhatsApp template ${asAny.templateName} to user ${request.userId}`,
+        );
 
-      // Send via WhatsApp (using Twilio API format)
-      await this.whatsappService.sendMessage({
-        messaging_product: 'whatsapp',
-        to: user.phone_number,
-        type: 'text',
-        text: {
-          body: formattedMessage,
-        },
-      });
+        await this.whatsappService.sendTemplateMessage({
+          to: user.phone_number,
+          templateName: asAny.templateName,
+          vars: asAny.templateVars,
+          language: asAny.templateLanguage || 'en_US',
+        });
+      } else {
+        // Format message based on type
+        const formattedMessage = this.formatMessageForWhatsApp(
+          request.message,
+          request.type,
+        );
+
+        // Send via WhatsApp (using Twilio API format)
+        await this.whatsappService.sendMessage({
+          messaging_product: 'whatsapp',
+          to: user.phone_number,
+          type: 'text',
+          text: {
+            body: formattedMessage,
+          },
+        });
+      }
 
       return {
         success: true,

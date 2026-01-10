@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../entities/user.entity';
 import { Reminder } from '../../entities/reminder.entity';
+import { TemplateService } from '../bots/template.service';
 
 @Injectable()
 export class CronService {
@@ -21,6 +22,7 @@ export class CronService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly schedulerRegistry: SchedulerRegistry,
+    private readonly templateService: TemplateService,
   ) {}
 
   /**
@@ -267,7 +269,35 @@ export class CronService {
     const digest = await this.digestService.generateMorningDigest(userId);
     const digestText = await this.digestService.formatDigestAsText(digest);
 
-    const result = await this.deliveryService.sendDigest(userId, digestText);
+    // Build template variables for WhatsApp (keep email text unchanged)
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    const timezone = user?.timezone || 'UTC';
+    const language = user?.language || 'en';
+
+    let template = this.templateService.getTemplate(`morning_digest_${language}`);
+    if (!template) {
+      template = this.templateService.getTemplate('morning_digest_en');
+    }
+
+    const v1 = new Intl.DateTimeFormat(language, {
+      timeZone: timezone,
+      dateStyle: 'full',
+    }).format(digest.date);
+    const v2 = String(digest.summary.totalItems);
+    const v3 = String(digest.summary.pendingReminders);
+    const v4 = (digest.recommendations && digest.recommendations[0]) || '';
+    
+    const request = {
+      userId,
+      type: undefined as any,
+      message: digestText,
+      priority: 'medium' as any,
+      templateName: template?.name || 'morning_digest_en',
+      templateVars: [v1, v2, v3, v4],
+      templateLanguage: template?.language || 'en_US',
+    };
+
+    const result = await this.deliveryService.deliver(request as any);
 
     if (result.success) {
       const messageIdPart = result.messageId
@@ -289,7 +319,34 @@ export class CronService {
     const digest = await this.digestService.generateEveningDigest(userId);
     const digestText = await this.digestService.formatDigestAsText(digest);
 
-    const result = await this.deliveryService.sendDigest(userId, digestText);
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    const timezone = user?.timezone || 'UTC';
+    const language = user?.language || 'en';
+
+    let template = this.templateService.getTemplate(`evening_digest_${language}`);
+    if (!template) {
+      template = this.templateService.getTemplate('evening_digest_en');
+    }
+
+    const v1 = new Intl.DateTimeFormat(language, {
+      timeZone: timezone,
+      dateStyle: 'full',
+    }).format(digest.date);
+    const v2 = String(digest.summary.totalItems);
+    const v3 = String(digest.summary.pendingReminders);
+    const v4 = (digest.recommendations && digest.recommendations[0]) || '';
+    
+    const request = {
+      userId,
+      type: undefined as any,
+      message: digestText,
+      priority: 'medium' as any,
+      templateName: template?.name || 'evening_digest_en',
+      templateVars: [v1, v2, v3, v4],
+      templateLanguage: template?.language || 'en_US',
+    };
+
+    const result = await this.deliveryService.deliver(request as any);
 
     if (result.success) {
       const messageIdPart = result.messageId
@@ -310,10 +367,62 @@ export class CronService {
 
     const message = this.formatReminderMessage(reminder);
 
-    const result = await this.deliveryService.sendReminder(
-      reminder.user_id,
-      message,
-    );
+    // Build delivery request with template metadata for WhatsApp when appropriate
+    const user = await this.userRepository.findOne({ where: { id: reminder.user_id } });
+    const timezone = user?.timezone || 'UTC';
+    const language = user?.language || 'en';
+
+    let template = this.templateService.getTemplate(`reminder_with_context_${language}`);
+    if (!template) {
+      template = this.templateService.getTemplate('reminder_with_context_en');
+    }
+
+    let request: any;
+
+    if (reminder.dump) {
+      const v1 = reminder.message;
+      const v2 = reminder.dump.raw_content ? reminder.dump.raw_content.substring(0, 100) : '';
+      const v3 = new Intl.DateTimeFormat(language, {
+        timeZone: timezone,
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }).format(reminder.scheduled_for);
+
+      request = {
+        userId: reminder.user_id,
+        type: undefined,
+        message,
+        priority: 'high',
+        templateName: template?.name || 'reminder_with_context_en',
+        templateVars: [v1, v2, v3],
+        templateLanguage: template?.language || 'en_US',
+      };
+    } else {
+      let template = this.templateService.getTemplate(`reminder_delivery_${language}`);
+      if (!template) {
+        template = this.templateService.getTemplate('reminder_delivery_en');
+      }
+      
+      const v1 = reminder.message;
+      const v2 = new Intl.DateTimeFormat(language, {
+        timeZone: timezone,
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }).format(reminder.scheduled_for);
+      const v3 = `${process.env.FRONTEND_URL || ''}/reminders/${reminder.id}`;
+
+      request = {
+        userId: reminder.user_id,
+        type: undefined,
+        message,
+        priority: 'high',
+        templateName: template?.name || 'reminder_delivery_en',
+        templateVars: [v1, v2],
+        templateLanguage: template?.language || 'en_US',
+      };
+    }
+
+    const result = await this.deliveryService.deliver(request as any);
 
     if (result.success) {
       await this.reminderService.markReminderAsSent(reminder.id);

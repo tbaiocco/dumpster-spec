@@ -48,7 +48,6 @@ backend/config/environments/.env.production
 backend/config/environments/.env.acceptance
 
 # Google Cloud service account keys
-*.json
 backend/config/*.json
 
 # Cache

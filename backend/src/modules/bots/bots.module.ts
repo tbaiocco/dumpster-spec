@@ -23,6 +23,7 @@ import { ResponseFormatterService } from '../ai/formatter.service';
 import { TranslationService } from '../ai/translation.service';
 import { ClaudeService } from '../ai/claude.service';
 import { User } from '../../entities/user.entity';
+import { TemplateService } from './template.service';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { User } from '../../entities/user.entity';
   providers: [
     TelegramService,
     WhatsAppService,
+    TemplateService,
     HelpCommand,
     RecentCommand,
     UpcomingCommand,
@@ -51,6 +53,6 @@ import { User } from '../../entities/user.entity';
     TranslationService,
     ClaudeService,
   ],
-  exports: [TelegramService, WhatsAppService],
+  exports: [TelegramService, WhatsAppService, TemplateService],
 })
 export class BotsModule {}

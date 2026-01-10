@@ -1,0 +1,27 @@
+{
+  "morning_digest_en": {
+    "language": "en_US",
+    "contentSid": "HX4f776fb55d8ef23cba04d4861547ed3e",
+    "body": "🌅 Good morning! This is your digest for {{1}}.\n\n📊 Summary:\n• Total items: {{2}}\n• Pending reminders: {{3}}\n\n💡 Top recommendation: {{4}}\n\nA full message was also sent to your inbox.\n═══════════════════════════════════"
+  },
+  "evening_digest_en": {
+    "language": "en_US",
+    "contentSid": "HX289809a17c2cd41f85eadd4bc93e7463",
+    "body": "🌙 Evening review! This is your digest for {{1}}.\n\n📊 Summary:\n• Items today: {{2}}\n• Reminders for tomorrow: {{3}}\n\n💡 Top action: {{4}}\n\nA full message was also sent to your inbox.\n═══════════════════════════════════"
+  },
+  "reminder_delivery_en": {
+    "language": "en_US",
+    "contentSid": "HX6a7190dbba59692aaadaf55239557adf",
+    "body": "🔔 Reminder: {{1}}\n\nScheduled for: {{2}}\n\nIf you need to snooze or mark done access the web app: {{3}}.\n═══════════════════════════════════"
+  },
+  "reminder_with_context_en": {
+    "language": "en_US",
+    "contentSid": "HXa0a9074f33e3f29c1f14d302967a356b",
+    "body": "🔔 Reminder: {{1}}\n\n📎 Related: {{2}}\n\nScheduled for: {{3}}\n\nIf you want to snooze or mark done access the web app http://my.theclutter.app.\n═══════════════════════════════════"
+  },
+  "reminder_recurring_notice_en": {
+    "language": "en_US",
+    "contentSid": "",
+    "body": "🔁 This is a recurring reminder for: {{1}}\n\nNext occurrence: {{2}}\n═══════════════════════════════════"
+  }
+}

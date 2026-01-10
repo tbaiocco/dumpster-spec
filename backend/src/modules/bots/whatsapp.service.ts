@@ -13,6 +13,7 @@ import { TrackCommand } from './commands/track.command';
 import { SearchCommand } from './commands/search.command';
 import { ReportCommand } from './commands/report.command';
 import { ResponseFormatterService } from '../ai/formatter.service';
+import { TemplateService } from './template.service';
 import { MetricsService } from '../metrics/metrics.service';
 import { FeatureType } from '../../entities/feature-usage.entity';
 import { EntityExtractionResult } from '../ai/extraction.service';
@@ -141,6 +142,7 @@ export class WhatsAppService {
     private readonly reportCommand: ReportCommand,
     private readonly responseFormatterService: ResponseFormatterService,
     private readonly metricsService: MetricsService,
+    private readonly templateService: TemplateService,
   ) {
     // Twilio WhatsApp API Configuration
     this.authToken =
@@ -209,6 +211,62 @@ export class WhatsAppService {
         body: text,
       },
     });
+  }
+
+  async sendTemplateMessage(opts: {
+    to: string;
+    templateName: string;
+    vars: string[];
+    language?: string;
+  }): Promise<{ id: string }> {
+    const { to, templateName, vars, language = 'en_US' } = opts;
+    this.logger.log(`Sending WhatsApp template ${templateName} to ${to}`);
+
+    // Prefer Twilio Content API for templates (if Twilio credentials & contentSid are configured)
+    const contentSid = this.templateService.getContentSid(templateName);
+    if (this.accountSid && this.authToken && contentSid) {
+      this.logger.log(`Sending WhatsApp template via Twilio ContentSid=${contentSid}`);
+
+      const toNumber = to.startsWith('whatsapp:') ? to : `whatsapp:${to}`;
+
+      // Build ContentVariables mapping: { "1": "val1", "2": "val2" }
+      const contentVariables: Record<string, string> = {};
+      vars.forEach((v, idx) => {
+        contentVariables[String(idx + 1)] = typeof v === 'string' ? v : JSON.stringify(v);
+      });
+
+      const twilioRequest: Record<string, string> = {
+        From: this.phoneNumber,
+        To: toNumber,
+        ContentSid: contentSid,
+        ContentVariables: JSON.stringify(contentVariables),
+      };
+
+      const response = await fetch(`${this.apiUrl}/Messages.json`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${Buffer.from(this.accountSid + ':' + this.authToken).toString('base64')}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(twilioRequest).toString(),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        this.logger.error(`Failed to send WhatsApp template via Twilio: ${error}`);
+        throw new Error(`Twilio WhatsApp template send error: ${response.status} ${error}`);
+      }
+
+      const data = (await response.json()) as { sid?: string };
+      return { id: data.sid || 'twilio-unknown' };
+    }
+
+    // Fallback: render locally and send as text
+    const templateEntry = this.templateService.getTemplate(templateName, language);
+    const templateBody = templateEntry ? templateEntry.body : null;
+    const rendered = templateBody ? this.templateService.render(templateBody, vars) : vars.join(' ');
+
+    return this.sendTextMessage(to, rendered);
   }
 
   async sendFormattedResponse(

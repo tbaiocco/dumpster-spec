@@ -480,7 +480,7 @@ export class EmailService {
     ${htmlContent}
   </div>
   <div class="footer">
-    <p>This is an automated notification from Dumpster. Please do not reply to this email.</p>
+    <p>This is an automated notification from Clutter.AI. Please do not reply to this email.</p>
   </div>
 </body>
 </html>
