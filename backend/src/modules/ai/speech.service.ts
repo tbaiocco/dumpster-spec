@@ -297,10 +297,10 @@ export class SpeechService {
     return result;
   }
 
-  private async getAccessToken(): Promise<string> {
-    try {
-      this.logger.debug(
-        `Aogger.debug(
+  private parseTranscriptionResponse(
+    response: GoogleSpeechResponse,
+  ): SpeechTranscriptionResponse {
+    this.logger.debug(
       'Google Speech API response:',
       JSON.stringify(response, null, 2),
     );
