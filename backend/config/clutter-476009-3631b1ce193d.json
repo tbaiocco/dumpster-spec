@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "clutter-476009",
+  "private_key_id": "3631b1ce193d522705fcef4042cda3a0d21cee98",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDxfsBqv8/9JBhu\n/Yf+d0eYL4y4Jj29UndCptG6QAxs87ibIiQ4cWlc+9gf/cGEX/AHzSccyW4GfbZb\nCRcOE3ulOrGtPqsoFaOArjB6czSSjXle6GAth7KGuNvI/EyJ/Vp3MaMG8HxTPaX+\nI+LWQl7S38BlOD2jaZsmZjpOwz46Fiudr3L1UXLZuzle6s1Z6cN48Wl+nSzo9eby\nQaGl9RTp7yJ9VkAUEiyLSqYfKPN/sa9f2CAvHbEzOdQTKiAvK8IWoaW81+yi92Zj\n++dkjj8LpR6Aw9YNJOS7RgBVpekO4+emieH6RmyGs0rOTD/tpv+QAL/Y0Wz1RFr+\nqul8e31lAgMBAAECggEAA9skt0xxRbPXS2+Zn1obU7Mcq0F6QzHg81JASPN/wn4z\n9vXF8y9fNPiISqutwZwzjbhWCDGW/WkLKdIP4weaHF9yM1efE+ogI0YEwnItx0V7\n7n4SfRLTEOLv2+CopM83RaFBnsx+7uhUcT90iyKVRFPSZpT0XQEROzBIllxFO9gT\nVz9oIR4LfTI7c8HCev8867PmlVre+ms0+p2lvJOufrFJjLQ0Y+/RhixiFnn+IR5Q\nl+XK9cpmw+q7nQwnz5mTPxrY1BgcipCJc2hY3uhtxeL+X9JDLTPBBd3vamdXxZ5s\n5FfEyfnf2X28eA2Depy+FQ7MZw9DrqkXCAGdNNkagQKBgQD7YD50yZAbpK9gJG6o\nepUVG5ob1/ArR40JM8hC9w4Ayc/jyAyWf9iwnpFPz3Q/s9k0sk+ygTAoNLAO9Oq9\nrIiNfCPSKnFunwXOjCwp0vibjTBclQGeSgYHsnpYsw7lTH73bz9z1db/W45MLKfy\nQzhqRXFWGHGsT2YeykGQbiRi5QKBgQD17/pQIWnVItcRjwdIwkm0bxJqwu4lHhei\nmPoiPWMEuD3QcLovNr8pwNWaKLDr1v2AiKto2hT7OQ5B/EmSZYd27eoIho/5VJGt\n+MO4zywCXDozdyGji6dp15KY++3aux30UkimGq7nQ0sq8BOa884zYzlruAP6pSpb\nGm6nQ2yIgQKBgQCyjnLO0j4i5KAOUtKnqisriye0j3Zxx6lO2BFwP70aoj+hNQB8\nBuQM0RW2801H0qB+5gnmag2jAYntldsIT/3PQlbPeoaIZTzisn7MVqdxFqE7ojw8\nC6is3wI47zeteODXMZaI2WSWjppNUYsactUn55vR5BsaomuPg2t/BD2kYQKBgEti\nG1+kXkQuQa3oIVtz8hOUWBjRVx2Zc7UrHsCQAGHZ91iEtQzzwvSRXue5wUEIzPsw\n6Rlifzvh6TTgl8x/wl353tpuJINQILcqoRNsrRisHEraIT13+QDASvcJgYaiBDR3\nZD1FwIayYb/vhpLgWDv4FgmmhdG1/p2eJHywdfwBAoGBAPXQz9HeLovLJRFo0zvc\nLbv0P39d3tpPp8V4xbwONmBTzfQGmZczPENkzmHfCEgqrD8X1ypsLF5T5XDx91Nj\nJeEjfdSYLTVqau3IdQiNejdunmANsxhb8Lsddm0+qk98XjJ2zeoM+L1D/jldLlsX\ntp5nVAMZAGP99a8XpRbENquw\n-----END PRIVATE KEY-----\n",
+  "client_email": "clutter-ai@clutter-476009.iam.gserviceaccount.com",
+  "client_id": "117490531015583182091",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/clutter-ai%40clutter-476009.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
