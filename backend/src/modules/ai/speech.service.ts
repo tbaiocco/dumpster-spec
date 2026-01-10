@@ -171,7 +171,7 @@ export class SpeechService {
     this.logger.log('Transcribing audio with language detection');
 
     // Try common languages in order of preference
-    const languages = ['en-US', 'es-ES', 'fr-FR', 'de-DE', 'it-IT', 'pt-BR'];
+    const languages = ['pt-BR', 'en-US', 'es-ES', 'de-DE', 'fr-FR', 'it-IT'];
 
     let bestResult: SpeechTranscriptionResponse | null = null;
     let highestConfidence = 0;
@@ -266,6 +266,7 @@ export class SpeechService {
       languageCode: request.config.languageCode,
       sampleRateHertz: request.config.sampleRateHertz,
       audioSize: request.audio.content.length,
+      alternativeLanguageCodes: request.config.alternativeLanguageCodes,
     });
 
     const response = await fetch(url, {
@@ -292,6 +293,10 @@ export class SpeechService {
     this.logger.debug(
       'Google Speech API success, results count:',
       result.results?.length || 0,
+    );
+    this.logger.debug(
+      'Google Speech API success, transcript:',
+      result.results?.[0]?.alternatives?.[0]?.transcript || '<empty>',
     );
 
     return result;

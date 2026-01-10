@@ -24,8 +24,11 @@ export class GoogleAuthService {
       this.configService.get<string>('GOOGLE_CLOUD_PROJECT_ID') || '';
     this.clientEmail =
       this.configService.get<string>('GOOGLE_CLOUD_CLIENT_EMAIL') || '';
-    this.privateKey =
+    
+    // Get private key and normalize newlines
+    const rawPrivateKey =
       this.configService.get<string>('GOOGLE_CLOUD_PRIVATE_KEY') || '';
+    this.privateKey = this.normalizePrivateKey(rawPrivateKey);
 
     this.isConfigured =
       !!this.projectId && !!this.clientEmail && !!this.privateKey;
@@ -39,6 +42,37 @@ export class GoogleAuthService {
         `Google Cloud service account configured for project: ${this.projectId}`,
       );
     }
+  }
+
+  /**
+   * Normalize private key format to handle various input formats
+   * Handles both escaped newlines (\n) and actual newlines
+   */
+  private normalizePrivateKey(key: string): string {
+    if (!key) return '';
+
+    // Trim whitespace
+    let normalized = key.trim();
+
+    // Remove wrapping quotes (handles both single and double quotes)
+    // This fixes the issue when users copy quotes from .env to deployment platforms
+    if ((normalized.startsWith('"') && normalized.endsWith('"')) ||
+        (normalized.startsWith("'") && normalized.endsWith("'"))) {
+      normalized = normalized.slice(1, -1);
+    }
+
+    // Replace escaped newlines with actual newlines
+    normalized = normalized.replace(/\\n/g, '\n');
+
+    // Ensure proper BEGIN/END markers exist
+    if (!normalized.includes('-----BEGIN PRIVATE KEY-----')) {
+      this.logger.warn('Private key missing BEGIN marker - check if quotes were accidentally included');
+    }
+    if (!normalized.includes('-----END PRIVATE KEY-----')) {
+      this.logger.warn('Private key missing END marker - check if quotes were accidentally included');
+    }
+
+    return normalized;
   }
 
   /**
@@ -61,12 +95,24 @@ export class GoogleAuthService {
       this.logger.debug(`Project ID: ${this.projectId}`);
       this.logger.debug(`Client Email: ${this.clientEmail}`);
 
+      // Validate private key format
+      if (!this.privateKey.includes('-----BEGIN PRIVATE KEY-----') ||
+          !this.privateKey.includes('-----END PRIVATE KEY-----')) {
+        throw new Error('Invalid private key format. Must include BEGIN and END markers.');
+      }
+
+      // Log private key info for debugging (without exposing the key)
+      const keyLines = this.privateKey.split('\n');
+      this.logger.debug(`Private key has ${keyLines.length} lines`);
+      this.logger.debug(`First line: ${keyLines[0]}`);
+      this.logger.debug(`Last line: ${keyLines[keyLines.length - 1]}`);
+
       // Create credentials object from environment variables
       const credentials = {
         type: 'service_account',
         project_id: this.projectId,
         client_email: this.clientEmail,
-        private_key: this.privateKey.replace(/\\n/g, '\n'), // Handle escaped newlines
+        private_key: this.privateKey,
       };
 
       // Create Google Auth client with credentials
@@ -94,6 +140,7 @@ export class GoogleAuthService {
         error: error instanceof Error ? error.message : 'Unknown error',
         projectId: this.projectId,
         clientEmail: this.clientEmail,
+        privateKeyFormat: this.privateKey ? `${this.privateKey.substring(0, 30)}...` : 'empty',
         stack: error instanceof Error ? error.stack : undefined,
       });
       throw new Error(
