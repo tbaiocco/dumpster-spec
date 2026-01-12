@@ -80,7 +80,7 @@ Our AI automatically identifies and extracts:
 - Context-aware analysis of user intent
 - Sentiment and urgency detection
 - Relationship mapping between people, events, and tasks
-- Multi-language support (English, Portuguese, expandable)
+- Multi-language support (Portuguese, English, Spanish, German, French, Italian - expandable)
 - Handles ambiguity and incomplete information gracefully
 
 **Technical Stack**
@@ -226,7 +226,7 @@ Our AI automatically identifies and extracts:
 ### 7. 🎨 Multi-Modal Processing
 
 **Image Processing**
-- **OCR Technology**: Extract text from photos and screenshots
+- **OCR Technology**: Extract text from photos and screenshots with multi-language support (Portuguese, English, Spanish, German, French, Italian - expandable)
 - **Document Recognition**: Bills, receipts, letters, forms
 - **Handwriting Support**: Handwritten note recognition (basic)
 - **Quality Enhancement**: Automatic image optimization for better OCR
@@ -236,11 +236,11 @@ Our AI automatically identifies and extracts:
 - **Speech-to-Text**: Accurate transcription of voice messages
 - **Speaker Independence**: Works with any user voice/accent
 - **Noise Handling**: Background noise tolerance
-- **Multi-Language**: Supports multiple languages
+- **Multi-Language**: Supports Portuguese (pt-BR), English (en-US), Spanish (es-ES), German (de-DE), French (fr-FR), and Italian (it-IT) - expandable to other languages
 - **Punctuation & Formatting**: Intelligent text formatting
 
 **Document Processing**
-- **PDF Extraction**: Text and data from PDF documents
+- **PDF Extraction**: Text and data from PDF documents (multi-language: Portuguese, English, Spanish, German, French, Italian - expandable)
 - **Email Parsing**: Structured data from forwarded emails
 - **Attachment Handling**: Process files from email forwards
 - **Metadata Extraction**: Dates, senders, subjects from emails
