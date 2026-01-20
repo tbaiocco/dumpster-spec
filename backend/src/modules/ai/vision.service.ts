@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { GoogleAuth } from 'google-auth-library';
+import { GoogleAuthService } from './google-auth.service';
 
 export interface ImageAnalysisRequest {
   imageBuffer: Buffer;
@@ -109,18 +109,18 @@ export interface GoogleVisionResponse {
 @Injectable()
 export class VisionService {
   private readonly logger = new Logger(VisionService.name);
-  private readonly keyFilePath: string;
-  private readonly projectId: string;
   private readonly apiUrl = 'https://vision.googleapis.com/v1/images:annotate';
 
-  constructor(private readonly configService: ConfigService) {
-    this.keyFilePath =
-      this.configService.get<string>('GOOGLE_CLOUD_KEY_FILE') || '';
-    this.projectId =
-      this.configService.get<string>('GOOGLE_CLOUD_PROJECT_ID') || '';
-
-    if (!this.keyFilePath || !this.projectId) {
-      this.logger.warn('Google Cloud service account not configured');
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly googleAuthService: GoogleAuthService,
+  ) {
+    if (!this.googleAuthService.isAuthenticated()) {
+      this.logger.warn('Google Cloud service account not configured for Vision API');
+    } else {
+      this.logger.log(
+        `Using Google Cloud service account authentication for project: ${this.googleAuthService.getProjectId()}`,
+      );
     }
   }
 
@@ -268,51 +268,14 @@ export class VisionService {
     }
   }
 
-  private async getAccessToken(): Promise<string> {
-    try {
-      this.logger.debug(
-        `Attempting to authenticate with key file: ${this.keyFilePath}`,
-      );
-      this.logger.debug(`Project ID: ${this.projectId}`);
-
-      if (!this.keyFilePath) {
-        throw new Error('GOOGLE_CLOUD_KEY_FILE environment variable not set');
-      }
-
-      const auth = new GoogleAuth({
-        keyFile: this.keyFilePath,
-        projectId: this.projectId,
-        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-      });
-
-      this.logger.debug(
-        'Google Auth client created, requesting access token...',
-      );
-
-      const accessToken = await auth.getAccessToken();
-
-      if (!accessToken) {
-        throw new Error('No access token returned from Google Cloud');
-      }
-
-      this.logger.debug('Access token obtained successfully');
-      return accessToken;
-    } catch (error) {
-      this.logger.error('Error getting access token:', error);
-      throw new Error(
-        `Authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-    }
-  }
-
   private async callGoogleVisionAPI(
     request: GoogleVisionRequest,
   ): Promise<GoogleVisionResponse> {
-    if (!this.keyFilePath || !this.projectId) {
+    if (!this.googleAuthService.isAuthenticated()) {
       throw new Error('Google Cloud service account not configured');
     }
 
-    const accessToken = await this.getAccessToken();
+    const accessToken = await this.googleAuthService.getAccessToken();
 
     const response = await fetch(this.apiUrl, {
       method: 'POST',
