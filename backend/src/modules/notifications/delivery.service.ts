@@ -33,6 +33,7 @@ export interface DeliveryRequest {
   channel?: NotificationChannel;
   type: NotificationType;
   message: string;
+  messageDetails?: string;
   priority?: 'high' | 'medium' | 'low';
   metadata?: Record<string, any>;
 }
@@ -235,6 +236,19 @@ export class DeliveryService implements DeliveryService {
     user: any,
   ): Promise<DeliveryResult> {
     try {
+      
+      if (user && user.notification_preferences?.email_digest === false) {
+        this.logger.debug(
+          `User ${user.user_id} has disabled email digests. Skipping delivery.`,
+        );
+        return {
+          success: false,
+          channel: NotificationChannel.EMAIL,
+          deliveredAt: new Date(),
+          error: 'Email digests are disabled by user preference',
+        };
+      }
+
       const emailResult = await this.deliverViaEmail(request);
 
       if (emailResult.success) {
@@ -421,8 +435,9 @@ export class DeliveryService implements DeliveryService {
 
       // Format message based on type
       const subject = this.getEmailSubject(request.type);
+      const message = request.message + (request.messageDetails ? `\n\n${request.messageDetails}` : '');
       const formattedMessage = this.formatMessageForEmail(
-        request.message,
+        message,
         request.type,
       );
 

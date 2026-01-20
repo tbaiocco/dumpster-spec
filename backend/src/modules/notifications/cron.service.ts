@@ -266,18 +266,23 @@ export class CronService {
   private async deliverMorningDigest(userId: string): Promise<void> {
     this.logger.debug(`Generating morning digest for user ${userId}`);
 
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (user && user.notification_preferences?.morning_digest === false) {
+      this.logger.debug(
+        `User ${userId} has disabled morning digests. Skipping delivery.`,
+      );
+      return;
+    }
+
     const digest = await this.digestService.generateMorningDigest(userId);
     const digestText = await this.digestService.formatDigestAsText(digest);
 
     // Build template variables for WhatsApp (keep email text unchanged)
-    const user = await this.userRepository.findOne({ where: { id: userId } });
     const timezone = user?.timezone || 'UTC';
     const language = user?.language || 'en';
 
     let template = this.templateService.getTemplate(`morning_digest_${language}`);
-    if (!template) {
-      template = this.templateService.getTemplate('morning_digest_en');
-    }
+    template ??= this.templateService.getTemplate('morning_digest_en');
 
     const v1 = new Intl.DateTimeFormat(language, {
       timeZone: timezone,
@@ -285,14 +290,14 @@ export class CronService {
     }).format(digest.date);
     const v2 = String(digest.summary.totalItems);
     const v3 = String(digest.summary.pendingReminders);
-    const v4 = (digest.recommendations && digest.recommendations[0]) || '';
+    const v4 = (digest.recommendations && digest.recommendations.length > 0) ? digest.recommendations.join(' ') : '(...)';
     
     const request = {
       userId,
       type: undefined as any,
       message: digestText,
       priority: 'medium' as any,
-      templateName: template?.name || 'morning_digest_en',
+      templateName: template?.name,
       templateVars: [v1, v2, v3, v4],
       templateLanguage: template?.language || 'en_US',
     };
@@ -316,17 +321,23 @@ export class CronService {
   private async deliverEveningDigest(userId: string): Promise<void> {
     this.logger.debug(`Generating evening digest for user ${userId}`);
 
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (user && user.notification_preferences?.evening_digest === false) {
+      this.logger.debug(
+        `User ${userId} has disabled evening digests. Skipping delivery.`,
+      );
+      return;
+    }
+
     const digest = await this.digestService.generateEveningDigest(userId);
     const digestText = await this.digestService.formatDigestAsText(digest);
 
-    const user = await this.userRepository.findOne({ where: { id: userId } });
+    // Build template variables for WhatsApp (keep email text unchanged)
     const timezone = user?.timezone || 'UTC';
     const language = user?.language || 'en';
 
     let template = this.templateService.getTemplate(`evening_digest_${language}`);
-    if (!template) {
-      template = this.templateService.getTemplate('evening_digest_en');
-    }
+    template ??= this.templateService.getTemplate('evening_digest_en');
 
     const v1 = new Intl.DateTimeFormat(language, {
       timeZone: timezone,
@@ -334,14 +345,14 @@ export class CronService {
     }).format(digest.date);
     const v2 = String(digest.summary.totalItems);
     const v3 = String(digest.summary.pendingReminders);
-    const v4 = (digest.recommendations && digest.recommendations[0]) || '';
+    const v4 = (digest.recommendations && digest.recommendations.length > 0) ? digest.recommendations.join(' ') : '(...)';
     
     const request = {
       userId,
       type: undefined as any,
       message: digestText,
       priority: 'medium' as any,
-      templateName: template?.name || 'evening_digest_en',
+      templateName: template?.name,
       templateVars: [v1, v2, v3, v4],
       templateLanguage: template?.language || 'en_US',
     };
@@ -365,43 +376,58 @@ export class CronService {
   private async deliverReminder(reminder: Reminder): Promise<void> {
     this.logger.debug(`Delivering reminder ${reminder.id}`);
 
+    const user = await this.userRepository.findOne({ where: { id: reminder.user_id } });
+    if (user && user.notification_preferences?.reminder_alerts === false) {
+      this.logger.debug(
+        `User ${reminder.user_id} has disabled reminder alerts. Skipping delivery.`,
+      );
+      return;
+    }
+
     const message = this.formatReminderMessage(reminder);
 
     // Build delivery request with template metadata for WhatsApp when appropriate
-    const user = await this.userRepository.findOne({ where: { id: reminder.user_id } });
     const timezone = user?.timezone || 'UTC';
     const language = user?.language || 'en';
 
-    let template = this.templateService.getTemplate(`reminder_with_context_${language}`);
-    if (!template) {
-      template = this.templateService.getTemplate('reminder_with_context_en');
-    }
+    let template = this.templateService.getTemplate(`new_reminder_with_context_${language}`);
+    template ??= this.templateService.getTemplate('new_reminder_with_context_en');
 
     let request: any;
 
-    if (reminder.dump) {
-      const v1 = reminder.message;
-      const v2 = reminder.dump.raw_content ? reminder.dump.raw_content.substring(0, 100) : '';
+    this.logger.debug(`Reminder message: ${reminder.message}`);
+    // Split reminder.message if it contains newlines
+    if (reminder.message.includes('\n')) {
+      const parts = reminder.message.split(/\n+/);
+      reminder.message = parts[0];
+      reminder.message_details = parts.slice(1).join(' ').trim();
+    }
+
+    if (reminder.dump){
+      const v1 = reminder.message ? reminder.message.substring(0, 50) : '';
+      const v2 = reminder.dump.raw_content ? reminder.dump.raw_content.substring(0, 200) : '';
       const v3 = new Intl.DateTimeFormat(language, {
         timeZone: timezone,
         dateStyle: 'medium',
         timeStyle: 'short',
       }).format(reminder.scheduled_for);
+      const v4 = reminder.message_details
+        ? this.templateService.truncate(reminder.message_details, 200)
+        : '(...)';
 
       request = {
         userId: reminder.user_id,
         type: undefined,
         message,
+        messageDetails: reminder.message_details,
         priority: 'high',
-        templateName: template?.name || 'reminder_with_context_en',
-        templateVars: [v1, v2, v3],
+        templateName: template?.name,
+        templateVars: [v1, v2, v3, v4],
         templateLanguage: template?.language || 'en_US',
       };
     } else {
-      let template = this.templateService.getTemplate(`reminder_delivery_${language}`);
-      if (!template) {
-        template = this.templateService.getTemplate('reminder_delivery_en');
-      }
+      let template = this.templateService.getTemplate(`new_reminder_delivery_${language}`);
+      template ??= this.templateService.getTemplate('new_reminder_delivery_en');
       
       const v1 = reminder.message;
       const v2 = new Intl.DateTimeFormat(language, {
@@ -410,14 +436,18 @@ export class CronService {
         timeStyle: 'short',
       }).format(reminder.scheduled_for);
       const v3 = `${process.env.FRONTEND_URL || ''}/reminders/${reminder.id}`;
+      const v4 = reminder.message_details
+        ? this.templateService.truncate(reminder.message_details, 200)
+        : '(...)';
 
       request = {
         userId: reminder.user_id,
         type: undefined,
         message,
+        messageDetails: reminder.message_details,
         priority: 'high',
-        templateName: template?.name || 'reminder_delivery_en',
-        templateVars: [v1, v2],
+        templateName: template?.name,
+        templateVars: [v1, v2, v4],
         templateLanguage: template?.language || 'en_US',
       };
     }
@@ -442,8 +472,12 @@ export class CronService {
   private formatReminderMessage(reminder: Reminder): string {
     let message = `🔔 Reminder: ${reminder.message}`;
 
+    if (reminder.message_details) {
+      message += `\n\n📝 Details: ${reminder.message_details.substring(0, 200)}`;
+    }
+
     if (reminder.dump) {
-      message += `\n\n📎 Related content: ${reminder.dump.raw_content.substring(0, 100)}`;
+      message += `\n\n📎 Related content: ${reminder.dump.raw_content.substring(0, 200)}`;
     }
 
     if (reminder.recurrence_pattern) {

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
-import { Dump } from '../../entities/dump.entity';
+import { Dump, ProcessingStatus } from '../../entities/dump.entity';
 import { User } from '../../entities/user.entity';
 import { ReminderService } from '../reminders/reminder.service';
 import { ReminderStatus } from '../../entities/reminder.entity';
@@ -523,6 +523,7 @@ export class DigestService {
       where: {
         user_id: userId,
         created_at: Between(startDate, endDate),
+        processing_status: ProcessingStatus.COMPLETED,
       },
       relations: ['category'],
       order: {

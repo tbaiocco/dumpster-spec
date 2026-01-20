@@ -50,6 +50,14 @@ export class User {
   @Column({ type: 'time', default: '09:00' })
   digest_time: string;
 
+  /* content:
+  notification_preferences?: {
+    email_digest?: boolean;
+    instant_notifications?: boolean;
+    reminder_alerts?: boolean;
+    morning_digest?: boolean;
+    evening_digest?: boolean;
+  }; */
   @Column({ type: 'jsonb', default: '{}' })
   notification_preferences: Record<string, any>;
 

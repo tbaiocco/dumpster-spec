@@ -12,6 +12,7 @@ export interface CreateReminderRequest {
   userId: string;
   dumpId?: string;
   message: string;
+  messageDetails?: string;
   reminderType?: ReminderType;
   scheduledFor: Date;
   locationData?: Record<string, any>;
@@ -55,6 +56,7 @@ export class ReminderService {
       user_id: request.userId,
       dump_id: request.dumpId,
       message: request.message,
+      message_details: request.messageDetails,
       reminder_type: request.reminderType || ReminderType.FOLLOW_UP,
       scheduled_for: request.scheduledFor,
       status: ReminderStatus.PENDING,
@@ -307,6 +309,7 @@ export class ReminderService {
       userId: reminder.user_id,
       dumpId: reminder.dump_id,
       message: reminder.message,
+      messageDetails: reminder.message_details,
       reminderType: ReminderType.RECURRING,
       scheduledFor: nextScheduledTime,
       recurrencePattern: reminder.recurrence_pattern,

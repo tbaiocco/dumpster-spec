@@ -18,6 +18,7 @@ import { MessageFormatterHelper } from './helpers/message-formatter.helper';
 import { ResponseFormatterService } from '../ai/formatter.service';
 import { EntityExtractionResult } from '../ai/extraction.service';
 import { ContentAnalysisResponse } from '../ai/claude.service';
+import { User } from 'src/entities/user.entity';
 
 export interface TelegramMessage {
   message_id: number;
@@ -154,11 +155,17 @@ export class TelegramService {
   }
 
   async sendFormattedResponse(
-    userId: string,
-    chatId: number,
+    user: User,
     result: DumpProcessingResult,
     replyToMessageId?: number,
   ): Promise<string> {
+
+    // check user notification preferences
+    if (user && user.notification_preferences?.instant_notifications === false) {
+      this.logger.debug(`User ${user.id} has disabled instant_notifications. Skipping...`);
+      return 'skipped';
+    }
+
     // Extract analysis and entities from the dump
     const dump = result.dump;
     const extractedEntities = dump.extracted_entities || {};
@@ -227,7 +234,7 @@ export class TelegramService {
     // Use ResponseFormatterService with brief format
     const formatted =
       await this.responseFormatterService.formatAnalysisResponse(
-        userId,
+        user.id,
         analysis,
         entities,
         {
@@ -239,7 +246,7 @@ export class TelegramService {
       );
 
     const message = await this.sendMessage({
-      chat_id: chatId,
+      chat_id: parseInt(user.chat_id_telegram!),
       text: formatted.html || formatted.text,
       parse_mode: 'HTML',
       reply_to_message_id: replyToMessageId,
@@ -351,13 +358,13 @@ export class TelegramService {
 
       // Handle different message types
       if (message.text) {
-        await this.handleTextMessageWithUser(message, user.id);
+        await this.handleTextMessageWithUser(message, user);
       } else if (message.voice) {
-        await this.handleVoiceMessage(message, user.id);
+        await this.handleVoiceMessage(message, user);
       } else if (message.photo) {
-        await this.handlePhotoMessage(message, user.id);
+        await this.handlePhotoMessage(message, user);
       } else if (message.document) {
-        await this.handleDocumentMessage(message, user.id);
+        await this.handleDocumentMessage(message, user);
       } else {
         await this.sendTextMessage(
           chatId,
@@ -442,7 +449,7 @@ export class TelegramService {
 
   private async handleTextMessageWithUser(
     message: TelegramMessage,
-    userId: string,
+    user: User,
   ): Promise<void> {
     const chatId = message.chat.id;
     const text = message.text!;
@@ -451,14 +458,14 @@ export class TelegramService {
 
     // Handle bot commands
     if (text.startsWith('/')) {
-      await this.handleCommand(text, chatId, userId);
+      await this.handleCommand(text, chatId, user.id);
       return; // Stop processing after handling command
     }
 
     try {
       // Create dump request for enhanced processing
       const dumpRequest: CreateDumpRequest = {
-        userId,
+        userId: user.id,
         content: text,
         contentType: 'text',
         metadata: {
@@ -473,8 +480,7 @@ export class TelegramService {
 
       // Send success response with processing details
       await this.sendFormattedResponse(
-        userId,
-        chatId,
+        user,
         result,
         message.message_id,
       );
@@ -489,7 +495,7 @@ export class TelegramService {
 
   private async handleVoiceMessage(
     message: TelegramMessage,
-    userId: string,
+    user: User,
   ): Promise<void> {
     const chatId = message.chat.id;
     const voice = message.voice!;
@@ -502,7 +508,7 @@ export class TelegramService {
 
       // Create dump request for enhanced voice processing
       const dumpRequest: CreateDumpRequest = {
-        userId,
+        userId: user.id,
         content: 'Voice message',
         contentType: 'voice',
         metadata: {
@@ -520,8 +526,7 @@ export class TelegramService {
 
       // Send success response with processing details
       await this.sendFormattedResponse(
-        userId,
-        chatId,
+        user,
         result,
         message.message_id,
       );
@@ -533,7 +538,7 @@ export class TelegramService {
 
   private async handlePhotoMessage(
     message: TelegramMessage,
-    userId: string,
+    user: User,
   ): Promise<void> {
     const chatId = message.chat.id;
     const photos = message.photo!;
@@ -553,7 +558,7 @@ export class TelegramService {
 
       // Create dump request for enhanced image processing
       const dumpRequest: CreateDumpRequest = {
-        userId,
+        userId: user.id,
         content: message.caption || 'Image',
         contentType: 'image',
         originalText: message.caption,
@@ -572,8 +577,7 @@ export class TelegramService {
 
       // Send success response with processing details
       await this.sendFormattedResponse(
-        userId,
-        chatId,
+        user,
         result,
         message.message_id,
       );
@@ -585,7 +589,7 @@ export class TelegramService {
 
   private async handleDocumentMessage(
     message: TelegramMessage,
-    userId: string,
+    user: User,
   ): Promise<void> {
     const chatId = message.chat.id;
     const document = message.document!;
@@ -598,7 +602,7 @@ export class TelegramService {
 
       // Create dump request for enhanced document processing
       const dumpRequest: CreateDumpRequest = {
-        userId,
+        userId: user.id,
         content: message.caption || document.file_name || 'Document',
         contentType: 'document',
         originalText: message.caption,
@@ -618,8 +622,7 @@ export class TelegramService {
 
       // Send success response with processing details
       await this.sendFormattedResponse(
-        userId,
-        chatId,
+        user,
         result,
         message.message_id,
       );

@@ -94,6 +94,7 @@ Thumbs.db
 # Testing
 jest_0/
 .pytest_cache/
+*.ogg
 
 # Deployment
 .vercel/

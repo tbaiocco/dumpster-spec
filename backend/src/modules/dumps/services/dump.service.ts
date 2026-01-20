@@ -425,6 +425,7 @@ export class DumpService {
       });
 
       const savedDump = await this.dumpRepository.save(dump);
+      savedDump.category = category; // Attach category for return value
       processingSteps.push('Dump saved to database');
 
       // TRACK DUMP CREATION FEATURE (Fire-and-Forget)
