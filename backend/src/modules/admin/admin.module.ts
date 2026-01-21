@@ -10,6 +10,7 @@ import { Category } from '../../entities/category.entity';
 import { SearchMetric } from '../../entities/search-metric.entity';
 import { AIMetric } from '../../entities/ai-metric.entity';
 import { FeatureUsage } from '../../entities/feature-usage.entity';
+import { TrackableItem } from '../../entities/trackable-item.entity';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
@@ -22,6 +23,7 @@ import { AuthModule } from '../auth/auth.module';
       SearchMetric,
       AIMetric,
       FeatureUsage,
+      TrackableItem,
     ]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     AuthModule, // Import AuthModule to use JwtAuthGuard and JwtStrategy

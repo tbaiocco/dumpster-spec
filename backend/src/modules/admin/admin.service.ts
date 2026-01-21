@@ -8,6 +8,7 @@ import { Category } from '../../entities/category.entity';
 import { SearchMetric } from '../../entities/search-metric.entity';
 import { AIMetric, AIOperationType } from '../../entities/ai-metric.entity';
 import { FeatureUsage, FeatureType } from '../../entities/feature-usage.entity';
+import { TrackableItem } from '../../entities/trackable-item.entity';
 
 /**
  * Admin Service (UPDATED)
@@ -30,6 +31,8 @@ export class AdminService {
     private readonly aiMetricRepo: Repository<AIMetric>,
     @InjectRepository(FeatureUsage)
     private readonly featureUsageRepo: Repository<FeatureUsage>,
+    @InjectRepository(TrackableItem)
+    private readonly trackableItemRepo: Repository<TrackableItem>,
   ) {}
 
   /**
@@ -277,7 +280,7 @@ export class AdminService {
 
   /**
    * Reject a flagged dump
-   * Permanently deletes the dump from the database
+   * Permanently deletes the dump and all related records from the database
    */
   async rejectDump(dumpId: string, reason: string, notes?: string) {
     const dump = await this.dumpRepository.findOne({ where: { id: dumpId } });
@@ -286,7 +289,24 @@ export class AdminService {
       throw new Error('Dump not found');
     }
 
-    // Delete the dump permanently
+    // Delete related records first to avoid FK constraint violations
+    // 1. Delete trackable items referencing this dump
+    const trackableItems = await this.trackableItemRepo.find({
+      where: { dump_id: dumpId },
+    });
+    if (trackableItems.length > 0) {
+      await this.trackableItemRepo.remove(trackableItems);
+    }
+
+    // 2. Delete reminders referencing this dump
+    const reminders = await this.reminderRepository.find({
+      where: { dump_id: dumpId },
+    });
+    if (reminders.length > 0) {
+      await this.reminderRepository.remove(reminders);
+    }
+
+    // 3. Finally delete the dump itself
     await this.dumpRepository.remove(dump);
 
     return {
@@ -295,6 +315,10 @@ export class AdminService {
       dumpId,
       reason,
       notes,
+      deletedRelated: {
+        trackableItems: trackableItems.length,
+        reminders: reminders.length,
+      },
     };
   }
 
