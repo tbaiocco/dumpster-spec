@@ -351,48 +351,78 @@ export class EmailController {
   /**
    * Create dump entries from processed email
    * Creates one dump per attachment with email body included as content
+   * If no attachments, creates a dump from the email body text
    */
   private async createDumpsFromEmail(processedEmail: any): Promise<any[]> {
     const dumps: any[] = [];
     const userId = await this.getEmailUserId(processedEmail.metadata.sender);
 
-    // Create one dump per attachment, including email body as content
-    for (const attachment of processedEmail.attachments) {
+    // If email has attachments, create one dump per attachment
+    if (processedEmail.attachments && processedEmail.attachments.length > 0) {
+      for (const attachment of processedEmail.attachments) {
+        try {
+          // Determine content type based on MIME type
+          const contentType = this.mapMimeTypeToContentType(
+            attachment.contentType,
+          );
+
+          // Include email body as additional context in the content field
+          const content = processedEmail.extractedText?.trim()
+            ? `${processedEmail.extractedText}\n\n---\nAttachment: ${attachment.filename}`
+            : `Email attachment: ${attachment.filename}`;
+
+          const attachmentDump = await this.dumpService.createDumpEnhanced({
+            userId,
+            content,
+            contentType,
+            mediaBuffer: attachment.content,
+            metadata: {
+              source: 'email',
+              messageId: processedEmail.metadata.messageId,
+              fileName: attachment.filename,
+              mimeType: attachment.contentType,
+              fileSize: attachment.size,
+              chatId: processedEmail.metadata.sender,
+            },
+          });
+
+          dumps.push(attachmentDump.dump);
+          this.logger.log(
+            `Created ${contentType} dump from attachment: ${attachmentDump.dump.id}`,
+          );
+        } catch (error) {
+          this.logger.error(
+            `Failed to process attachment ${attachment.filename}: ${error.message}`,
+          );
+        }
+      }
+    } else if (processedEmail.extractedText?.trim()) {
+      // No attachments but has text content - create text dump
       try {
-        // Determine content type based on MIME type
-        const contentType = this.mapMimeTypeToContentType(
-          attachment.contentType,
-        );
-
-        // Include email body as additional context in the content field
-        const content = processedEmail.extractedText?.trim()
-          ? `${processedEmail.extractedText}\n\n---\nAttachment: ${attachment.filename}`
-          : `Email attachment: ${attachment.filename}`;
-
-        const attachmentDump = await this.dumpService.createDumpEnhanced({
+        const textDump = await this.dumpService.createDumpEnhanced({
           userId,
-          content,
-          contentType,
-          mediaBuffer: attachment.content,
+          content: processedEmail.extractedText,
+          contentType: 'text',
           metadata: {
             source: 'email',
             messageId: processedEmail.metadata.messageId,
-            fileName: attachment.filename,
-            mimeType: attachment.contentType,
-            fileSize: attachment.size,
             chatId: processedEmail.metadata.sender,
           },
         });
 
-        dumps.push(attachmentDump.dump);
+        dumps.push(textDump.dump);
         this.logger.log(
-          `Created ${contentType} dump from attachment: ${attachmentDump.dump.id}`,
+          `Created text dump from email body: ${textDump.dump.id}`,
         );
       } catch (error) {
         this.logger.error(
-          `Failed to process attachment ${attachment.filename}: ${error.message}`,
+          `Failed to process email body text: ${error.message}`,
         );
       }
+    } else {
+      this.logger.warn(
+        `Email ${processedEmail.metadata.messageId} has no attachments and no text content - skipping dump creation`,
+      );
     }
 
     return dumps;
