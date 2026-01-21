@@ -37,6 +37,9 @@ export class Reminder {
   @Column({ type: 'text' })
   message: string;
 
+  @Column({ type: 'text', nullable: true })
+  message_details: string;
+
   @Column({
     type: 'enum',
     enum: ReminderType,

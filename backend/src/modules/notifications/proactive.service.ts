@@ -228,7 +228,8 @@ export class ProactiveService {
           const reminder = await this.reminderService.createReminder({
             userId,
             dumpId: primaryDumpId, // Link reminder to the dump that generated it
-            message: `${insight.title}\n\n${insight.description}`,
+            message: insight.title,
+            messageDetails: insight.description,
             reminderType: this.mapInsightTypeToReminderType(insight.type),
             scheduledFor: insight.suggestedDate,
             aiConfidence: 85, // High confidence from proactive analysis
@@ -425,6 +426,7 @@ Your task is to identify:
 5. **Preparation needs**: Events requiring advance preparation
 
 IMPORTANT: Pay special attention to action items with dates and times. These should ALWAYS generate follow-up reminders.
+The current datetime is ${new Date().toISOString()}, use this to interpret relative dates like "next week" or "in 3 days", if a 'suggestedDate' is in the past then set it to tomorrow at 11:00.
 
 For each insight, provide:
 - type: One of [follow-up, deadline, expiration, recurring-task, preparation]

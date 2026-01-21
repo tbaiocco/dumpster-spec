@@ -33,6 +33,7 @@ export interface DeliveryRequest {
   channel?: NotificationChannel;
   type: NotificationType;
   message: string;
+  messageDetails?: string;
   priority?: 'high' | 'medium' | 'low';
   metadata?: Record<string, any>;
 }
@@ -235,6 +236,19 @@ export class DeliveryService implements DeliveryService {
     user: any,
   ): Promise<DeliveryResult> {
     try {
+      
+      if (user && user.notification_preferences?.email_digest === false) {
+        this.logger.debug(
+          `User ${user.user_id} has disabled email digests. Skipping delivery.`,
+        );
+        return {
+          success: false,
+          channel: NotificationChannel.EMAIL,
+          deliveredAt: new Date(),
+          error: 'Email digests are disabled by user preference',
+        };
+      }
+
       const emailResult = await this.deliverViaEmail(request);
 
       if (emailResult.success) {
@@ -362,21 +376,36 @@ export class DeliveryService implements DeliveryService {
         throw new Error('User does not have WhatsApp configured');
       }
 
-      // Format message based on type
-      const formattedMessage = this.formatMessageForWhatsApp(
-        request.message,
-        request.type,
-      );
+      // If template metadata present on the request, prefer sending a WhatsApp template
+      const asAny = request as any;
+      if (asAny.templateName && Array.isArray(asAny.templateVars)) {
+        this.logger.debug(
+          `Sending WhatsApp template ${asAny.templateName} to user ${request.userId}`,
+        );
 
-      // Send via WhatsApp (using Twilio API format)
-      await this.whatsappService.sendMessage({
-        messaging_product: 'whatsapp',
-        to: user.phone_number,
-        type: 'text',
-        text: {
-          body: formattedMessage,
-        },
-      });
+        await this.whatsappService.sendTemplateMessage({
+          to: user.phone_number,
+          templateName: asAny.templateName,
+          vars: asAny.templateVars,
+          language: asAny.templateLanguage || 'en_US',
+        });
+      } else {
+        // Format message based on type
+        const formattedMessage = this.formatMessageForWhatsApp(
+          request.message,
+          request.type,
+        );
+
+        // Send via WhatsApp (using Twilio API format)
+        await this.whatsappService.sendMessage({
+          messaging_product: 'whatsapp',
+          to: user.phone_number,
+          type: 'text',
+          text: {
+            body: formattedMessage,
+          },
+        });
+      }
 
       return {
         success: true,
@@ -406,8 +435,9 @@ export class DeliveryService implements DeliveryService {
 
       // Format message based on type
       const subject = this.getEmailSubject(request.type);
+      const message = request.message + (request.messageDetails ? `\n\n${request.messageDetails}` : '');
       const formattedMessage = this.formatMessageForEmail(
-        request.message,
+        message,
         request.type,
       );
 

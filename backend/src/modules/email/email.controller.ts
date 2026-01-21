@@ -546,15 +546,8 @@ export class EmailController {
       }));
     }
 
-    // Fallback to attachments array if provided
-    return attachments.map((att) => ({
-      filename: att.filename || att.name || 'unknown',
-      contentType: att.contentType || att.type || 'application/octet-stream',
-      size: att.size || 0,
-      contentId: att.contentId || att.cid,
-      disposition: att.disposition || 'attachment',
-      content: att.content || '',
-    }));
+    // No attachments - return empty array
+    return [];
   }
 
   /**

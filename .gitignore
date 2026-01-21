@@ -48,7 +48,6 @@ backend/config/environments/.env.production
 backend/config/environments/.env.acceptance
 
 # Google Cloud service account keys
-*.json
 backend/config/*.json
 
 # Cache
@@ -95,6 +94,7 @@ Thumbs.db
 # Testing
 jest_0/
 .pytest_cache/
+*.ogg
 
 # Deployment
 .vercel/

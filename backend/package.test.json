@@ -1,0 +1,35 @@
+{
+  "name": "dumpster-backend-testing",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:integration": "jest --config ./test/jest-integration.json",
+    "test:unit": "jest --testPathPattern=spec.ts$",
+    "test:performance": "artillery run test/performance/search-load-test.yml"
+  },
+  "jest": {
+    "moduleFileExtensions": ["js", "json", "ts"],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node",
+    "setupFilesAfterEnv": ["<rootDir>/../test/setup.ts"]
+  },
+  "devDependencies": {
+    "@nestjs/testing": "^10.0.0",
+    "@types/jest": "^29.0.0",
+    "@types/supertest": "^2.0.0",
+    "jest": "^29.0.0",
+    "supertest": "^6.0.0",
+    "ts-jest": "^29.0.0",
+    "artillery": "^2.0.0"
+  }
+}

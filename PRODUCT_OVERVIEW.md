@@ -1,8 +1,8 @@
-# Clutter.AI - Product Overview & Capabilities
+# Clutter.AI - Product Overview & Capabilities (v2.0)
 
 **The Universal Life Inbox Powered by AI**
 
-*Last Updated: December 4, 2025*
+*Last Updated: January 8, 2026*
 
 ---
 
@@ -80,7 +80,7 @@ Our AI automatically identifies and extracts:
 - Context-aware analysis of user intent
 - Sentiment and urgency detection
 - Relationship mapping between people, events, and tasks
-- Multi-language support (English, Portuguese, expandable)
+- Multi-language support (Portuguese, English, Spanish, German, French, Italian - expandable)
 - Handles ambiguity and incomplete information gracefully
 
 **Technical Stack**
@@ -226,7 +226,7 @@ Our AI automatically identifies and extracts:
 ### 7. 🎨 Multi-Modal Processing
 
 **Image Processing**
-- **OCR Technology**: Extract text from photos and screenshots
+- **OCR Technology**: Extract text from photos and screenshots with multi-language support (Portuguese, English, Spanish, German, French, Italian - expandable)
 - **Document Recognition**: Bills, receipts, letters, forms
 - **Handwriting Support**: Handwritten note recognition (basic)
 - **Quality Enhancement**: Automatic image optimization for better OCR
@@ -236,48 +236,71 @@ Our AI automatically identifies and extracts:
 - **Speech-to-Text**: Accurate transcription of voice messages
 - **Speaker Independence**: Works with any user voice/accent
 - **Noise Handling**: Background noise tolerance
-- **Multi-Language**: Supports multiple languages
+- **Multi-Language**: Supports Portuguese (pt-BR), English (en-US), Spanish (es-ES), German (de-DE), French (fr-FR), and Italian (it-IT) - expandable to other languages
 - **Punctuation & Formatting**: Intelligent text formatting
 
 **Document Processing**
-- **PDF Extraction**: Text and data from PDF documents
+- **PDF Extraction**: Text and data from PDF documents (multi-language: Portuguese, English, Spanish, German, French, Italian - expandable)
 - **Email Parsing**: Structured data from forwarded emails
 - **Attachment Handling**: Process files from email forwards
 - **Metadata Extraction**: Dates, senders, subjects from emails
 
 ---
 
-### 8. 📊 Analytics & Admin Dashboard
+### 8. 🎨 User Dashboard
 
-**User Statistics**
-- Total dumps created
-- Category distribution
-- Active reminders count
-- Search query patterns
-- Engagement metrics
+**Personal Organization & Management**
+- View all captured dumps with categorization status
+- Track overdue items and deadlines
+- See upcoming reminders and commitments for today and future
+- Manage account settings and profile information
+- Review and correct AI-misclassified captures (user-facing AI correction)
 
-**System Health Monitoring**
+**Search & Discovery**
+- Full-text search across all personal content
+- Filter by category, date, status, and extracted entities
+- Natural language search with semantic understanding
+- Quick access to recent and frequently searched items
+
+**Feedback & Community**
+- Submit feedback and bug reports directly
+- Upvote and discuss community feedback from other users
+- Track status of reported issues
+- Contribute to product improvement
+
+**Dashboard Access**
+- Web interface at https://my.theclutter.app
+- React + TypeScript frontend
+- Responsive design for desktop and tablet
+- Secure authentication with personal data isolation
+
+---
+
+### 9. 📊 Analytics & Admin Dashboard (Internal)
+
+**⚠️ Internal Tools Only**
+The Analytics & Admin Dashboard is an internal-use tool for the Clutter.AI team to monitor system health, performance, and product metrics. It is **not** used for spying on users or monitoring captured content. Users have full privacy and control over their data.
+
+**System Metrics & Health**
 - AI processing success rates
 - Search performance metrics
 - Reminder delivery statistics
 - Error rates and failure analysis
 - Database performance
+- Infrastructure health
 
-**Admin Capabilities**
-- User management (create, update, delete)
-- Content moderation and review
-- AI misclassification correction
-- System configuration
-- Bulk operations
-- Data export and backup
+**Product Analytics (Aggregate Only)**
+- Total platform statistics (non-identifiable)
+- Feature usage patterns
+- User engagement trends
+- System performance trends
 
-**Dashboard Features** (React + TypeScript)
-- Real-time statistics
-- User search and filtering
-- Content review queue
-- System health indicators
-- Performance analytics
-- Deployment monitoring
+**Admin Team Capabilities**
+- System configuration and maintenance
+- Infrastructure monitoring
+- Error tracking and resolution
+- Data export and backup management
+- Security and compliance monitoring
 
 ---
 
@@ -431,18 +454,25 @@ Our AI automatically identifies and extracts:
 
 ## Roadmap & Future Features
 
-### Phase 1 (Current - MVP)
+Our trajectory now centers on the nine-agent stack that turns Clutter.AI into an executive-function prosthesis.
+
+### Phase 1 (MVP - Complete ✅ 100%)
+**Status**: Ready for Beta Testing
+
 - ✅ WhatsApp/Telegram bot interfaces
 - ✅ AI categorization and entity extraction
-- ✅ Natural language search
-- ✅ Basic reminders
+- ✅ Natural language search with filters
+- ✅ Basic reminders and daily digest
 - ✅ Package tracking
-- ✅ Daily digest
-- ✅ Admin dashboard
+- ✅ User dashboard (https://my.theclutter.app)
+- ✅ Web interface for desktop access
+- ✅ AI misclassification correction (user-facing)
+- ✅ Feedback and bug reporting system
+- ✅ Account management and profile settings
+- ✅ Internal admin dashboard for team monitoring (https://admin.theclutter.app)
 
 ### Phase 2 (Next 3-6 Months) - Platform Expansion
 - 🔄 Mobile apps (iOS/Android)
-- 🔄 Web interface for desktop
 - 🔄 Calendar integration (Google, Apple, Outlook)
 - 🔄 Location-based reminders
 - 🔄 Collaboration features (shared inboxes)
@@ -461,100 +491,110 @@ Transition from **"helping you remember"** to **"removing barriers to action"** 
 
 #### 🤖 Intelligent Agent System
 
-**1. The Concierge Agent (Execution Agent)** 👑
-- **Problem Solved**: Bureaucratic tasks cause procrastination anxiety
-- **How It Works**: AI does the "grunt work" automatically
-- **Example**: User sends electricity bill PDF → Agent extracts payment code, on due date says: *"Here's the payment code ready to paste. Just open your banking app."* (Eliminates 3 manual steps)
+**1. Proactive Agent (System Safety Net)** 🛡️
+- **Problem Solved**: Missed follow-ups and deadlines when no completion signal is detected
+- **How It Works**: Monitors commitments for the *absence* of expected completion signals and intervenes before a miss
+- **Example**: Bill due in 3 days and no payment receipt captured → proactive alert to pay before deadline
 - **Features**:
-  - Automatic bill payment code extraction and formatting
-  - Pre-filled form generation from documents
-  - One-click action preparation
-  - Contextual "ready to execute" notifications
+  - Semantic monitoring of commitments vs completion signals
+  - Forgotten follow-up detection and escalation
+  - Time-window policies for critical items
+  - Alerting with contextual next-best actions
 
-**2. The Task Slicer Agent (Decomposition Agent)** 🔪
-- **Problem Solved**: Vague/large tasks cause paralysis by overwhelm
-- **How It Works**: Breaks projects into micro-actionable steps
-- **Example**: User: *"Need to get visa"* → Agent: *"That's overwhelming! Let me break it down: 1. Find passport (5 min, today), 2. Check consulate website (10 min, tonight), 3. List required documents..."*
+**2. Concierge Agent (Execution)** 👑
+- **Problem Solved**: High-friction, bureaucratic steps block initiation
+- **How It Works**: Prepares the busywork so the user can finish with one click
+- **Example**: Utility bill PDF → extracts payment code/amount/due date and readies a paste-and-pay action
 - **Features**:
-  - Automatic detection of vague tasks ("organize", "plan", "fix")
-  - AI-generated step-by-step action plans
-  - Time estimates per micro-step
-  - Progress tracking with dopamine-friendly checkpoints
+  - Vision AI/OCR and structured data extraction
+  - Pre-filled forms and action snippets
+  - One-click execution handoff
+  - Contextual prompts at the right moment
 
-**3. The Time Blindness Corrector Agent** ⏳
-- **Problem Solved**: Chronic lateness from underestimating preparation/travel time
-- **How It Works**: Calculates "Real Departure Time" vs "Event Time"
-- **Example**: Meeting at 2pm → Agent: *"With 30min traffic + 20min getting ready, your REAL departure time is 1:10pm. I'll send a critical alert then."*
+**3. Decomposer Agent (Planning)** 🔪
+- **Problem Solved**: Vague, overwhelming tasks cause paralysis
+- **How It Works**: Turns fuzzy goals into sequenced, bite-sized steps with estimates
+- **Example**: "Apply for Visa" → checklist of passport, consulate requirements, appointment scheduling
 - **Features**:
-  - Traffic/transit integration (Google Maps API)
-  - Preparation time learning (adapts to user patterns)
-  - "Action Hour" vs "Event Hour" translation
-  - Escalating alert system for critical deadlines
+  - Heuristic detection of vague verbs (plan/organize/handle)
+  - Goal-oriented step generation with time/effort estimates
+  - Progress tracking and checkpointing
+  - Dopamine-friendly milestone surfacing
 
-**4. The Body Doubling Agent (Focus Companion)** 🤝
-- **Problem Solved**: Difficulty maintaining focus without accountability
-- **How It Works**: Simulates presence of a work partner
-- **Example**: Agent: *"You said you'd work on the report now. I'll stay quiet here. Check-in in 20 minutes to keep you on track."*
+**4. Temporal Agent (Time Management)** ⏳
+- **Problem Solved**: Time blindness and late departures
+- **How It Works**: Computes "Time to Act" by combining prep + travel + buffers
+- **Example**: 14:00 meeting → prep 20m + travel 30m → critical alert at 13:10
 - **Features**:
-  - Silent presence mode during focus sessions
-  - Gentle check-ins without breaking flow
-  - Celebration of completed focus blocks
-  - Distraction detection and soft redirects
+  - Calendar + maps/traffic integration
+  - Personalized prep-time learning
+  - Action-time vs event-time translation
+  - Escalating, contextual alerts
 
-**5. The Energy Mediator Agent (Conflict Manager)** ⚖️
-- **Problem Solved**: Over-scheduling without considering energy/recovery time
-- **How It Works**: Cross-references calendar with effort load
-- **Example**: User wants to book dentist Tuesday 2pm → Agent: *"Warning: You have a draining 1:30pm call. Will you have energy + travel time? Try Thursday instead?"*
+**5. Mediator Agent (Conflict Resolution & Load Balancing)** ⚖️
+- **Problem Solved**: Over-commitment and energy burn
+- **How It Works**: Screens new commitments against calendar density and mental load
+- **Example**: Tries to book dentist after a high-effort call → recommends rescheduling to protect energy
 - **Features**:
-  - Energy expenditure tracking per task type
-  - Buffer time recommendations
-  - Conflict detection (time + energy)
-  - Recovery period suggestions
+  - Effort scoring on events/tasks
+  - Buffer and recovery time recommendations
+  - Conflict detection across time + energy
+  - Smart “are you sure?” gatekeeping
 
-**6. The Dopamine Engine (Gamification Agent)** 🍬
-- **Problem Solved**: Demotivation from seeing overwhelming task lists
-- **How It Works**: "Only 3 Things Today" focus mode
-- **Example**: Agent: *"Today looks chaotic. Let's hide everything except these 3 critical tasks. Complete these = you won today!"*
+**6. Dopamine Agent (Motivation)** 🍬
+- **Problem Solved**: Overwhelm from long lists; motivation dips
+- **How It Works**: Filters to “Only 3 Things” and celebrates wins with varied positive feedback
+- **Example**: Hides non-critical tasks, spotlights the top 3, and celebrates completion with lightweight rewards
 - **Features**:
-  - Dynamic priority selection (AI-powered)
-  - Visual clutter reduction (hide non-urgent items)
-  - Variable reward celebrations (keeps dopamine fresh)
-  - Streak tracking without pressure
+  - Priority filtration and clutter reduction
+  - Variable reinforcement and streaks (low-pressure)
+  - Urgency/impact-aware task surfacing
+  - Mood-friendly copy and visuals
 
-**7. The Memory Rescue Agent (Short-term Memory Support)** 🔍
-- **Problem Solved**: Opening app to capture something, getting distracted, forgetting intent
-- **How It Works**: Detects abandoned capture attempts
-- **Example**: After 5min of inactivity: *"Hey, you opened the app but didn't write anything. Still remember what it was, or did it escape?"*
+**7. Focus Agent (Accountability / Body Doubling)** 🤝
+- **Problem Solved**: Hard to start/maintain focus without accountability
+- **How It Works**: Provides silent companionship with timed check-ins
+- **Example**: Starts a 20-minute block, stays quiet, checks in at the end with a gentle prompt
 - **Features**:
-  - Inactivity detection after app open
-  - Gentle prompts without judgment
-  - "Last thought" recovery suggestions
-  - Pattern recognition (common distraction triggers)
+  - Focus-session timers and soft check-ins
+  - Non-judgmental, supportive scripting
+  - Distraction nudges without breaking flow
+  - Lightweight completion acknowledgments
 
-**8. The Family Coordinator Agent (Multi-user Orchestration)** 🏠
-- **Problem Solved**: Household chaos with overlapping schedules
-- **How It Works**: Cross-calendar conflict detection and resolution
-- **Example**: *"Alert: Pedro has swim class AND Ana has doctor appointment tomorrow at 4pm. Who's taking whom?"*
+**8. Recall Agent (Memory/Capture Rescue)** 🔍
+- **Problem Solved**: Lost intent when a capture is abandoned mid-flow
+- **How It Works**: Detects incomplete capture sessions and prompts to recover the thought
+- **Example**: Opened chat to dump, got distracted, no message sent → prompt asks if they still want to save it (with contextual hint)
 - **Features**:
-  - Multi-user calendar integration
-  - Automatic conflict detection
-  - Shared responsibility distribution
-  - Fair workload balancing suggestions
+  - Session/inactivity detection during capture
+  - Contextual hinting (recent activity/clipboard, with permission)
+  - Gentle reminders to finish the dump
+  - Short-term intent recovery
+
+**9. Household Agent (Multi-User Coordination)** 🏠
+- **Problem Solved**: Household/team schedule conflicts and logistics
+- **How It Works**: Cross-references linked calendars to prevent clashes and auto-assigns responsibilities
+- **Example**: Two overlapping kid events → suggests who takes which, based on availability and history
+- **Features**:
+  - Multi-user calendar and task graph
+  - Conflict detection and resolution suggestions
+  - Fair workload balancing and rotation
+  - Shared task assignment and reminders
 
 #### 🎮 Agentic Activation Modes
 
 **Event-Driven Agents**
-- Trigger immediately on content capture (Task Slicer, Concierge)
-- Real-time response to user actions
+- Trigger on capture/context changes (Proactive, Concierge, Decomposer, Recall)
+- Real-time response to new dumps or missing completion signals
 
 **Time-Based Agents**
-- Scheduled calculations (Time Blindness Corrector)
-- Morning "3 Things Only" digest (Dopamine Engine)
-- Pre-event preparation reminders
+- Scheduled calculations (Temporal “Time to Act”)
+- Morning "Only 3 Things" digest and motivation nudges (Dopamine)
+- Focus session timers and check-ins (Focus)
 
 **Polling Agents**
-- Continuous monitoring (traffic, package tracking)
-- Background status checks without user action
+- Continuous monitoring of traffic, schedules, and conflicts (Temporal, Mediator, Household)
+- Background status checks for pending completion signals (Proactive)
 
 #### 🎯 Target Impact
 - **For ADHD Users**: Eliminates executive function gaps
@@ -810,6 +850,12 @@ External Services
 - Expand customer acquisition channels
 - Hire 2-3 engineers + product designer
 - Professional marketing and branding
+- **Phase 3 Implementation**: Agentic AI Transformation
+  - Task Slicer Agent and Concierge Agent development
+  - Time Blindness Corrector and Body Doubling agents
+  - Energy Mediator and Dopamine Engine
+  - Memory Rescue and Family Coordinator agents
+  - Custom fine-tuning of AI models for agentic behaviors
 
 **Growth Stage ($1M-$2M Series A)**
 - International expansion
@@ -821,20 +867,23 @@ External Services
 
 ### Use of Funds Breakdown
 
-**Technology & Product (50%)**
-- Mobile app development
-- AI model improvements
+**Technology & Product (55%)**
+- Mobile app development (iOS/Android)
+- Phase 3 Agentic AI system development
+- Custom AI agent fine-tuning and training
 - Infrastructure scaling
 - Security and compliance enhancements
+- Vector database optimization for agent reasoning
 
-**Marketing & Growth (30%)**
+**Marketing & Growth (25%)**
 - User acquisition campaigns
 - Content marketing and SEO
 - Partnership development
 - Brand building
 
 **Team (15%)**
-- Engineering talent
+- AI/ML engineers (agentic AI specialists)
+- Backend engineers
 - Product management
 - Customer support
 - Sales and marketing
@@ -850,6 +899,8 @@ External Services
 
 ### User Feedback (Beta Testing)
 
+**📝 Placeholder Testimonials** *(To be updated with actual user feedback during beta phase)*
+
 > *"Finally, a tool that works how my brain works. I just dump everything and it handles the rest."*  
 > — Sarah M., Product Manager
 
@@ -861,11 +912,12 @@ External Services
 
 ### Market Validation
 
-- Beta testing with 150 users
-- 78% daily active user rate
-- 4.8/5 average satisfaction score
-- 92% would recommend to others
-- Users save average 45 minutes/day on organization
+**📊 Early Metrics** *(Beta testing phase - feedback forms pending)*
+
+- Currently in active beta testing phase
+- Collecting user feedback and metrics
+- Formal survey and feedback collection coming
+- Expected metrics from completed beta cycle to follow
 
 ---
 
@@ -880,8 +932,8 @@ External Services
 - Discuss partnership opportunities
 
 **For Users**
-- Join waitlist for early access
-- Participate in beta testing
+- Register yourself at https://theclutter.app and start using!
+- **It is totally free during the beta-testing phase!!!**
 - Provide feedback and suggestions
 - Refer friends and colleagues
 
@@ -893,8 +945,8 @@ External Services
 
 ### Connect With Us
 
-- **Website**: clutterai.com (planned)
-- **Email**: hello@clutterai.com
+- **Website**: https://theclutter.app
+- **Email**: info@theclutter.app
 - **Demo**: Schedule a live walkthrough
 - **Documentation**: Full technical specs available
 - **GitHub**: Open-source components available
