@@ -49,6 +49,16 @@ export class UserService {
       );
     }
 
+    const existingUserByEmail = await this.userRepository.findOne({
+      where: { email: createUserDto.email },
+    });
+
+    if (existingUserByEmail) {
+      throw new BadRequestException(
+        'User with this email already exists',
+      );
+    }
+
     // Normalize language code to base language (e.g., pt-BR -> pt, en-US -> en)
     const normalizedLanguage = createUserDto.language
       ? createUserDto.language.split('-')[0].toLowerCase()
